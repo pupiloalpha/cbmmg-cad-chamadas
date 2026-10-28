@@ -33,6 +33,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   const [salvoMsg, setSalvoMsg] = useState(false);
   const [testeStatus, setTesteStatus] = useState<string | null>(null);
   const [testando, setTestando] = useState(false);
+  const [confirmandoReset, setConfirmandoReset] = useState(false);
 
   if (!isOpen) return null;
 
@@ -64,8 +65,6 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
       setTestando(false);
     }
   };
-
-  const [confirmandoReset, setConfirmandoReset] = useState(false);
 
   const handleResetar = () => {
     const dados = restaurarDadosPadrao();

@@ -2,5 +2,7 @@
   "name": "CBMMG CAD - Dashboard Operacional",
   "description": "PWA para acompanhamento operacional em tempo real das chamadas e recursos ativos do Corpo de Bombeiros Militar de Minas Gerais (CBMMG).",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
