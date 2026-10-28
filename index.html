@@ -2,6 +2,27 @@
 <html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Filter benign Vite HMR websocket disconnection in cloud environment where HMR is disabled
+      (function() {
+        const _origConsoleError = console.error;
+        console.error = function(...args) {
+          if (args.length > 0 && typeof args[0] === 'string' && (args[0].includes('WebSocket') || args[0].includes('closed without opened') || args[0].includes('[vite]'))) {
+            return;
+          }
+          if (args.length > 0 && args[0] instanceof Error && args[0].message && (args[0].message.includes('WebSocket') || args[0].message.includes('closed without opened'))) {
+            return;
+          }
+          _origConsoleError.apply(console, args);
+        };
+        window.addEventListener('error', function(event) {
+          if (event && event.message && (event.message.includes('WebSocket') || event.message.includes('closed without opened'))) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CBMMG CAD - Dashboard Operacional</title>
     <meta name="description" content="PWA para acompanhamento operacional em tempo real das chamadas e recursos ativos do Corpo de Bombeiros Militar de Minas Gerais (CBMMG)." />

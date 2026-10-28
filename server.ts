@@ -161,6 +161,7 @@ async function startServer() {
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
+      configFile: path.resolve(__dirname, 'vite.config.ts'),
       server: { middlewareMode: true, port, hmr: false, watch: null },
       appType: 'spa',
     });
