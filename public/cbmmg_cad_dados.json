@@ -1,0 +1,962 @@
+{
+  "dataset": "chamadas",
+  "fonte": "banco",
+  "atualizado_em": "2026-10-28T19:08:01.669Z",
+  "total": 21,
+  "dados": [
+    {
+      "idChamada": "2026-0049102",
+      "numeroOcorrencia": "O-2026-049102",
+      "dataHoraAbertura": "2026-10-28T18:44:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "NL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 102,
+      "codigoNatureza": "A0102",
+      "descricaoNatureza": "Incêndio em Edificação Residencial",
+      "grupoNatureza": "Incêndio",
+      "endereco": {
+        "logradouro": "Avenida Amazonas",
+        "numero": "2150",
+        "bairro": "Prado",
+        "municipio": "Belo Horizonte",
+        "uf": "MG",
+        "referencia": "Próximo ao Colégio Pio XII"
+      },
+      "latitude": -19.9272,
+      "longitude": -43.9575,
+      "cob": "1º COB",
+      "bbm": "1º BBM",
+      "idUnidadeServico": 101,
+      "nomeUnidade": "1º BBM - Belo Horizonte Sul",
+      "recursos": [
+        {
+          "idRecurso": 1011,
+          "prefixo": "ABT-22",
+          "tipo": "Auto Bomba Tanque",
+          "placaMeioMaterial": "PUP-1930",
+          "dataHoraAtivacao": "2026-10-28T18:48:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 4,
+          "unidadeNome": "1º BBM"
+        },
+        {
+          "idRecurso": 1012,
+          "prefixo": "ABS-14",
+          "tipo": "Auto Bomba Salvamento",
+          "dataHoraAtivacao": "2026-10-28T18:50:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 3,
+          "unidadeNome": "1º BBM"
+        },
+        {
+          "idRecurso": 1013,
+          "prefixo": "UR-45",
+          "tipo": "Unidade de Resgate",
+          "dataHoraAtivacao": "2026-10-28T18:53:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 3,
+          "unidadeNome": "1º BBM"
+        }
+      ],
+      "totalBombeiros": 10,
+      "tempoDecorridoMinutos": 24,
+      "historicoObservacoes": [
+        "193: Solicitante informa fumaça densa no 3º pavimento.",
+        "Despachadas guarnições de combate a incêndio e resgate.",
+        "Guarnição no local confirma foco na cozinha; combate com linha direta iniciado."
+      ],
+      "orgaoApoio": "CEMIG / PMMG"
+    },
+    {
+      "idChamada": "2026-0049108",
+      "numeroOcorrencia": "O-2026-049108",
+      "dataHoraAbertura": "2026-10-28T18:56:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "ED",
+      "codigoOrigemChamada": "I",
+      "prioridade": "Alta",
+      "idNatureza": 201,
+      "codigoNatureza": "B0201",
+      "descricaoNatureza": "Acidente de Trânsito com Vítima Presa às Ferragens",
+      "grupoNatureza": "Salvamento e Resgate",
+      "endereco": {
+        "logradouro": "Rodovia Fernão Dias, BR-381, Km 485",
+        "bairro": "Jardim Riacho das Pedras",
+        "municipio": "Contagem",
+        "uf": "MG",
+        "referencia": "Sentido SP, próximo à Carretas Noma"
+      },
+      "latitude": -19.9678,
+      "longitude": -44.0621,
+      "cob": "1º COB",
+      "bbm": "2º BBM",
+      "idUnidadeServico": 102,
+      "nomeUnidade": "2º BBM - Contagem e Betim",
+      "recursos": [
+        {
+          "idRecurso": 1021,
+          "prefixo": "AR-08",
+          "tipo": "Auto Resgate / Desencarcerador",
+          "dataHoraAtivacao": "2026-10-28T19:00:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "ED",
+          "componentes": 3,
+          "unidadeNome": "2º BBM"
+        },
+        {
+          "idRecurso": 1022,
+          "prefixo": "UR-18",
+          "tipo": "Unidade de Resgate",
+          "dataHoraAtivacao": "2026-10-28T19:00:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "ED",
+          "componentes": 3,
+          "unidadeNome": "2º BBM"
+        },
+        {
+          "idRecurso": 1023,
+          "prefixo": "BOA-02",
+          "tipo": "Arcanjo - Operações Aéreas",
+          "dataHoraAtivacao": "2026-10-28T19:03:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "AC",
+          "componentes": 4,
+          "unidadeNome": "BOA"
+        }
+      ],
+      "totalBombeiros": 10,
+      "tempoDecorridoMinutos": 12,
+      "historicoObservacoes": [
+        "Integração Arteris Fernão Dias: colisão lateral caminhão x veículo de passeio.",
+        "Condutor preso às ferragens inconsciente. Solicitado apoio da aeronave Arcanjo 02."
+      ],
+      "orgaoApoio": "SAMU 192 / PRF / Arteris"
+    },
+    {
+      "idChamada": "2026-0049095",
+      "numeroOcorrencia": "O-2026-049095",
+      "dataHoraAbertura": "2026-10-28T18:10:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "EC",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 101,
+      "codigoNatureza": "A0101",
+      "descricaoNatureza": "Incêndio em Vegetação / Florestal",
+      "grupoNatureza": "Incêndio",
+      "endereco": {
+        "logradouro": "Serra do Rola Moça",
+        "bairro": "Barreiro de Cima",
+        "municipio": "Belo Horizonte",
+        "uf": "MG",
+        "referencia": "Acesso pelo Mirante dos Veados"
+      },
+      "latitude": -20.0381,
+      "longitude": -44.0205,
+      "cob": "1º COB",
+      "bbm": "BEMAD",
+      "idUnidadeServico": 199,
+      "nomeUnidade": "BEMAD - Emergências Ambientais",
+      "recursos": [
+        {
+          "idRecurso": 1991,
+          "prefixo": "ACF-04",
+          "tipo": "Auto Combate Florestal",
+          "dataHoraAtivacao": "2026-10-28T18:16:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "EC",
+          "componentes": 4,
+          "unidadeNome": "BEMAD"
+        },
+        {
+          "idRecurso": 1992,
+          "prefixo": "ACF-09",
+          "tipo": "Auto Combate Florestal",
+          "dataHoraAtivacao": "2026-10-28T18:23:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "EC",
+          "componentes": 4,
+          "unidadeNome": "BEMAD"
+        }
+      ],
+      "totalBombeiros": 8,
+      "tempoDecorridoMinutos": 58,
+      "historicoObservacoes": [
+        "Foco de incêndio rasteiro em vegetação nativa próximo a aceiro.",
+        "Combate com sopradores e mochilas costais. Fogo controlado, em fase de rescaldo."
+      ],
+      "orgaoApoio": "IEF / Guarda Florestal"
+    },
+    {
+      "idChamada": "2026-0049115",
+      "numeroOcorrencia": "O-2026-049115",
+      "dataHoraAbertura": "2026-10-28T19:03:01.668Z",
+      "codigoSituacaoChamada": "A",
+      "codigoSituacaoAtendimentoChamada": "CL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 301,
+      "codigoNatureza": "C0301",
+      "descricaoNatureza": "Parada Cardiorrespiratória (PCR)",
+      "grupoNatureza": "Atendimento Pré-Hospitalar",
+      "endereco": {
+        "logradouro": "Avenida Cristiano Machado",
+        "numero": "11800",
+        "bairro": "Vila Clóris",
+        "municipio": "Belo Horizonte",
+        "uf": "MG",
+        "referencia": "Próximo à Estação Vilarinho do Metrô"
+      },
+      "latitude": -19.8242,
+      "longitude": -43.9482,
+      "cob": "1º COB",
+      "bbm": "3º BBM",
+      "idUnidadeServico": 103,
+      "nomeUnidade": "3º BBM - Belo Horizonte Norte",
+      "recursos": [],
+      "totalBombeiros": 0,
+      "tempoDecorridoMinutos": 5,
+      "historicoObservacoes": [
+        "193: Vítima idosa inconsciente, sem pulso palpável.",
+        "Médico regulador passando instruções de RCP pelo telefone.",
+        "Aguardando despacho imediato de UR do 3º BBM."
+      ],
+      "orgaoApoio": "SAMU 192"
+    },
+    {
+      "idChamada": "2026-0049119",
+      "numeroOcorrencia": "O-2026-049119",
+      "dataHoraAbertura": "2026-10-28T18:30:01.668Z",
+      "codigoSituacaoChamada": "A",
+      "codigoSituacaoAtendimentoChamada": "CL",
+      "codigoOrigemChamada": "B",
+      "prioridade": "Média",
+      "idNatureza": 501,
+      "codigoNatureza": "E0501",
+      "descricaoNatureza": "Captura de Serpente Peçonhenta em Residência",
+      "grupoNatureza": "Fauna e Meio Ambiente",
+      "endereco": {
+        "logradouro": "Rua Pernambuco",
+        "numero": "450",
+        "bairro": "Centro",
+        "municipio": "Divinópolis",
+        "uf": "MG"
+      },
+      "latitude": -20.1412,
+      "longitude": -44.8876,
+      "cob": "1º COB",
+      "bbm": "10º BBM",
+      "idUnidadeServico": 110,
+      "nomeUnidade": "10º BBM - Divinópolis",
+      "recursos": [],
+      "totalBombeiros": 0,
+      "tempoDecorridoMinutos": 38,
+      "historicoObservacoes": [
+        "Serpente jararaca localizada no quintal de residência habitada.",
+        "Animal isolado pelo morador, aguardando guarnição disponível."
+      ]
+    },
+    {
+      "idChamada": "2026-0049080",
+      "numeroOcorrencia": "O-2026-049080",
+      "dataHoraAbertura": "2026-10-28T18:26:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "NL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 601,
+      "codigoNatureza": "F0601",
+      "descricaoNatureza": "Vazamento de GLP com Fogo / Risco de Explosão",
+      "grupoNatureza": "Produtos Perigosos",
+      "endereco": {
+        "logradouro": "Avenida Rondon Pacheco",
+        "numero": "3200",
+        "bairro": "Tibery",
+        "municipio": "Uberlândia",
+        "uf": "MG",
+        "referencia": "Restaurante comercial"
+      },
+      "latitude": -18.9142,
+      "longitude": -48.2612,
+      "cob": "2º COB",
+      "bbm": "8º BBM",
+      "idUnidadeServico": 208,
+      "nomeUnidade": "8º BBM - Uberlândia",
+      "recursos": [
+        {
+          "idRecurso": 2081,
+          "prefixo": "ABT-05",
+          "tipo": "Auto Bomba Tanque",
+          "dataHoraAtivacao": "2026-10-28T18:32:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 4,
+          "unidadeNome": "8º BBM"
+        },
+        {
+          "idRecurso": 2082,
+          "prefixo": "ABS-03",
+          "tipo": "Auto Bomba Salvamento",
+          "dataHoraAtivacao": "2026-10-28T18:32:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 3,
+          "unidadeNome": "8º BBM"
+        }
+      ],
+      "totalBombeiros": 7,
+      "tempoDecorridoMinutos": 42,
+      "historicoObservacoes": [
+        "Vazamento na central de gás P45. Estabelecido perímetro de segurança de 100m.",
+        "Guarnições em resfriamento dos cilindros adjacentes."
+      ],
+      "orgaoApoio": "Defesa Civil / PMMG"
+    },
+    {
+      "idChamada": "2026-0049071",
+      "numeroOcorrencia": "O-2026-049071",
+      "dataHoraAbertura": "2026-10-28T17:33:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "DP",
+      "codigoOrigemChamada": "I",
+      "prioridade": "Média",
+      "idNatureza": 104,
+      "codigoNatureza": "A0104",
+      "descricaoNatureza": "Incêndio em Veículo Automotor",
+      "grupoNatureza": "Incêndio",
+      "endereco": {
+        "logradouro": "BR-050, Km 142",
+        "bairro": "Zona Rural",
+        "municipio": "Uberaba",
+        "uf": "MG"
+      },
+      "latitude": -19.721,
+      "longitude": -47.982,
+      "cob": "2º COB",
+      "bbm": "5º BBM",
+      "idUnidadeServico": 205,
+      "nomeUnidade": "5º BBM - Uberaba",
+      "recursos": [
+        {
+          "idRecurso": 2051,
+          "prefixo": "ABT-12",
+          "tipo": "Auto Bomba Tanque",
+          "dataHoraAtivacao": "2026-10-28T18:53:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "DP",
+          "componentes": 3,
+          "unidadeNome": "5º BBM"
+        }
+      ],
+      "totalBombeiros": 3,
+      "tempoDecorridoMinutos": 95,
+      "historicoObservacoes": [
+        "Caminhão tanque vazio em chamas no acostamento.",
+        "Sem vítimas. Pista parcialmente interditada."
+      ],
+      "orgaoApoio": "Eco050 / PRF"
+    },
+    {
+      "idChamada": "2026-0049122",
+      "numeroOcorrencia": "O-2026-049122",
+      "dataHoraAbertura": "2026-10-28T18:49:01.668Z",
+      "codigoSituacaoChamada": "A",
+      "codigoSituacaoAtendimentoChamada": "CL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Baixa",
+      "idNatureza": 403,
+      "codigoNatureza": "D0403",
+      "descricaoNatureza": "Queda de Árvore sobre Residência ou Via Arterial",
+      "grupoNatureza": "Proteção e Defesa Civil",
+      "endereco": {
+        "logradouro": "Rua Major Jerônimo",
+        "numero": "780",
+        "bairro": "Centro",
+        "municipio": "Patos de Minas",
+        "uf": "MG"
+      },
+      "latitude": -18.5832,
+      "longitude": -46.514,
+      "cob": "2º COB",
+      "bbm": "5º BBM",
+      "ciaInd": "10ª Cia Ind",
+      "idUnidadeServico": 210,
+      "nomeUnidade": "10ª Cia Ind - Patos de Minas",
+      "recursos": [],
+      "totalBombeiros": 0,
+      "tempoDecorridoMinutos": 19,
+      "historicoObservacoes": [
+        "Árvore de grande porte caiu sobre fiação elétrica e obstruiu a via."
+      ],
+      "orgaoApoio": "CEMIG"
+    },
+    {
+      "idChamada": "2026-0049065",
+      "numeroOcorrencia": "O-2026-049065",
+      "dataHoraAbertura": "2026-10-28T17:58:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "NL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 202,
+      "codigoNatureza": "B0202",
+      "descricaoNatureza": "Salvamento Aquático / Afogamento em Andamento",
+      "grupoNatureza": "Salvamento e Resgate",
+      "endereco": {
+        "logradouro": "Rio Paraibuna, margem direita",
+        "bairro": "Poço Rico",
+        "municipio": "Juiz de Fora",
+        "uf": "MG",
+        "referencia": "Próximo à Ponte de Santa Terezinha"
+      },
+      "latitude": -21.7588,
+      "longitude": -43.3421,
+      "cob": "3º COB",
+      "bbm": "4º BBM",
+      "idUnidadeServico": 304,
+      "nomeUnidade": "4º BBM - Juiz de Fora",
+      "recursos": [
+        {
+          "idRecurso": 3041,
+          "prefixo": "ABS-07",
+          "tipo": "Auto Bomba Salvamento",
+          "dataHoraAtivacao": "2026-10-28T18:06:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 3,
+          "unidadeNome": "4º BBM"
+        },
+        {
+          "idRecurso": 3042,
+          "prefixo": "UR-14",
+          "tipo": "Unidade de Resgate",
+          "dataHoraAtivacao": "2026-10-28T18:06:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 3,
+          "unidadeNome": "4º BBM"
+        },
+        {
+          "idRecurso": 3043,
+          "prefixo": "BS-01",
+          "tipo": "Barco de Salvamento com Motor",
+          "dataHoraAtivacao": "2026-10-28T18:13:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 2,
+          "unidadeNome": "4º BBM"
+        }
+      ],
+      "totalBombeiros": 8,
+      "tempoDecorridoMinutos": 70,
+      "historicoObservacoes": [
+        "Transeuntes viram rapaz submergir e não retornar.",
+        "Equipe de mergulho autônomo do 4º BBM em varredura no leito do rio."
+      ],
+      "orgaoApoio": "PMMG"
+    },
+    {
+      "idChamada": "2026-0049090",
+      "numeroOcorrencia": "O-2026-049090",
+      "dataHoraAbertura": "2026-10-28T18:35:01.668Z",
+      "codigoSituacaoChamada": "A",
+      "codigoSituacaoAtendimentoChamada": "CL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 401,
+      "codigoNatureza": "D0401",
+      "descricaoNatureza": "Risco Iminente de Desabamento / Colapso",
+      "grupoNatureza": "Proteção e Defesa Civil",
+      "endereco": {
+        "logradouro": "Rua Getúlio Vargas",
+        "numero": "112",
+        "bairro": "Centro Histórico",
+        "municipio": "São João del-Rei",
+        "uf": "MG"
+      },
+      "latitude": -21.1374,
+      "longitude": -44.2589,
+      "cob": "3º COB",
+      "bbm": "4º BBM",
+      "ciaInd": "3ª Cia Ind",
+      "idUnidadeServico": 303,
+      "nomeUnidade": "3ª Cia Ind - São João del-Rei",
+      "recursos": [],
+      "totalBombeiros": 0,
+      "tempoDecorridoMinutos": 33,
+      "historicoObservacoes": [
+        "Muro de contenção de pedra colonial cedendo após chuva torrencial.",
+        "Moradores evacuando preventivamente."
+      ],
+      "orgaoApoio": "Defesa Civil Municipal"
+    },
+    {
+      "idChamada": "2026-0049098",
+      "numeroOcorrencia": "O-2026-049098",
+      "dataHoraAbertura": "2026-10-28T18:40:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "ED",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Média",
+      "idNatureza": 204,
+      "codigoNatureza": "B0204",
+      "descricaoNatureza": "Resgate de Pessoa Presa em Elevador",
+      "grupoNatureza": "Salvamento e Resgate",
+      "endereco": {
+        "logradouro": "Rua Quinze de Novembro",
+        "numero": "89",
+        "bairro": "Centro",
+        "municipio": "Barbacena",
+        "uf": "MG"
+      },
+      "latitude": -21.2265,
+      "longitude": -43.7728,
+      "cob": "3º COB",
+      "bbm": "4º BBM",
+      "ciaInd": "7ª Cia Ind",
+      "idUnidadeServico": 307,
+      "nomeUnidade": "7ª Cia Ind - Barbacena",
+      "recursos": [
+        {
+          "idRecurso": 3071,
+          "prefixo": "ABS-02",
+          "tipo": "Auto Bomba Salvamento",
+          "dataHoraAtivacao": "2026-10-28T18:52:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "ED",
+          "componentes": 3,
+          "unidadeNome": "7ª Cia Ind"
+        }
+      ],
+      "totalBombeiros": 3,
+      "tempoDecorridoMinutos": 28,
+      "historicoObservacoes": [
+        "Dois ocupantes presos entre o 4º e 5º andar de prédio comercial.",
+        "Vítimas calmas, sem ferimentos."
+      ]
+    },
+    {
+      "idChamada": "2026-0049052",
+      "numeroOcorrencia": "O-2026-049052",
+      "dataHoraAbertura": "2026-10-28T17:13:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "NL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 101,
+      "codigoNatureza": "A0101",
+      "descricaoNatureza": "Incêndio em Vegetação / Florestal",
+      "grupoNatureza": "Incêndio",
+      "endereco": {
+        "logradouro": "Parque Estadual da Lapa Grande",
+        "bairro": "Zona Rural",
+        "municipio": "Montes Claros",
+        "uf": "MG"
+      },
+      "latitude": -16.735,
+      "longitude": -43.921,
+      "cob": "4º COB",
+      "bbm": "7º BBM",
+      "idUnidadeServico": 407,
+      "nomeUnidade": "7º BBM - Montes Claros",
+      "recursos": [
+        {
+          "idRecurso": 4071,
+          "prefixo": "ACF-02",
+          "tipo": "Auto Combate Florestal",
+          "dataHoraAtivacao": "2026-10-28T17:33:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 4,
+          "unidadeNome": "7º BBM"
+        },
+        {
+          "idRecurso": 4072,
+          "prefixo": "ABT-09",
+          "tipo": "Auto Bomba Tanque",
+          "dataHoraAtivacao": "2026-10-28T17:48:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 3,
+          "unidadeNome": "7º BBM"
+        }
+      ],
+      "totalBombeiros": 7,
+      "tempoDecorridoMinutos": 115,
+      "historicoObservacoes": [
+        "Incêndio em cerrado denso com vento forte.",
+        "Trabalho conjunto com brigadistas voluntários e IEF."
+      ],
+      "orgaoApoio": "IEF"
+    },
+    {
+      "idChamada": "2026-0049130",
+      "numeroOcorrencia": "O-2026-049130",
+      "dataHoraAbertura": "2026-10-28T18:50:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "DP",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 201,
+      "codigoNatureza": "B0201",
+      "descricaoNatureza": "Acidente de Trânsito com Vítima Presa às Ferragens",
+      "grupoNatureza": "Salvamento e Resgate",
+      "endereco": {
+        "logradouro": "BR-251, Km 510",
+        "bairro": "Entroncamento Salinas",
+        "municipio": "Montes Claros",
+        "uf": "MG"
+      },
+      "latitude": -16.589,
+      "longitude": -43.684,
+      "cob": "4º COB",
+      "bbm": "7º BBM",
+      "idUnidadeServico": 407,
+      "nomeUnidade": "7º BBM - Montes Claros",
+      "recursos": [
+        {
+          "idRecurso": 4073,
+          "prefixo": "UR-29",
+          "tipo": "Unidade de Resgate",
+          "dataHoraAtivacao": "2026-10-28T18:58:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "DP",
+          "componentes": 3,
+          "unidadeNome": "7º BBM"
+        },
+        {
+          "idRecurso": 4074,
+          "prefixo": "AR-05",
+          "tipo": "Auto Resgate",
+          "dataHoraAtivacao": "2026-10-28T18:58:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "DP",
+          "componentes": 3,
+          "unidadeNome": "7º BBM"
+        }
+      ],
+      "totalBombeiros": 6,
+      "tempoDecorridoMinutos": 18,
+      "historicoObservacoes": [
+        "Colisão frontal entre van e caminhão boiadeiro. Múltiplas vítimas."
+      ],
+      "orgaoApoio": "SAMU 192 / PRF"
+    },
+    {
+      "idChamada": "2026-0049135",
+      "numeroOcorrencia": "O-2026-049135",
+      "dataHoraAbertura": "2026-10-28T18:22:01.668Z",
+      "codigoSituacaoChamada": "A",
+      "codigoSituacaoAtendimentoChamada": "CL",
+      "codigoOrigemChamada": "A",
+      "prioridade": "Baixa",
+      "idNatureza": 502,
+      "codigoNatureza": "E0502",
+      "descricaoNatureza": "Extermínio de Insetos com Ataque / Enxame Ativo",
+      "grupoNatureza": "Fauna e Meio Ambiente",
+      "endereco": {
+        "logradouro": "Rua São José",
+        "numero": "310",
+        "bairro": "Barro Preto",
+        "municipio": "Unaí",
+        "uf": "MG"
+      },
+      "latitude": -16.361,
+      "longitude": -46.9015,
+      "cob": "4º COB",
+      "bbm": "12º BBM",
+      "idUnidadeServico": 412,
+      "nomeUnidade": "12º BBM - Unaí",
+      "recursos": [],
+      "totalBombeiros": 0,
+      "tempoDecorridoMinutos": 46,
+      "historicoObservacoes": [
+        "Enxame de abelhas africanizadas atacando cães na área residencial."
+      ]
+    },
+    {
+      "idChamada": "2026-0049044",
+      "numeroOcorrencia": "O-2026-049044",
+      "dataHoraAbertura": "2026-10-28T17:43:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "EC",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 103,
+      "codigoNatureza": "A0103",
+      "descricaoNatureza": "Incêndio em Edificação Comercial / Industrial",
+      "grupoNatureza": "Incêndio",
+      "endereco": {
+        "logradouro": "Avenida Brasil",
+        "numero": "4100",
+        "bairro": "Centro",
+        "municipio": "Governador Valadares",
+        "uf": "MG"
+      },
+      "latitude": -18.851,
+      "longitude": -41.948,
+      "cob": "5º COB",
+      "bbm": "6º BBM",
+      "idUnidadeServico": 506,
+      "nomeUnidade": "6º BBM - Governador Valadares",
+      "recursos": [
+        {
+          "idRecurso": 5061,
+          "prefixo": "ABT-18",
+          "tipo": "Auto Bomba Tanque",
+          "dataHoraAtivacao": "2026-10-28T17:53:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "EC",
+          "componentes": 4,
+          "unidadeNome": "6º BBM"
+        },
+        {
+          "idRecurso": 5062,
+          "prefixo": "AT-03",
+          "tipo": "Auto Tanque Apoio",
+          "dataHoraAtivacao": "2026-10-28T18:03:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "EC",
+          "componentes": 2,
+          "unidadeNome": "6º BBM"
+        }
+      ],
+      "totalBombeiros": 6,
+      "tempoDecorridoMinutos": 85,
+      "historicoObservacoes": [
+        "Depósito de materiais de construção com fumaça preta.",
+        "Chamas controladas sem vítimas. Empregadas duas linhas de 1.1/2 polegada."
+      ]
+    },
+    {
+      "idChamada": "2026-0049100",
+      "numeroOcorrencia": "O-2026-049100",
+      "dataHoraAbertura": "2026-10-28T18:53:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "ED",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 302,
+      "codigoNatureza": "C0302",
+      "descricaoNatureza": "Trauma Grave / Queda de Nível",
+      "grupoNatureza": "Atendimento Pré-Hospitalar",
+      "endereco": {
+        "logradouro": "Avenida Pedro Linhares Gomes, 5000",
+        "bairro": "Horto",
+        "municipio": "Ipatinga",
+        "uf": "MG"
+      },
+      "latitude": -19.4795,
+      "longitude": -42.529,
+      "cob": "5º COB",
+      "bbm": "11º BBM",
+      "idUnidadeServico": 511,
+      "nomeUnidade": "11º BBM - Ipatinga",
+      "recursos": [
+        {
+          "idRecurso": 5111,
+          "prefixo": "UR-33",
+          "tipo": "Unidade de Resgate",
+          "dataHoraAtivacao": "2026-10-28T18:57:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "ED",
+          "componentes": 3,
+          "unidadeNome": "11º BBM"
+        }
+      ],
+      "totalBombeiros": 3,
+      "tempoDecorridoMinutos": 15,
+      "historicoObservacoes": [
+        "Trabalhador caiu de andaime de aproximadamente 6 metros. TCE moderado."
+      ],
+      "orgaoApoio": "SAMU 192"
+    },
+    {
+      "idChamada": "2026-0049140",
+      "numeroOcorrencia": "O-2026-049140",
+      "dataHoraAbertura": "2026-10-28T18:06:01.668Z",
+      "codigoSituacaoChamada": "A",
+      "codigoSituacaoAtendimentoChamada": "CL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Média",
+      "idNatureza": 404,
+      "codigoNatureza": "D0404",
+      "descricaoNatureza": "Vistoria Preventiva / Trinca Estrutural",
+      "grupoNatureza": "Proteção e Defesa Civil",
+      "endereco": {
+        "logradouro": "Rua Doutor Pedro Luiz",
+        "numero": "512",
+        "bairro": "Centro",
+        "municipio": "Sete Lagoas",
+        "uf": "MG"
+      },
+      "latitude": -19.462,
+      "longitude": -44.244,
+      "cob": "5º COB",
+      "bbm": "6º BBM",
+      "ciaInd": "5ª Cia Ind",
+      "idUnidadeServico": 505,
+      "nomeUnidade": "5ª Cia Ind - Sete Lagoas",
+      "recursos": [],
+      "totalBombeiros": 0,
+      "tempoDecorridoMinutos": 62,
+      "historicoObservacoes": [
+        "Rachaduras na parede de escola infantil. Solicitação de vistoria."
+      ]
+    },
+    {
+      "idChamada": "2026-0049030",
+      "numeroOcorrencia": "O-2026-049030",
+      "dataHoraAbertura": "2026-10-28T16:48:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "NL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 203,
+      "codigoNatureza": "B0203",
+      "descricaoNatureza": "Busca e Resgate em Área de Difícil Acesso / Altura",
+      "grupoNatureza": "Salvamento e Resgate",
+      "endereco": {
+        "logradouro": "Serra de São Domingos",
+        "bairro": "Cristo Redentor",
+        "municipio": "Poços de Caldas",
+        "uf": "MG"
+      },
+      "latitude": -21.782,
+      "longitude": -46.561,
+      "cob": "6º COB",
+      "bbm": "9º BBM",
+      "ciaInd": "1ª Cia Ind",
+      "idUnidadeServico": 601,
+      "nomeUnidade": "1ª Cia Ind - Poços de Caldas",
+      "recursos": [
+        {
+          "idRecurso": 6011,
+          "prefixo": "ABS-05",
+          "tipo": "Auto Bomba Salvamento",
+          "dataHoraAtivacao": "2026-10-28T17:03:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 4,
+          "unidadeNome": "1ª Cia Ind"
+        }
+      ],
+      "totalBombeiros": 4,
+      "tempoDecorridoMinutos": 140,
+      "historicoObservacoes": [
+        "Turista praticando trilha escorregou em encosta de pedra de 20 metros.",
+        "Equipe realizando descida em rapel com prancha rígida e maca cesto."
+      ]
+    },
+    {
+      "idChamada": "2026-0049088",
+      "numeroOcorrencia": "O-2026-049088",
+      "dataHoraAbertura": "2026-10-28T18:20:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "NL",
+      "codigoOrigemChamada": "I",
+      "prioridade": "Alta",
+      "idNatureza": 201,
+      "codigoNatureza": "B0201",
+      "descricaoNatureza": "Acidente de Trânsito com Vítima Presa às Ferragens",
+      "grupoNatureza": "Salvamento e Resgate",
+      "endereco": {
+        "logradouro": "Rodovia Fernão Dias, BR-381, Km 680",
+        "bairro": "Zona Rural",
+        "municipio": "Lavras",
+        "uf": "MG"
+      },
+      "latitude": -21.238,
+      "longitude": -45.012,
+      "cob": "6º COB",
+      "bbm": "9º BBM",
+      "ciaInd": "9ª Cia Ind",
+      "idUnidadeServico": 6092,
+      "nomeUnidade": "9ª Cia Ind - Lavras",
+      "recursos": [
+        {
+          "idRecurso": 6091,
+          "prefixo": "AR-03",
+          "tipo": "Auto Resgate",
+          "dataHoraAtivacao": "2026-10-28T18:33:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 3,
+          "unidadeNome": "9ª Cia Ind"
+        },
+        {
+          "idRecurso": 6092,
+          "prefixo": "UR-15",
+          "tipo": "Unidade de Resgate",
+          "dataHoraAtivacao": "2026-10-28T18:33:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "NL",
+          "componentes": 3,
+          "unidadeNome": "9ª Cia Ind"
+        }
+      ],
+      "totalBombeiros": 6,
+      "tempoDecorridoMinutos": 48,
+      "historicoObservacoes": [
+        "Capotamento de automóvel após desvio de animal na pista.",
+        "1 vítima desencarcerada com fratura de membro inferior e estabilizada."
+      ],
+      "orgaoApoio": "Arteris Fernão Dias / PRF"
+    },
+    {
+      "idChamada": "2026-0049144",
+      "numeroOcorrencia": "O-2026-049144",
+      "dataHoraAbertura": "2026-10-28T18:54:01.668Z",
+      "codigoSituacaoChamada": "E",
+      "codigoSituacaoAtendimentoChamada": "DP",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Alta",
+      "idNatureza": 102,
+      "codigoNatureza": "A0102",
+      "descricaoNatureza": "Incêndio em Edificação Residencial",
+      "grupoNatureza": "Incêndio",
+      "endereco": {
+        "logradouro": "Rua Comendador José Garcia",
+        "numero": "920",
+        "bairro": "Centro",
+        "municipio": "Pouso Alegre",
+        "uf": "MG"
+      },
+      "latitude": -22.2315,
+      "longitude": -45.934,
+      "cob": "6º COB",
+      "bbm": "9º BBM",
+      "ciaInd": "11ª Cia Ind",
+      "idUnidadeServico": 611,
+      "nomeUnidade": "11ª Cia Ind - Pouso Alegre",
+      "recursos": [
+        {
+          "idRecurso": 6111,
+          "prefixo": "ABT-07",
+          "tipo": "Auto Bomba Tanque",
+          "dataHoraAtivacao": "2026-10-28T18:59:01.668Z",
+          "codigoSituacaoEmpenhoRecurso": "ED",
+          "componentes": 4,
+          "unidadeNome": "11ª Cia Ind"
+        }
+      ],
+      "totalBombeiros": 4,
+      "tempoDecorridoMinutos": 14,
+      "historicoObservacoes": [
+        "Fogo em apartamento no 1º andar. Vizinhos tentando combater com extintor."
+      ]
+    },
+    {
+      "idChamada": "2026-0049150",
+      "numeroOcorrencia": "O-2026-049150",
+      "dataHoraAbertura": "2026-10-28T18:18:01.668Z",
+      "codigoSituacaoChamada": "A",
+      "codigoSituacaoAtendimentoChamada": "CL",
+      "codigoOrigemChamada": "L",
+      "prioridade": "Média",
+      "idNatureza": 503,
+      "codigoNatureza": "E0503",
+      "descricaoNatureza": "Captura / Salvamento de Animal em Poço ou Telhado",
+      "grupoNatureza": "Fauna e Meio Ambiente",
+      "endereco": {
+        "logradouro": "Estrada do Can Can",
+        "bairro": "Zona Rural",
+        "municipio": "Passos",
+        "uf": "MG"
+      },
+      "latitude": -20.725,
+      "longitude": -46.615,
+      "cob": "6º COB",
+      "bbm": "9º BBM",
+      "ciaInd": "12ª Cia Ind",
+      "idUnidadeServico": 612,
+      "nomeUnidade": "12ª Cia Ind - Passos",
+      "recursos": [],
+      "totalBombeiros": 0,
+      "tempoDecorridoMinutos": 50,
+      "historicoObservacoes": [
+        "Cavalo caiu em poço desativado de 3 metros de profundidade com água na altura do peito."
+      ]
+    }
+  ]
+}

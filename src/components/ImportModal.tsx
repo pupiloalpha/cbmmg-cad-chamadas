@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChamadaAtiva } from '../types/cbm';
-import { enriquecerChamada } from '../services/cbmStorage';
+import { enriquecerChamada, extrairChamadasDeJson } from '../services/cbmStorage';
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, X, Download } from 'lucide-react';
 
 interface ImportModalProps {
@@ -24,24 +24,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const processarTextoJSON = (text: string) => {
     try {
       const parsed = JSON.parse(text);
-      let itens: any[] = [];
-
-      if (Array.isArray(parsed)) {
-        itens = parsed;
-      } else if (parsed.dados && Array.isArray(parsed.dados)) {
-        // Formato envelope oficial da API CAD CBMMG (GET /ativos/chamadas)
-        itens = parsed.dados;
-      } else if (parsed.chamadas && Array.isArray(parsed.chamadas)) {
-        itens = parsed.chamadas;
-      } else if (parsed.dados?.chamadas && Array.isArray(parsed.dados.chamadas)) {
-        // Formato envelope oficial de GET /ativos
-        itens = parsed.dados.chamadas;
-      } else {
-        throw new Error('Formato JSON não reconhecido. Esperado array ou envelope da API CAD CBMMG.');
-      }
+      const itens = extrairChamadasDeJson(parsed);
 
       if (itens.length === 0) {
-        throw new Error('O arquivo não contém ocorrências válidas.');
+        throw new Error('O arquivo JSON foi lido, porém nenhuma chamada ativa foi encontrada na estrutura.');
       }
 
       const chamadasEnriquecidas: ChamadaAtiva[] = itens.map((item) => enriquecerChamada(item));

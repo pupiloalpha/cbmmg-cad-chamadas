@@ -64,6 +64,98 @@ export function salvarChamadasArmazenadas(chamadas: ChamadaAtiva[]): void {
   }
 }
 
+// Extrai a lista de chamadas de qualquer variante do envelope CAD da API ou arquivo exportado
+export function extrairChamadasDeJson(raw: any): any[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+
+  // 1. Caso GeoJSON FeatureCollection
+  if (Array.isArray(raw.features)) {
+    return raw.features.map((feat: any) => {
+      const props = feat.properties || {};
+      if (feat.geometry && feat.geometry.type === 'Point' && Array.isArray(feat.geometry.coordinates)) {
+        props.longitude = feat.geometry.coordinates[0];
+        props.latitude = feat.geometry.coordinates[1];
+      }
+      return props;
+    });
+  }
+
+  // 2. Caso raw.chamadas (conforme manual oficial CBMMG da rota GET /ativos)
+  if (raw.chamadas) {
+    if (Array.isArray(raw.chamadas)) return raw.chamadas;
+    if (typeof raw.chamadas === 'object' && Array.isArray(raw.chamadas.dados)) {
+      return raw.chamadas.dados;
+    }
+  }
+
+  // 3. Caso raw.dados seja array direto
+  if (Array.isArray(raw.dados)) return raw.dados;
+
+  // 4. Caso raw.dados seja objeto (envelope com chamadas / ativas)
+  if (raw.dados && typeof raw.dados === 'object') {
+    if (Array.isArray(raw.dados.chamadas)) return raw.dados.chamadas;
+    if (raw.dados.chamadas && typeof raw.dados.chamadas === 'object' && Array.isArray(raw.dados.chamadas.dados)) {
+      return raw.dados.chamadas.dados;
+    }
+    if (Array.isArray(raw.dados.ativas)) return raw.dados.ativas;
+    if (Array.isArray(raw.dados.ocorrencias)) return raw.dados.ocorrencias;
+    if (Array.isArray(raw.dados.items)) return raw.dados.items;
+    if (Array.isArray(raw.dados.features)) {
+      return extrairChamadasDeJson(raw.dados);
+    }
+
+    // Se dados for um dicionário de chamadas indexadas por chave/ID
+    const valoresDados = Object.values(raw.dados);
+    if (valoresDados.length > 0 && typeof valoresDados[0] === 'object') {
+      const p = valoresDados[0] as any;
+      if (p && (p.idChamada || p.numeroOcorrencia || p.natureza || p.descricaoNatureza || p.municipio)) {
+        return valoresDados;
+      }
+    }
+  }
+
+  // 5. Chaves comuns alternativas na raiz
+  if (Array.isArray(raw.ativas)) return raw.ativas;
+  if (raw.ativas && typeof raw.ativas === 'object' && Array.isArray(raw.ativas.dados)) return raw.ativas.dados;
+  if (Array.isArray(raw.ocorrencias)) return raw.ocorrencias;
+  if (Array.isArray(raw.items)) return raw.items;
+  if (Array.isArray(raw.records)) return raw.records;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (raw.data && typeof raw.data === 'object' && Array.isArray(raw.data.chamadas)) return raw.data.chamadas;
+
+  // 6. Varredura profunda: procurar por qualquer propriedade cujo valor seja uma lista de ocorrências
+  for (const chave of Object.keys(raw)) {
+    const val = raw[chave];
+    if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
+      const item = val[0];
+      if (
+        item.idChamada ||
+        item.numeroOcorrencia ||
+        item.natureza ||
+        item.descricaoNatureza ||
+        item.municipio ||
+        item.codigoNatureza ||
+        item.situacaoChamada ||
+        item.codigoSituacaoChamada
+      ) {
+        return val;
+      }
+    }
+  }
+
+  // 7. Se o próprio objeto raiz for um dicionário de ocorrências indexadas por ID
+  const valoresRaiz = Object.values(raw);
+  if (valoresRaiz.length > 0 && typeof valoresRaiz[0] === 'object') {
+    const p = valoresRaiz[0] as any;
+    if (p && (p.idChamada || p.numeroOcorrencia || p.natureza || p.descricaoNatureza || p.municipio)) {
+      return valoresRaiz;
+    }
+  }
+
+  return [];
+}
+
 export async function sincronizarAgenteLocal(url = 'http://127.0.0.1:8080/dados'): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
   try {
     const controller = new AbortController();
@@ -72,28 +164,57 @@ export async function sincronizarAgenteLocal(url = 'http://127.0.0.1:8080/dados'
     clearTimeout(t);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
-    const itens = Array.isArray(json) ? json : json.dados || json.chamadas || [];
-    if (!Array.isArray(itens)) throw new Error('Formato de dados inválido recebido do agente local.');
+    const itens = extrairChamadasDeJson(json);
+    if (itens.length === 0) {
+      return {
+        sucesso: false,
+        mensagem: `Agente local conectado, porém 0 chamadas ativas retornadas pela API no momento.`,
+      };
+    }
     const enriquecidos = itens.map(enriquecerChamada);
     salvarChamadasArmazenadas(enriquecidos);
-    return { sucesso: true, mensagem: `Conectado ao Agente Local! ${enriquecidos.length} ocorrências sincronizadas em tempo real.`, dados: enriquecidos };
+    return {
+      sucesso: true,
+      mensagem: `Conectado ao Agente Local! ${enriquecidos.length} ocorrências sincronizadas em tempo real.`,
+      dados: enriquecidos,
+    };
   } catch (err: any) {
-    return { sucesso: false, mensagem: `Agente local não detectado em ${url} (${err.message}). Execute 'python cbmmg_bridge.py' no seu terminal.` };
+    return {
+      sucesso: false,
+      mensagem: `Agente local não detectado em ${url} (${err.message}). Execute 'python cbmmg_bridge.py' no seu terminal.`,
+    };
   }
 }
 
-export async function sincronizarSnapshotEstatico(url = '/dados_cad.json'): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const itens = Array.isArray(json) ? json : json.dados || json.chamadas || [];
-    const enriquecidos = itens.map(enriquecerChamada);
-    salvarChamadasArmazenadas(enriquecidos);
-    return { sucesso: true, mensagem: `${enriquecidos.length} ocorrências carregadas da base estática.`, dados: enriquecidos };
-  } catch (err: any) {
-    return { sucesso: false, mensagem: `Falha ao carregar snapshot estático: ${err.message}` };
+export async function sincronizarSnapshotEstatico(url = '/cbmmg_cad_dados.json'): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
+  // Tenta primeiro carregar cbmmg_cad_dados.json, se falhar ou 404, recorre a dados_cad.json
+  const urls = [url, '/dados_cad.json'];
+  let ultimoErro = '';
+
+  for (const tentativaUrl of urls) {
+    try {
+      const res = await fetch(tentativaUrl);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const itens = extrairChamadasDeJson(json);
+      if (itens.length > 0) {
+        const enriquecidos = itens.map(enriquecerChamada);
+        salvarChamadasArmazenadas(enriquecidos);
+        return {
+          sucesso: true,
+          mensagem: `${enriquecidos.length} ocorrências carregadas de '${tentativaUrl}' com sucesso.`,
+          dados: enriquecidos,
+        };
+      }
+    } catch (err: any) {
+      ultimoErro = err.message;
+    }
   }
+
+  return {
+    sucesso: false,
+    mensagem: `Falha ao carregar snapshot estático (${ultimoErro || '0 ocorrências encontradas'}).`,
+  };
 }
 
 export function restaurarDadosPadrao(): ChamadaAtiva[] {
@@ -110,19 +231,35 @@ export function obterUltimaSync(): string {
 }
 
 // Enriquecimento de chamadas com base nos catálogos auxiliares
-export function enriquecerChamada(chamadaRaw: Partial<ChamadaAtiva>): ChamadaAtiva {
-  // 1. Resolver Natureza
-  let descNatureza = chamadaRaw.descricaoNatureza || 'Atendimento Geral de Bombeiros';
-  let grupoNatureza = chamadaRaw.grupoNatureza || 'Outros Atendimentos';
-  let codigoNatureza = chamadaRaw.codigoNatureza;
+export function enriquecerChamada(chamadaRaw: Partial<ChamadaAtiva> | any): ChamadaAtiva {
+  const r = chamadaRaw || {};
 
-  if (chamadaRaw.idNatureza || codigoNatureza || chamadaRaw.descricaoNatureza) {
+  // 1. Resolver Natureza (aceita descrições, códigos e objetos aninhados)
+  let rawDescNat =
+    r.descricaoNatureza ||
+    r.naturezaDescricao ||
+    (typeof r.natureza === 'string' ? r.natureza : r.natureza?.descricao) ||
+    r.descNatureza ||
+    r.descricao_natureza ||
+    'Atendimento Geral de Bombeiros';
+
+  let rawCodNat =
+    r.codigoNatureza ||
+    r.codigo_natureza ||
+    (typeof r.natureza === 'object' ? r.natureza?.codigo : '') ||
+    r.codNatureza;
+
+  let descNatureza = rawDescNat;
+  let grupoNatureza = r.grupoNatureza || r.grupo || 'Outros Atendimentos';
+  let codigoNatureza = rawCodNat;
+
+  if (r.idNatureza || rawCodNat || rawDescNat) {
     const natEncontrada = CATALOGO_NATUREZAS_CBMMG.find(
       (n) =>
-        (chamadaRaw.idNatureza && n.id == chamadaRaw.idNatureza) ||
-        (codigoNatureza && n.codigo.toLowerCase() === String(codigoNatureza).toLowerCase()) ||
-        (chamadaRaw.descricaoNatureza &&
-          n.descricao.toLowerCase().includes(chamadaRaw.descricaoNatureza.toLowerCase()))
+        (r.idNatureza && n.id == r.idNatureza) ||
+        (rawCodNat && n.codigo.toLowerCase() === String(rawCodNat).toLowerCase()) ||
+        (rawDescNat && n.descricao.toLowerCase().includes(rawDescNat.toLowerCase())) ||
+        (rawDescNat && rawDescNat.toLowerCase().includes(n.descricao.toLowerCase()))
     );
 
     if (natEncontrada) {
@@ -132,96 +269,112 @@ export function enriquecerChamada(chamadaRaw: Partial<ChamadaAtiva>): ChamadaAti
     }
   }
 
-  // 2. Resolver Unidade (COB / BBM / Cia Ind)
-  let cob = chamadaRaw.cob || '1º COB';
-  let bbm = chamadaRaw.bbm || '1º BBM';
-  let ciaInd = chamadaRaw.ciaInd;
-  let nomeUnidade = chamadaRaw.nomeUnidade;
-  let lat = chamadaRaw.latitude ?? null;
-  let lng = chamadaRaw.longitude ?? null;
+  // 2. Resolver Endereço e Município
+  const mun =
+    r.endereco?.municipio ||
+    r.municipio ||
+    r.cidade ||
+    r.municipioOcorrencia ||
+    'Belo Horizonte';
+  const bairro = r.endereco?.bairro || r.bairro || '';
+  const logr = r.endereco?.logradouro || r.logradouro || r.rua || r.endereco || 'Via Pública';
+  const num = r.endereco?.numero || r.numero || '';
+  const ref = r.endereco?.referencia || r.referencia || r.pontoReferencia || '';
 
-  if (chamadaRaw.idUnidadeServico || chamadaRaw.nomeUnidade || chamadaRaw.endereco?.municipio) {
+  // 3. Resolver Unidade (COB / BBM / Cia Ind)
+  let cob = r.cob || r.comandoOperacional || '';
+  let bbm = r.bbm || r.batalhao || '';
+  let ciaInd = r.ciaInd || r.companhia;
+  let nomeUnidade = r.nomeUnidade || r.unidade;
+  let lat = typeof r.latitude === 'number' ? r.latitude : (typeof r.lat === 'number' ? r.lat : null);
+  let lng = typeof r.longitude === 'number' ? r.longitude : (typeof r.lon === 'number' ? r.lon : (typeof r.lng === 'number' ? r.lng : null));
+
+  if (!cob || !bbm || lat === null) {
     const unEncontrada = UNIDADES_SERVICO_CBMMG.find(
       (u) =>
-        (chamadaRaw.idUnidadeServico && u.id === chamadaRaw.idUnidadeServico) ||
-        (chamadaRaw.nomeUnidade && u.nome.toLowerCase().includes(chamadaRaw.nomeUnidade.toLowerCase())) ||
-        (chamadaRaw.endereco?.municipio &&
-          u.municipioSede.toLowerCase() === chamadaRaw.endereco.municipio.toLowerCase())
+        (r.idUnidadeServico && u.id === r.idUnidadeServico) ||
+        (nomeUnidade && u.nome.toLowerCase().includes(nomeUnidade.toLowerCase())) ||
+        (mun && u.municipioSede.toLowerCase() === mun.toLowerCase())
     );
 
     if (unEncontrada) {
-      cob = unEncontrada.cob;
-      bbm = unEncontrada.bbm;
-      ciaInd = unEncontrada.ciaInd || ciaInd;
-      nomeUnidade = unEncontrada.nome;
-      // Se não havia coordenadas geográficas na chamada, usa o ponto de referência do município sede da unidade
+      cob = cob || unEncontrada.cob;
+      bbm = bbm || unEncontrada.bbm;
+      ciaInd = ciaInd || unEncontrada.ciaInd;
+      nomeUnidade = nomeUnidade || unEncontrada.nome;
       if (lat === null && unEncontrada.latitudeSede) {
-        lat = unEncontrada.latitudeSede + (Math.random() - 0.5) * 0.05;
-        lng = unEncontrada.longitudeSede! + (Math.random() - 0.5) * 0.05;
+        lat = unEncontrada.latitudeSede + (Math.random() - 0.5) * 0.04;
+        lng = unEncontrada.longitudeSede! + (Math.random() - 0.5) * 0.04;
       }
     }
   }
 
-  // Se ainda sem coordenadas e tem município conhecido
-  if (lat === null && chamadaRaw.endereco?.municipio) {
-    const munMatch = UNIDADES_SERVICO_CBMMG.find(
-      (u) => u.municipioSede.toLowerCase() === chamadaRaw.endereco!.municipio.toLowerCase()
-    );
-    if (munMatch && munMatch.latitudeSede) {
-      lat = munMatch.latitudeSede + (Math.random() - 0.5) * 0.03;
-      lng = munMatch.longitudeSede! + (Math.random() - 0.5) * 0.03;
-    }
-  }
+  cob = cob || '1º COB';
+  bbm = bbm || '1º BBM';
 
-  // 3. Recursos & Efetivo
-  const recursos = Array.isArray(chamadaRaw.recursos) ? chamadaRaw.recursos : [];
+  // 4. Recursos & Efetivo
+  const recursosRaw = r.recursos || r.empenhos || r.viaturas || [];
+  const recursos = Array.isArray(recursosRaw) ? recursosRaw : [];
   const totalBombeiros =
-    chamadaRaw.totalBombeiros ||
-    recursos.reduce((sum, r) => sum + (r.componentes || 3), 0);
+    r.totalBombeiros ||
+    r.efetivo ||
+    recursos.reduce((sum: number, rec: any) => sum + (rec.componentes || 3), 0);
 
-  // 4. Tempo decorrido
-  const dataAbertura = chamadaRaw.dataHoraAbertura || new Date().toISOString();
+  // 5. Data de Abertura & Tempos
+  const rawData =
+    r.dataHoraAbertura ||
+    r.data_hora_abertura ||
+    r.dataAbertura ||
+    r.dataHora ||
+    r.horaAbertura ||
+    new Date().toISOString();
+  const dataAbertura = !isNaN(new Date(rawData).getTime()) ? new Date(rawData).toISOString() : new Date().toISOString();
+  
   const tempoDecorridoMinutos =
-    chamadaRaw.tempoDecorridoMinutos ??
+    r.tempoDecorridoMinutos ??
     Math.max(1, Math.round((Date.now() - new Date(dataAbertura).getTime()) / 60000));
 
+  const numOcorr =
+    r.numeroOcorrencia ||
+    r.numero_ocorrencia ||
+    r.numOcorrencia ||
+    r.numero ||
+    `O-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+
   return {
-    idChamada: chamadaRaw.idChamada || `2026-${Math.floor(100000 + Math.random() * 900000)}`,
-    numeroOcorrencia:
-      chamadaRaw.numeroOcorrencia || `O-2026-${Math.floor(10000 + Math.random() * 90000)}`,
+    idChamada: r.idChamada || r.id_chamada || r.id || numOcorr,
+    numeroOcorrencia: numOcorr,
     dataHoraAbertura: dataAbertura,
-    codigoSituacaoChamada: (chamadaRaw.codigoSituacaoChamada ||
-      (recursos.length > 0 ? 'E' : 'A')) as CodigoSituacaoChamada,
-    codigoSituacaoAtendimentoChamada: (chamadaRaw.codigoSituacaoAtendimentoChamada ||
-      (recursos.length > 0 ? 'NL' : 'CL')) as CodigoSituacaoAtendimento,
-    codigoOrigemChamada: (chamadaRaw.codigoOrigemChamada || 'L') as CodigoOrigemChamada,
-    prioridade: chamadaRaw.prioridade || 'Alta',
-    idNatureza: chamadaRaw.idNatureza,
+    codigoSituacaoChamada: (r.codigoSituacaoChamada || r.situacaoChamada || (recursos.length > 0 ? 'E' : 'A')) as CodigoSituacaoChamada,
+    codigoSituacaoAtendimentoChamada: (r.codigoSituacaoAtendimentoChamada || r.situacaoAtendimento || (recursos.length > 0 ? 'NL' : 'CL')) as CodigoSituacaoAtendimento,
+    codigoOrigemChamada: (r.codigoOrigemChamada || r.origem || 'L') as CodigoOrigemChamada,
+    prioridade: r.prioridade || r.criticidade || 'Alta',
+    idNatureza: r.idNatureza,
     codigoNatureza,
     descricaoNatureza: descNatureza,
     grupoNatureza,
     endereco: {
-      logradouro: chamadaRaw.endereco?.logradouro || 'Via Pública Principal',
-      numero: chamadaRaw.endereco?.numero || '',
-      bairro: chamadaRaw.endereco?.bairro || 'Centro',
-      municipio: chamadaRaw.endereco?.municipio || 'Belo Horizonte',
-      uf: 'MG',
-      referencia: chamadaRaw.endereco?.referencia || '',
+      logradouro: logr,
+      numero: num,
+      bairro: bairro,
+      municipio: mun,
+      uf: r.endereco?.uf || r.uf || 'MG',
+      referencia: ref,
     },
     latitude: lat,
     longitude: lng,
     cob,
     bbm,
     ciaInd,
-    idUnidadeServico: chamadaRaw.idUnidadeServico,
+    idUnidadeServico: r.idUnidadeServico,
     nomeUnidade: nomeUnidade || `${bbm} - CBMMG`,
     recursos,
     totalBombeiros,
     tempoDecorridoMinutos,
-    historicoObservacoes: chamadaRaw.historicoObservacoes || [
+    historicoObservacoes: r.historicoObservacoes || r.observacoes || [
       'Registro CAD CBMMG integrado via painel operacional.',
     ],
-    orgaoApoio: chamadaRaw.orgaoApoio,
+    orgaoApoio: r.orgaoApoio || r.orgao_apoio,
   };
 }
 

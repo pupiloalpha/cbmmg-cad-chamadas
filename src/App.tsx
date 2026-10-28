@@ -8,6 +8,7 @@ import {
   obterUltimaSync,
   obterTokenSalvo,
   sincronizarAgenteLocal,
+  sincronizarSnapshotEstatico,
 } from './services/cbmStorage';
 import { Header } from './components/Header';
 import { KPIGrid } from './components/KPIGrid';
@@ -20,7 +21,17 @@ import { ImportModal } from './components/ImportModal';
 import { StreamlitBridgeModal } from './components/StreamlitBridgeModal';
 import { ApiSettingsModal } from './components/ApiSettingsModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
-import { Map, BarChart3, Shield, Radio, RefreshCw, CheckCircle2 } from 'lucide-react';
+import {
+  Map,
+  BarChart3,
+  Shield,
+  Radio,
+  RefreshCw,
+  CheckCircle2,
+  Clock,
+  Play,
+  Pause,
+} from 'lucide-react';
 
 const FILTROS_PADRAO: FiltrosOperacionais = {
   cob: 'TODOS',
@@ -35,6 +46,8 @@ const FILTROS_PADRAO: FiltrosOperacionais = {
   apenasComGeolocalizacao: false,
   termoBusca: '',
 };
+
+const INTERVALO_REFRESH_SEGUNDOS = 600; // 10 minutos conforme solicitado
 
 export default function App() {
   const [chamadas, setChamadas] = useState<ChamadaAtiva[]>([]);
@@ -52,11 +65,100 @@ export default function App() {
   const [modoVisualizacao, setModoVisualizacao] = useState<'mapa' | 'graficos' | 'ambos'>('ambos');
   const [toastNotificacao, setToastNotificacao] = useState<string | null>(null);
 
+  // Ciclo Automático de 10 minutos
+  const [autoRefreshAtivo, setAutoRefreshAtivo] = useState(true);
+  const [segundosRestantes, setSegundosRestantes] = useState(INTERVALO_REFRESH_SEGUNDOS);
+
   // Inicializar dados do cache persistente
   useEffect(() => {
     const dados = carregarChamadasArmazenadas();
     setChamadas(dados);
   }, []);
+
+  const exibirToast = (msg: string) => {
+    setToastNotificacao(msg);
+    setTimeout(() => setToastNotificacao(null), 4000);
+  };
+
+  // Execução da sincronização periódica (tenta Agente Local -> Proxy API -> Snapshot Estático)
+  const executarSincronizacaoPeriodica = async () => {
+    setIsSyncing(true);
+    let atualizado = false;
+
+    // 1. Tentar primeiro o Agente Local (127.0.0.1:8080)
+    try {
+      const resLocal = await sincronizarAgenteLocal();
+      if (resLocal.sucesso && resLocal.dados && resLocal.dados.length > 0) {
+        setChamadas(resLocal.dados);
+        setUltimaSync(new Date().toISOString());
+        exibirToast(`🔄 Auto-refresh (10 min): ${resLocal.dados.length} ocorrências sincronizadas via Agente Local.`);
+        atualizado = true;
+      }
+    } catch {
+      // Ignora e tenta próxima fonte
+    }
+
+    // 2. Se local não respondeu, tentar proxy da API (se token configurado)
+    if (!atualizado) {
+      try {
+        const token = obterTokenSalvo();
+        if (token) {
+          const res = await fetch('/api/cbm/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+          const data = await res.json();
+          if (data.sucesso && data.dados) {
+            const arr = Array.isArray(data.dados) ? data.dados : (data.dados.chamadas || []);
+            if (arr.length > 0) {
+              setChamadas(arr);
+              setUltimaSync(new Date().toISOString());
+              exibirToast(`🔄 Auto-refresh (10 min): Sincronizado com API CAD.`);
+              atualizado = true;
+            }
+          }
+        }
+      } catch {
+        // Ignora e tenta snapshot
+      }
+    }
+
+    // 3. Fallback: Recarrega snapshot estático
+    if (!atualizado) {
+      try {
+        const resSnap = await sincronizarSnapshotEstatico();
+        if (resSnap.sucesso && resSnap.dados && resSnap.dados.length > 0) {
+          setChamadas(resSnap.dados);
+          setUltimaSync(new Date().toISOString());
+          exibirToast(`🔄 Auto-refresh (10 min): Dados operacionais atualizados.`);
+          atualizado = true;
+        }
+      } catch {
+        // Mantém dados existentes
+      }
+    }
+
+    setIsSyncing(false);
+    setSegundosRestantes(INTERVALO_REFRESH_SEGUNDOS);
+  };
+
+  // Timer regressivo de 10 minutos
+  useEffect(() => {
+    if (!autoRefreshAtivo) return;
+
+    const timer = setInterval(() => {
+      setSegundosRestantes((prev) => {
+        if (prev <= 1) {
+          executarSincronizacaoPeriodica();
+          return INTERVALO_REFRESH_SEGUNDOS;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [autoRefreshAtivo]);
 
   // Filtragem dos dados
   const chamadasFiltradas = useMemo(() => {
@@ -68,33 +170,9 @@ export default function App() {
     return calcularKPIs(chamadasFiltradas);
   }, [chamadasFiltradas]);
 
-  const exibirToast = (msg: string) => {
-    setToastNotificacao(msg);
-    setTimeout(() => setToastNotificacao(null), 4000);
-  };
-
-  // Disparar sincronização com a API (através do proxy backend polite)
+  // Disparar sincronização manual
   const handleTriggerSync = async () => {
-    setIsSyncing(true);
-    try {
-      const token = obterTokenSalvo();
-      const res = await fetch('/api/cbm/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-      const data = await res.json();
-      if (data.aviso) {
-        exibirToast(data.aviso);
-      } else {
-        exibirToast('Chamadas operacionais sincronizadas com o cache intermediário.');
-      }
-      setUltimaSync(new Date().toISOString());
-    } catch {
-      exibirToast('Modo contingência: Dados mantidos a partir do cache local.');
-    } finally {
-      setIsSyncing(false);
-    }
+    await executarSincronizacaoPeriodica();
   };
 
   const handleImportSuccess = (novasChamadas: ChamadaAtiva[]) => {
@@ -145,7 +223,23 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {/* Auto-Refresh 10 Min Countdown Control */}
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800 text-xs shadow-inner">
+              <Clock className="w-3.5 h-3.5 text-blue-400" />
+              <span className="text-slate-400 hidden lg:inline">Ciclo 10 min:</span>
+              <span className="font-mono font-bold text-amber-400">
+                {autoRefreshAtivo ? `${Math.floor(segundosRestantes / 60)}:${(segundosRestantes % 60).toString().padStart(2, '0')}` : 'Pausado'}
+              </span>
+              <button
+                onClick={() => setAutoRefreshAtivo((prev) => !prev)}
+                className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition ml-0.5 cursor-pointer"
+                title={autoRefreshAtivo ? 'Pausar contagem de 10 minutos' : 'Ativar atualização automática de 10 minutos'}
+              >
+                {autoRefreshAtivo ? <Pause className="w-3 h-3 text-amber-400" /> : <Play className="w-3 h-3 text-emerald-400" />}
+              </button>
+            </div>
+
             {/* Quick Local Agent Sync Button */}
             <button
               onClick={async () => {
