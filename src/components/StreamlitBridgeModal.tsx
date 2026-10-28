@@ -38,19 +38,27 @@ import time
 import json
 import sqlite3
 import requests
+import urllib3
 from datetime import datetime
 
+# Desativa avisos de SSL causados pelo certificado ICP-Brasil da PRODEMGE
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 BASE_URL = "https://apicadbm.bombeiros.mg.gov.br"
-TOKEN = os.environ.get("CBM_API_TOKEN", "coloque_seu_token_aqui")
+TOKEN = os.environ.get("CBM_API_TOKEN", "")
+if not TOKEN or TOKEN == "coloque_seu_token_aqui":
+    TOKEN = input("Digite o token da API CAD (cbm_live_...): ").strip()
+
 INTERVALO_MINIMO = 6       # Limite técnico: 5s. Usamos 6s por segurança
 INTERVALO_OPERACAO = 60    # /ativos: a cada 60s
-RENOVAR_CATALOGOS = 21600  # Renovar catálogos a cada 6 horas (poucas vezes ao dia)
+RENOVAR_CATALOGOS = 21600  # Renovar catálogos a cada 6 horas
 DB_PATH = "cbmmg_cad_intermediario.db"
 
 _ultima_chamada = 0.0
 session = requests.Session()
 session.headers["Authorization"] = f"Bearer {TOKEN}"
 session.headers["User-Agent"] = "CBMMG-Bridge-Worker/1.0"
+session.verify = False
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)

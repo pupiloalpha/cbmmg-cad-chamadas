@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { salvarToken, obterTokenSalvo, restaurarDadosPadrao } from '../services/cbmStorage';
+import {
+  salvarToken,
+  obterTokenSalvo,
+  restaurarDadosPadrao,
+  sincronizarAgenteLocal,
+} from '../services/cbmStorage';
 import { ChamadaAtiva } from '../types/cbm';
 import {
   Key,
@@ -10,6 +15,9 @@ import {
   X,
   Server,
   Zap,
+  Cpu,
+  Download,
+  Radio,
 } from 'lucide-react';
 
 interface ApiSettingsModalProps {
@@ -154,15 +162,52 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
               <button
                 onClick={onTriggerSync}
                 disabled={isSyncing}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white rounded-lg font-semibold transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/80 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg font-semibold transition"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar /ativos agora'}</span>
+                <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar Remoto'}</span>
+              </button>
+            </div>
+
+            {/* Agente Local Bridge (Bypass do bloqueio de firewall) */}
+            <div className="pt-2 border-t border-slate-800/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5" />
+                  Agente Local (Bypass Firewall & CORS)
+                </span>
+                <a
+                  href="/cbmmg_bridge.py"
+                  download="cbmmg_bridge.py"
+                  className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 text-[11px]"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Baixar cbmmg_bridge.py</span>
+                </a>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Como o firewall da PRODEMGE bloqueia IPs de nuvem internacional, rode o script Python no seu computador para sincronizar em tempo real via <strong>http://127.0.0.1:8080</strong>:
+              </p>
+              <button
+                onClick={async () => {
+                  setTestando(true);
+                  const res = await sincronizarAgenteLocal();
+                  setTesteStatus(res.mensagem);
+                  if (res.sucesso && res.dados) {
+                    onResetData(res.dados);
+                  }
+                  setTestando(false);
+                }}
+                disabled={testando}
+                className="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold transition flex items-center justify-center gap-2"
+              >
+                <Radio className="w-4 h-4 text-emerald-300 animate-pulse" />
+                <span>Conectar ao Agente Local (127.0.0.1:8080)</span>
               </button>
             </div>
 
             {testeStatus && (
-              <div className="text-[11px] text-slate-300 bg-slate-900 p-2 rounded border border-slate-800">
+              <div className="text-[11px] text-slate-300 bg-slate-900 p-2.5 rounded-lg border border-slate-800 space-y-1">
                 {testeStatus}
               </div>
             )}

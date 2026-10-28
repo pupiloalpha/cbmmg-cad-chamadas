@@ -89,9 +89,15 @@ app.post('/api/cbm/test-connection', async (req, res) => {
       });
     }
   } catch (err: any) {
+    const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('timeout');
+    const msg = isTimeout
+      ? `Bloqueio de IP do Firewall PRODEMGE: A rede do Governo de MG bloqueou a conexão originada da nuvem pública (Timeout de conexão). Para integrar em tempo real, execute o agente local (python cbmmg_bridge.py) e ative a opção "Agente Local (127.0.0.1:8080)" no painel.`
+      : `Erro ao conectar com ${BASE_CBM_API}: ${err.message}. Operando em modo de contingência com cache local.`;
+
     return res.json({
       sucesso: false,
-      mensagem: `Instabilidade ou bloqueio na conexão com ${BASE_CBM_API}: ${err.message}. Operação em modo contingência ativada.`,
+      bloqueioProdemge: isTimeout,
+      mensagem: msg,
     });
   }
 });

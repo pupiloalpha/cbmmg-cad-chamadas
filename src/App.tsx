@@ -7,6 +7,7 @@ import {
   calcularKPIs,
   obterUltimaSync,
   obterTokenSalvo,
+  sincronizarAgenteLocal,
 } from './services/cbmStorage';
 import { Header } from './components/Header';
 import { KPIGrid } from './components/KPIGrid';
@@ -145,6 +146,26 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 text-xs">
+            {/* Quick Local Agent Sync Button */}
+            <button
+              onClick={async () => {
+                setIsSyncing(true);
+                const res = await sincronizarAgenteLocal();
+                exibirToast(res.mensagem);
+                if (res.sucesso && res.dados) {
+                  setChamadas(res.dados);
+                  setUltimaSync(new Date().toISOString());
+                }
+                setIsSyncing(false);
+              }}
+              disabled={isSyncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 rounded-lg text-xs font-semibold transition cursor-pointer"
+              title="Sincronizar diretamente com o agente Python local (http://127.0.0.1:8080)"
+            >
+              <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+              <span>Agente Local</span>
+            </button>
+
             {/* View Mode Switcher */}
             <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
               <button

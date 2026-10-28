@@ -64,6 +64,38 @@ export function salvarChamadasArmazenadas(chamadas: ChamadaAtiva[]): void {
   }
 }
 
+export async function sincronizarAgenteLocal(url = 'http://127.0.0.1:8080/dados'): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(t);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const itens = Array.isArray(json) ? json : json.dados || json.chamadas || [];
+    if (!Array.isArray(itens)) throw new Error('Formato de dados inválido recebido do agente local.');
+    const enriquecidos = itens.map(enriquecerChamada);
+    salvarChamadasArmazenadas(enriquecidos);
+    return { sucesso: true, mensagem: `Conectado ao Agente Local! ${enriquecidos.length} ocorrências sincronizadas em tempo real.`, dados: enriquecidos };
+  } catch (err: any) {
+    return { sucesso: false, mensagem: `Agente local não detectado em ${url} (${err.message}). Execute 'python cbmmg_bridge.py' no seu terminal.` };
+  }
+}
+
+export async function sincronizarSnapshotEstatico(url = '/dados_cad.json'): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const itens = Array.isArray(json) ? json : json.dados || json.chamadas || [];
+    const enriquecidos = itens.map(enriquecerChamada);
+    salvarChamadasArmazenadas(enriquecidos);
+    return { sucesso: true, mensagem: `${enriquecidos.length} ocorrências carregadas da base estática.`, dados: enriquecidos };
+  } catch (err: any) {
+    return { sucesso: false, mensagem: `Falha ao carregar snapshot estático: ${err.message}` };
+  }
+}
+
 export function restaurarDadosPadrao(): ChamadaAtiva[] {
   salvarChamadasArmazenadas(MOCK_CHAMADAS_INICIAIS);
   return MOCK_CHAMADAS_INICIAIS;
