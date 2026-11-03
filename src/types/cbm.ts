@@ -29,6 +29,8 @@ export interface NaturezaAuxiliar {
   codigo: string;
   descricao: string;
   grupo: string;
+  letraGrupo?: string;
+  categoria?: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR' | 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS';
   prioridadeSugerida?: 'Alta' | 'Média' | 'Baixa';
   corGrupo?: string;
 }
@@ -93,6 +95,8 @@ export interface ChamadaAtiva {
   codigoNatureza?: string;
   descricaoNatureza: string;
   grupoNatureza: string;
+  letraGrupoNatureza?: string;
+  categoriaNatureza?: string;
   
   // Localização
   endereco: EnderecoOcorrencia;

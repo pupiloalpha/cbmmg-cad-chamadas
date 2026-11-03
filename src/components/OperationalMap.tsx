@@ -217,6 +217,45 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
     }
   }, [chamadasComCoords.length, unidadeSelecionada]);
 
+  // Efeito crítico: recalcula o tamanho do container Leaflet ao alternar tela cheia ou redimensionar janela
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Dispara invalidação imediata e em múltiplos intervalos para garantir renderização após transição de layout
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 50);
+    const t2 = setTimeout(() => map.invalidateSize(), 200);
+    const t3 = setTimeout(() => map.invalidateSize(), 400);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [isFullscreen]);
+
+  // Listener para redimensionamento de janela e tecla Esc
+  useEffect(() => {
+    const handleResize = () => {
+      mapInstanceRef.current?.invalidateSize();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
+
   const centralizarMinasGerais = () => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.setView(MG_CENTER, DEFAULT_ZOOM);
@@ -235,11 +274,13 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
   return (
     <div
       className={`relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl transition-all ${
-        isFullscreen ? 'fixed inset-4 z-50 rounded-2xl border-red-500/50 shadow-2xl' : 'h-[500px] w-full'
+        isFullscreen
+          ? 'fixed inset-2 sm:inset-4 md:inset-6 z-[9999] rounded-2xl border-2 border-red-500/80 shadow-[0_0_60px_rgba(0,0,0,0.95)] flex flex-col'
+          : 'h-[500px] w-full'
       }`}
     >
       {/* Top Map Control Bar */}
-      <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700 shadow-lg text-xs">
+      <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-2 bg-slate-900/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700 shadow-xl text-xs">
         <div className="flex items-center gap-1.5 font-semibold text-slate-200 pr-2 border-r border-slate-700">
           <Flame className="w-3.5 h-3.5 text-red-500 animate-pulse" />
           <span>Mapa Operacional de Ocorrências</span>
@@ -255,20 +296,20 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
       </div>
 
       {/* Floating Action Controls */}
-      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-lg border border-slate-700 shadow-lg">
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-md p-1 rounded-lg border border-slate-700 shadow-xl">
         <button
           onClick={ajustarAosPontos}
           title="Ajustar visualização a todos os pontos filtrados"
-          className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition flex items-center gap-1 text-xs px-2"
+          className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition flex items-center gap-1 text-xs px-2 cursor-pointer"
         >
           <Navigation className="w-3.5 h-3.5 text-blue-400" />
-          <span>Enquadrar Ocorrências</span>
+          <span className="hidden sm:inline">Enquadrar</span>
         </button>
 
         <button
           onClick={centralizarMinasGerais}
           title="Visão Geral de Minas Gerais"
-          className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition text-xs px-2"
+          className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition text-xs px-2 cursor-pointer"
         >
           Estado MG
         </button>
@@ -278,7 +319,7 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
           <button
             onClick={() => setMapStyle('dark')}
             title="Camada Tática Noturna (ESRI Gray)"
-            className={`px-2 py-1 rounded text-[11px] font-medium transition ${
+            className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
               mapStyle === 'dark' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -287,7 +328,7 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
           <button
             onClick={() => setMapStyle('streets')}
             title="Camada Urbana de Vias (OpenStreetMap)"
-            className={`px-2 py-1 rounded text-[11px] font-medium transition ${
+            className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
               mapStyle === 'streets' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -296,7 +337,7 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
           <button
             onClick={() => setMapStyle('satellite')}
             title="Camada Satélite Ortofoto (ESRI World Imagery)"
-            className={`px-2 py-1 rounded text-[11px] font-medium transition ${
+            className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
               mapStyle === 'satellite' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -304,12 +345,27 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
           </button>
         </div>
 
+        {/* Botão de Ação Visível: Expandir / Recolher */}
         <button
           onClick={() => setIsFullscreen(!isFullscreen)}
-          title={isFullscreen ? 'Sair da tela cheia' : 'Expandir mapa'}
-          className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition"
+          title={isFullscreen ? 'Recolher mapa (ou pressione Esc)' : 'Expandir mapa em tela cheia'}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold shadow transition cursor-pointer ${
+            isFullscreen
+              ? 'bg-red-600 hover:bg-red-700 text-white ring-2 ring-red-400'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700'
+          }`}
         >
-          {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          {isFullscreen ? (
+            <>
+              <Minimize2 className="w-3.5 h-3.5" />
+              <span>Recolher</span>
+            </>
+          ) : (
+            <>
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>Expandir</span>
+            </>
+          )}
         </button>
       </div>
 

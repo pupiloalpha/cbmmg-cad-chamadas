@@ -1,6 +1,12 @@
 import React, { useMemo } from 'react';
 import { FiltrosOperacionais } from '../types/cbm';
-import { UNIDADES_SERVICO_CBMMG, CATALOGO_NATUREZAS_CBMMG, DICIONARIO_SIGLAS } from '../data/catalogoAuxiliares';
+import {
+  UNIDADES_SERVICO_CBMMG,
+  CATALOGO_NATUREZAS_CBMMG,
+  DICIONARIO_SIGLAS,
+  ESTRUTURA_CATEGORIAS_SIDS,
+  GRUPOS_NATUREZAS_CBMMG,
+} from '../data/catalogoAuxiliares';
 import { Filter, Search, RotateCcw, Calendar, Shield, Clock } from 'lucide-react';
 
 interface FiltersBarProps {
@@ -85,7 +91,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
             type="text"
             value={filtros.termoBusca}
             onChange={(e) => onChangeFiltros({ ...filtros, termoBusca: e.target.value })}
-            placeholder="Buscar por ocorrência (ex: O-2026), município, bairro, rua ou viatura..."
+            placeholder="Buscar por ocorrência (ex: O-2026), natureza (código O01, V01, S04 ou texto), município, bairro, viatura..."
             className="w-full bg-slate-950 border border-slate-700 focus:border-red-500 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none transition shadow-inner font-sans"
           />
           {filtros.termoBusca && (
@@ -219,22 +225,36 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
           </select>
         </div>
 
-        {/* 4. Natureza / Grupo */}
+        {/* 4. Natureza / Grupo SIDS */}
         <div>
           <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Grupo de Natureza
+            Natureza / Grupo SIDS
           </label>
           <select
             value={filtros.naturezaGrupo}
             onChange={(e) => onChangeFiltros({ ...filtros, naturezaGrupo: e.target.value })}
             className="w-full bg-slate-950 border border-slate-700 focus:border-red-500 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
           >
-            <option value="TODOS">Todas as Naturezas</option>
-            {listaGruposNatureza.map((grupo) => (
-              <option key={grupo} value={grupo}>
-                {grupo}
-              </option>
-            ))}
+            <option value="TODOS">Todas as Naturezas (Geral)</option>
+            <option value="CAT_II">★ Categoria II (Típicas Bombeiro Militar)</option>
+            <option value="CAT_III">★ Categoria III (Ações e Operações SIDS)</option>
+
+            <optgroup label="CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR">
+              <option value="O">O - REFERENTE À EXPLOSÃO E INCÊNDIO</option>
+              <option value="P">P - REFERENTE À PREVENÇÃO E VISTORIA</option>
+              <option value="R">R - REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL</option>
+              <option value="S">S - REFERENTE À BUSCA E SALVAMENTO</option>
+              <option value="V">V - REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)</option>
+            </optgroup>
+
+            <optgroup label="CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS">
+              <option value="A">A - AÇÕES DE DEFESA SOCIAL</option>
+              <option value="Q">Q - DEMONSTRAÇÕES, PALESTRAS E TREINAMENTOS</option>
+              <option value="W">W - PROCEDIMENTOS ADMINISTRATIVOS CIAD</option>
+              <option value="Y">Y - OPERAÇÕES DE DEFESA SOCIAL</option>
+              <option value="X">X - COORDENAÇÃO E CONTROLE OPERACIONAL E ADMINISTRATIVO</option>
+              <option value="U">U - COMUNICAÇÕES, DENÚNCIAS, RECLAMAÇÕES E SOLICITAÇÕES DIVERSAS</option>
+            </optgroup>
           </select>
         </div>
 

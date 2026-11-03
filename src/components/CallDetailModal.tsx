@@ -142,12 +142,20 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
               Natureza da Ocorrência
             </span>
             <div className="text-sm font-bold text-slate-100">{chamada.descricaoNatureza}</div>
-            <div className="flex items-center gap-2 pt-1 text-slate-400">
-              <span className="bg-slate-800 px-2 py-0.5 rounded font-mono text-[11px] text-amber-300">
-                Código CAD: {chamada.codigoNatureza || 'A00'}
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-slate-400">
+              <span className="bg-slate-800 px-2 py-0.5 rounded font-mono text-[11px] text-amber-300 font-bold">
+                Código CAD: {chamada.codigoNatureza || 'S0101'}
               </span>
               <span>•</span>
-              <span>Grupo: {chamada.grupoNatureza}</span>
+              <span className="text-slate-300">{chamada.grupoNatureza}</span>
+              {chamada.categoriaNatureza && (
+                <>
+                  <span>•</span>
+                  <span className="text-[10px] text-red-400 bg-red-950/50 px-2 py-0.5 rounded border border-red-900/50">
+                    {chamada.categoriaNatureza}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 

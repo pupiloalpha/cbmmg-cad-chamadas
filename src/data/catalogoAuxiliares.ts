@@ -102,42 +102,191 @@ export const UNIDADES_SERVICO_CBMMG: UnidadeServicoAuxiliar[] = [
   { id: 612, nome: '12ª Cia Ind - Passos', sigla: '12ª Cia Ind', cob: '6º COB', bbm: '9º BBM', ciaInd: '12ª Cia Ind', municipioSede: 'Passos', latitudeSede: -20.7189, longitudeSede: -46.6097 },
 ];
 
+export interface GrupoNaturezaDef {
+  letra: string;
+  nome: string;
+  rotuloCompleto: string;
+  categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR' | 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS';
+  categoriaCurta: 'Categoria II - Típicas BM' | 'Categoria III - SIDS';
+  cor: string;
+}
+
+export const GRUPOS_NATUREZAS_CBMMG: Record<string, GrupoNaturezaDef> = {
+  // CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR
+  O: {
+    letra: 'O',
+    nome: 'REFERENTE À EXPLOSÃO E INCÊNDIO',
+    rotuloCompleto: 'O - REFERENTE À EXPLOSÃO E INCÊNDIO',
+    categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR',
+    categoriaCurta: 'Categoria II - Típicas BM',
+    cor: '#ef4444',
+  },
+  P: {
+    letra: 'P',
+    nome: 'REFERENTE À PREVENÇÃO E VISTORIA',
+    rotuloCompleto: 'P - REFERENTE À PREVENÇÃO E VISTORIA',
+    categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR',
+    categoriaCurta: 'Categoria II - Típicas BM',
+    cor: '#f59e0b',
+  },
+  R: {
+    letra: 'R',
+    nome: 'REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL',
+    rotuloCompleto: 'R - REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL',
+    categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR',
+    categoriaCurta: 'Categoria II - Típicas BM',
+    cor: '#eab308',
+  },
+  S: {
+    letra: 'S',
+    nome: 'REFERENTE À BUSCA E SALVAMENTO',
+    rotuloCompleto: 'S - REFERENTE À BUSCA E SALVAMENTO',
+    categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR',
+    categoriaCurta: 'Categoria II - Típicas BM',
+    cor: '#f97316',
+  },
+  V: {
+    letra: 'V',
+    nome: 'REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)',
+    rotuloCompleto: 'V - REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)',
+    categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR',
+    categoriaCurta: 'Categoria II - Típicas BM',
+    cor: '#ec4899',
+  },
+
+  // CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS
+  A: {
+    letra: 'A',
+    nome: 'AÇÕES DE DEFESA SOCIAL',
+    rotuloCompleto: 'A - AÇÕES DE DEFESA SOCIAL',
+    categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS',
+    categoriaCurta: 'Categoria III - SIDS',
+    cor: '#3b82f6',
+  },
+  Q: {
+    letra: 'Q',
+    nome: 'DEMONSTRAÇÕES, PALESTRAS E TREINAMENTOS',
+    rotuloCompleto: 'Q - DEMONSTRAÇÕES, PALESTRAS E TREINAMENTOS',
+    categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS',
+    categoriaCurta: 'Categoria III - SIDS',
+    cor: '#8b5cf6',
+  },
+  W: {
+    letra: 'W',
+    nome: 'PROCEDIMENTOS ADMINISTRATIVOS CIAD',
+    rotuloCompleto: 'W - PROCEDIMENTOS ADMINISTRATIVOS CIAD',
+    categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS',
+    categoriaCurta: 'Categoria III - SIDS',
+    cor: '#6366f1',
+  },
+  Y: {
+    letra: 'Y',
+    nome: 'OPERAÇÕES DE DEFESA SOCIAL',
+    rotuloCompleto: 'Y - OPERAÇÕES DE DEFESA SOCIAL',
+    categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS',
+    categoriaCurta: 'Categoria III - SIDS',
+    cor: '#06b6d4',
+  },
+  X: {
+    letra: 'X',
+    nome: 'COORDENAÇÃO E CONTROLE OPERACIONAL E ADMINISTRATIVO',
+    rotuloCompleto: 'X - COORDENAÇÃO E CONTROLE OPERACIONAL E ADMINISTRATIVO',
+    categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS',
+    categoriaCurta: 'Categoria III - SIDS',
+    cor: '#14b8a6',
+  },
+  U: {
+    letra: 'U',
+    nome: 'COMUNICAÇÕES, DENÚNCIAS, RECLAMAÇÕES E SOLICITAÇÕES DIVERSAS',
+    rotuloCompleto: 'U - COMUNICAÇÕES, DENÚNCIAS, RECLAMAÇÕES E SOLICITAÇÕES DIVERSAS',
+    categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS',
+    categoriaCurta: 'Categoria III - SIDS',
+    cor: '#64748b',
+  },
+};
+
+export const ESTRUTURA_CATEGORIAS_SIDS = [
+  {
+    categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR',
+    sigla: 'CAT_II',
+    grupos: [
+      GRUPOS_NATUREZAS_CBMMG.O,
+      GRUPOS_NATUREZAS_CBMMG.P,
+      GRUPOS_NATUREZAS_CBMMG.R,
+      GRUPOS_NATUREZAS_CBMMG.S,
+      GRUPOS_NATUREZAS_CBMMG.V,
+    ],
+  },
+  {
+    categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS',
+    sigla: 'CAT_III',
+    grupos: [
+      GRUPOS_NATUREZAS_CBMMG.A,
+      GRUPOS_NATUREZAS_CBMMG.Q,
+      GRUPOS_NATUREZAS_CBMMG.W,
+      GRUPOS_NATUREZAS_CBMMG.Y,
+      GRUPOS_NATUREZAS_CBMMG.X,
+      GRUPOS_NATUREZAS_CBMMG.U,
+    ],
+  },
+];
+
 export const CATALOGO_NATUREZAS_CBMMG: NaturezaAuxiliar[] = [
-  // Incêndios
-  { id: 101, codigo: 'A0101', descricao: 'Incêndio em Vegetação / Florestal', grupo: 'Incêndio', prioridadeSugerida: 'Alta', corGrupo: '#ef4444' },
-  { id: 102, codigo: 'A0102', descricao: 'Incêndio em Edificação Residencial', grupo: 'Incêndio', prioridadeSugerida: 'Alta', corGrupo: '#ef4444' },
-  { id: 103, codigo: 'A0103', descricao: 'Incêndio em Edificação Comercial / Industrial', grupo: 'Incêndio', prioridadeSugerida: 'Alta', corGrupo: '#ef4444' },
-  { id: 104, codigo: 'A0104', descricao: 'Incêndio em Veículo Automotor', grupo: 'Incêndio', prioridadeSugerida: 'Média', corGrupo: '#ef4444' },
-  { id: 105, codigo: 'A0105', descricao: 'Incêndio em Lote Vago / Entulho', grupo: 'Incêndio', prioridadeSugerida: 'Baixa', corGrupo: '#ef4444' },
+  // O - REFERENTE À EXPLOSÃO E INCÊNDIO
+  { id: 101, codigo: 'O0101', descricao: 'Incêndio em Vegetação / Florestal', grupo: 'O - REFERENTE À EXPLOSÃO E INCÊNDIO', letraGrupo: 'O', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#ef4444' },
+  { id: 102, codigo: 'O0102', descricao: 'Incêndio em Edificação Residencial', grupo: 'O - REFERENTE À EXPLOSÃO E INCÊNDIO', letraGrupo: 'O', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#ef4444' },
+  { id: 103, codigo: 'O0103', descricao: 'Incêndio em Edificação Comercial / Industrial', grupo: 'O - REFERENTE À EXPLOSÃO E INCÊNDIO', letraGrupo: 'O', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#ef4444' },
+  { id: 104, codigo: 'O0104', descricao: 'Incêndio em Veículo Automotor', grupo: 'O - REFERENTE À EXPLOSÃO E INCÊNDIO', letraGrupo: 'O', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Média', corGrupo: '#ef4444' },
+  { id: 105, codigo: 'O0105', descricao: 'Incêndio em Lote Vago / Entulho', grupo: 'O - REFERENTE À EXPLOSÃO E INCÊNDIO', letraGrupo: 'O', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Baixa', corGrupo: '#ef4444' },
+  { id: 106, codigo: 'O0201', descricao: 'Explosão / Risco de Explosão por GLP ou Combustível', grupo: 'O - REFERENTE À EXPLOSÃO E INCÊNDIO', letraGrupo: 'O', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#ef4444' },
 
-  // Salvamento e Resgate
-  { id: 201, codigo: 'B0201', descricao: 'Acidente de Trânsito com Vítima Presa às Ferragens', grupo: 'Salvamento e Resgate', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
-  { id: 202, codigo: 'B0202', descricao: 'Salvamento Aquático / Afogamento em Andamento', grupo: 'Salvamento e Resgate', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
-  { id: 203, codigo: 'B0203', descricao: 'Busca e Resgate em Área de Difícil Acesso / Altura', grupo: 'Salvamento e Resgate', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
-  { id: 204, codigo: 'B0204', descricao: 'Resgate de Pessoa Presa em Elevador', grupo: 'Salvamento e Resgate', prioridadeSugerida: 'Média', corGrupo: '#f97316' },
-  { id: 205, codigo: 'B0205', descricao: 'Tentativa de Autoextermínio / Resgate em Ponte/Viaduto', grupo: 'Salvamento e Resgate', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
-  { id: 206, codigo: 'B0206', descricao: 'Soterramento / Desabamento de Estrutura', grupo: 'Salvamento e Resgate', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
+  // P - REFERENTE À PREVENÇÃO E VISTORIA
+  { id: 201, codigo: 'P0101', descricao: 'Vistoria Preventiva Operacional em Edificação', grupo: 'P - REFERENTE À PREVENÇÃO E VISTORIA', letraGrupo: 'P', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Baixa', corGrupo: '#f59e0b' },
+  { id: 202, codigo: 'P0102', descricao: 'Fiscalização de Evento de Grande Público / AVCB', grupo: 'P - REFERENTE À PREVENÇÃO E VISTORIA', letraGrupo: 'P', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Média', corGrupo: '#f59e0b' },
+  { id: 203, codigo: 'P0201', descricao: 'Inspeção Técnica de Risco Pós-Sinistro', grupo: 'P - REFERENTE À PREVENÇÃO E VISTORIA', letraGrupo: 'P', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Baixa', corGrupo: '#f59e0b' },
 
-  // Atendimento Pré-Hospitalar (APH)
-  { id: 301, codigo: 'C0301', descricao: 'Parada Cardiorrespiratória (PCR)', grupo: 'Atendimento Pré-Hospitalar', prioridadeSugerida: 'Alta', corGrupo: '#e11d48' },
-  { id: 302, codigo: 'C0302', descricao: 'Trauma Grave / Queda de Nível', grupo: 'Atendimento Pré-Hospitalar', prioridadeSugerida: 'Alta', corGrupo: '#e11d48' },
-  { id: 303, codigo: 'C0303', descricao: 'Crise Convulsiva / Mal Súbito em Via Pública', grupo: 'Atendimento Pré-Hospitalar', prioridadeSugerida: 'Média', corGrupo: '#e11d48' },
-  { id: 304, codigo: 'C0304', descricao: 'Acidente com Queimaduras Graves', grupo: 'Atendimento Pré-Hospitalar', prioridadeSugerida: 'Alta', corGrupo: '#e11d48' },
+  // R - REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL
+  { id: 301, codigo: 'R0101', descricao: 'Risco Iminente de Desabamento / Colapso Estrutural', grupo: 'R - REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL', letraGrupo: 'R', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#eab308' },
+  { id: 302, codigo: 'R0102', descricao: 'Alagamento / Inundação com Pessoas Ilhadas', grupo: 'R - REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL', letraGrupo: 'R', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#eab308' },
+  { id: 303, codigo: 'R0103', descricao: 'Queda ou Risco Iminente de Queda de Árvore', grupo: 'R - REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL', letraGrupo: 'R', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Média', corGrupo: '#eab308' },
+  { id: 304, codigo: 'R0201', descricao: 'Deslizamento de Encosta / Talude com Risco', grupo: 'R - REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL', letraGrupo: 'R', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#eab308' },
 
-  // Proteção e Defesa Civil
-  { id: 401, codigo: 'D0401', descricao: 'Risco Iminente de Desabamento / Colapso', grupo: 'Proteção e Defesa Civil', prioridadeSugerida: 'Alta', corGrupo: '#eab308' },
-  { id: 402, codigo: 'D0402', descricao: 'Alagamento / Inundação com Pessoas Ilhadas', grupo: 'Proteção e Defesa Civil', prioridadeSugerida: 'Alta', corGrupo: '#eab308' },
-  { id: 403, codigo: 'D0403', descricao: 'Queda de Árvore sobre Residência ou Via Arterial', grupo: 'Proteção e Defesa Civil', prioridadeSugerida: 'Média', corGrupo: '#eab308' },
-  { id: 404, codigo: 'D0404', descricao: 'Vistoria Preventiva / Trinca Estrutural', grupo: 'Proteção e Defesa Civil', prioridadeSugerida: 'Baixa', corGrupo: '#eab308' },
+  // S - REFERENTE À BUSCA E SALVAMENTO
+  { id: 401, codigo: 'S0101', descricao: 'Acidente de Trânsito com Vítima Presa às Ferragens', grupo: 'S - REFERENTE À BUSCA E SALVAMENTO', letraGrupo: 'S', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
+  { id: 402, codigo: 'S0201', descricao: 'Salvamento Aquático / Afogamento em Andamento', grupo: 'S - REFERENTE À BUSCA E SALVAMENTO', letraGrupo: 'S', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
+  { id: 403, codigo: 'S0202', descricao: 'Busca de Pessoa Perdida em Mata ou Local de Difícil Acesso', grupo: 'S - REFERENTE À BUSCA E SALVAMENTO', letraGrupo: 'S', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
+  { id: 404, codigo: 'S0301', descricao: 'Salvamento de Pessoa em Altura / Elevador / Poço', grupo: 'S - REFERENTE À BUSCA E SALVAMENTO', letraGrupo: 'S', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Média', corGrupo: '#f97316' },
+  { id: 405, codigo: 'S0401', descricao: 'Captura de Animal Silvestre / Serpente Peçonhenta', grupo: 'S - REFERENTE À BUSCA E SALVAMENTO', letraGrupo: 'S', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Média', corGrupo: '#f97316' },
+  { id: 406, codigo: 'S0402', descricao: 'Risco ou Ataque de Insetos / Abelhas / Marimbondos', grupo: 'S - REFERENTE À BUSCA E SALVAMENTO', letraGrupo: 'S', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#f97316' },
 
-  // Fauna e Meio Ambiente
-  { id: 501, codigo: 'E0501', descricao: 'Captura de Serpente Peçonhenta em Residência', grupo: 'Fauna e Meio Ambiente', prioridadeSugerida: 'Média', corGrupo: '#10b981' },
-  { id: 502, codigo: 'E0502', descricao: 'Extermínio de Insetos com Ataque / Enxame Ativo', grupo: 'Fauna e Meio Ambiente', prioridadeSugerida: 'Alta', corGrupo: '#10b981' },
-  { id: 503, codigo: 'E0503', descricao: 'Captura / Salvamento de Animal em Poço ou Telhado', grupo: 'Fauna e Meio Ambiente', prioridadeSugerida: 'Baixa', corGrupo: '#10b981' },
+  // V - REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)
+  { id: 501, codigo: 'V0101', descricao: 'Parada Cardiorrespiratória (PCR) / Mal Súbito Grave', grupo: 'V - REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)', letraGrupo: 'V', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#ec4899' },
+  { id: 502, codigo: 'V0102', descricao: 'Trauma Grave / Queda de Nível com Lesões Múltiplas', grupo: 'V - REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)', letraGrupo: 'V', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#ec4899' },
+  { id: 503, codigo: 'V0103', descricao: 'Crise Convulsiva / Perda de Consciência em Via Pública', grupo: 'V - REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)', letraGrupo: 'V', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Média', corGrupo: '#ec4899' },
+  { id: 504, codigo: 'V0104', descricao: 'Queimadura Térmica ou Química Grave', grupo: 'V - REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)', letraGrupo: 'V', categoria: 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR', prioridadeSugerida: 'Alta', corGrupo: '#ec4899' },
 
-  // Produtos Perigosos
-  { id: 601, codigo: 'F0601', descricao: 'Vazamento de GLP com Fogo / Risco de Explosão', grupo: 'Produtos Perigosos', prioridadeSugerida: 'Alta', corGrupo: '#8b5cf6' },
-  { id: 602, codigo: 'F0602', descricao: 'Derramamento de Combustível em Rodovia', grupo: 'Produtos Perigosos', prioridadeSugerida: 'Alta', corGrupo: '#8b5cf6' },
+  // CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS
+  // A - AÇÕES DE DEFESA SOCIAL
+  { id: 601, codigo: 'A0101', descricao: 'Apoio em Ação de Defesa Social Integrada (PMMG/PCMG)', grupo: 'A - AÇÕES DE DEFESA SOCIAL', letraGrupo: 'A', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Média', corGrupo: '#3b82f6' },
+  { id: 602, codigo: 'A0201', descricao: 'Preservação de Local de Crime / Isolamento Integrado', grupo: 'A - AÇÕES DE DEFESA SOCIAL', letraGrupo: 'A', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Baixa', corGrupo: '#3b82f6' },
+
+  // Q - DEMONSTRAÇÕES, PALESTRAS E TREINAMENTOS
+  { id: 701, codigo: 'Q0101', descricao: 'Instrução / Simulado de Emergência e Evacuação', grupo: 'Q - DEMONSTRAÇÕES, PALESTRAS E TREINAMENTOS', letraGrupo: 'Q', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Baixa', corGrupo: '#8b5cf6' },
+  { id: 702, codigo: 'Q0201', descricao: 'Palestra Educativa de Prevenção a Acidentes e Incêndios', grupo: 'Q - DEMONSTRAÇÕES, PALESTRAS E TREINAMENTOS', letraGrupo: 'Q', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Baixa', corGrupo: '#8b5cf6' },
+
+  // W - PROCEDIMENTOS ADMINISTRATIVOS CIAD
+  { id: 801, codigo: 'W0101', descricao: 'Registro de Atendimento Administrativo CIAD / SIDS', grupo: 'W - PROCEDIMENTOS ADMINISTRATIVOS CIAD', letraGrupo: 'W', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Baixa', corGrupo: '#6366f1' },
+
+  // Y - OPERAÇÕES DE DEFESA SOCIAL
+  { id: 901, codigo: 'Y0101', descricao: 'Operação Férias Mais Seguras / Operação Alferes', grupo: 'Y - OPERAÇÕES DE DEFESA SOCIAL', letraGrupo: 'Y', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Média', corGrupo: '#06b6d4' },
+  { id: 902, codigo: 'Y0201', descricao: 'Operação Integrada de Trânsito Rodoviário / Carnaval', grupo: 'Y - OPERAÇÕES DE DEFESA SOCIAL', letraGrupo: 'Y', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Média', corGrupo: '#06b6d4' },
+
+  // X - COORDENAÇÃO E CONTROLE OPERACIONAL E ADMINISTRATIVO
+  { id: 951, codigo: 'X0101', descricao: 'Coordenação de Sala de Operações / Posto de Comando Avançado', grupo: 'X - COORDENAÇÃO E CONTROLE OPERACIONAL E ADMINISTRATIVO', letraGrupo: 'X', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Alta', corGrupo: '#14b8a6' },
+
+  // U - COMUNICAÇÕES, DENÚNCIAS, RECLAMAÇÕES E SOLICITAÇÕES DIVERSAS
+  { id: 981, codigo: 'U0101', descricao: 'Solicitação de Informação / Triagem e Apoio ao Cidadão 193', grupo: 'U - COMUNICAÇÕES, DENÚNCIAS, RECLAMAÇÕES E SOLICITAÇÕES DIVERSAS', letraGrupo: 'U', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Baixa', corGrupo: '#64748b' },
+  { id: 982, codigo: 'U0201', descricao: 'Denúncia de Irregularidade em Prevenção contra Incêndio', grupo: 'U - COMUNICAÇÕES, DENÚNCIAS, RECLAMAÇÕES E SOLICITAÇÕES DIVERSAS', letraGrupo: 'U', categoria: 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS', prioridadeSugerida: 'Baixa', corGrupo: '#64748b' },
 ];
 
 export const ORGAOS_AUXILIARES_CBMMG: OrgaoAuxiliar[] = [
