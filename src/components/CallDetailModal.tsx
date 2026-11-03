@@ -59,8 +59,12 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
         {/* Header Modal */}
         <div className="bg-slate-950 p-4 border-b border-slate-800 flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-500 font-bold">
-              <Shield className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700/80 p-0.5 flex items-center justify-center shrink-0">
+              <img
+                src="/assets/aistudio/LogoCorpoDeBombeiros_57dfdd49.png"
+                alt="CBMMG"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">

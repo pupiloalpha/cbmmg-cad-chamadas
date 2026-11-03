@@ -18,12 +18,38 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [mapStyle, setMapStyle] = useState<'dark' | 'streets'>('dark');
+  const [mapStyle, setMapStyle] = useState<'dark' | 'streets' | 'satellite'>('dark');
 
   // Coordenadas centrais aproximadas de Minas Gerais (Curvelo / Cordisburgo)
   const MG_CENTER: [number, number] = [-18.5, -44.5];
   const DEFAULT_ZOOM = 7;
+
+  // Provedores de tiles 100% gratuitos, confiáveis e sem watermark "API KEY REQUIRED"
+  const MAP_STYLES_CONFIG = {
+    dark: {
+      name: 'Tático (Escuro)',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+      maxZoom: 19,
+      maxNativeZoom: 16,
+    },
+    streets: {
+      name: 'Vias (OpenStreetMap)',
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      maxNativeZoom: 19,
+    },
+    satellite: {
+      name: 'Satélite (ESRI)',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: '&copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+      maxZoom: 19,
+      maxNativeZoom: 18,
+    },
+  };
 
   // Filtrar ocorrências com coordenadas válidas
   const chamadasComCoords = chamadas.filter(
@@ -43,17 +69,15 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // Camada de mapa escuro tático (CartoDB Dark Matter)
-      const tileUrl =
-        mapStyle === 'dark'
-          ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-      const tileLayer = L.tileLayer(tileUrl, {
-        attribution: '&copy; CBMMG CAD • OpenStreetMap contributors',
-        maxZoom: 19,
+      // Adicionar camada inicial de tiles
+      const cfg = MAP_STYLES_CONFIG[mapStyle];
+      const initialTile = L.tileLayer(cfg.url, {
+        attribution: cfg.attribution,
+        maxZoom: cfg.maxZoom,
+        maxNativeZoom: cfg.maxNativeZoom,
       });
-      tileLayer.addTo(map);
+      initialTile.addTo(map);
+      tileLayerRef.current = initialTile;
 
       const markersGroup = L.layerGroup().addTo(map);
       markersLayerRef.current = markersGroup;
@@ -61,30 +85,27 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
     }
 
     return () => {
-      // Não destruímos o mapa em cada render simples para evitar cintilação, mas no unmount sim
+      // Não destruímos o mapa em cada render simples para evitar cintilação
     };
   }, []);
 
-  // Atualizar camada de tiles quando o estilo mudar
+  // Atualizar camada de tiles quando o estilo mudar sem recriar marcadores
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    map.eachLayer((layer) => {
-      if (layer instanceof L.TileLayer) {
-        map.removeLayer(layer);
-      }
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    const cfg = MAP_STYLES_CONFIG[mapStyle];
+    const newTile = L.tileLayer(cfg.url, {
+      attribution: cfg.attribution,
+      maxZoom: cfg.maxZoom,
+      maxNativeZoom: cfg.maxNativeZoom,
     });
-
-    const tileUrl =
-      mapStyle === 'dark'
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-    L.tileLayer(tileUrl, {
-      attribution: '&copy; CBMMG CAD • OpenStreetMap',
-      maxZoom: 19,
-    }).addTo(map);
+    newTile.addTo(map);
+    tileLayerRef.current = newTile;
   }, [mapStyle]);
 
   // Atualizar marcadores quando as chamadas mudarem
@@ -252,13 +273,36 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
           Estado MG
         </button>
 
-        <button
-          onClick={() => setMapStyle((s) => (s === 'dark' ? 'streets' : 'dark'))}
-          title="Alternar estilo do mapa (Tático Noturno / Claro)"
-          className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition"
-        >
-          <Layers className="w-3.5 h-3.5 text-emerald-400" />
-        </button>
+        {/* Seletor de estilo do mapa */}
+        <div className="flex items-center bg-slate-950/80 rounded-md p-0.5 border border-slate-700/60">
+          <button
+            onClick={() => setMapStyle('dark')}
+            title="Camada Tática Noturna (ESRI Gray)"
+            className={`px-2 py-1 rounded text-[11px] font-medium transition ${
+              mapStyle === 'dark' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Tático
+          </button>
+          <button
+            onClick={() => setMapStyle('streets')}
+            title="Camada Urbana de Vias (OpenStreetMap)"
+            className={`px-2 py-1 rounded text-[11px] font-medium transition ${
+              mapStyle === 'streets' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Vias
+          </button>
+          <button
+            onClick={() => setMapStyle('satellite')}
+            title="Camada Satélite Ortofoto (ESRI World Imagery)"
+            className={`px-2 py-1 rounded text-[11px] font-medium transition ${
+              mapStyle === 'satellite' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Satélite
+          </button>
+        </div>
 
         <button
           onClick={() => setIsFullscreen(!isFullscreen)}

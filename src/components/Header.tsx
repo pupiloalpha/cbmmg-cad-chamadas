@@ -47,11 +47,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-3">
             <div className="relative">
               <img
-                src="/icon.svg"
-                alt="Brasão CBMMG"
-                className="w-11 h-11 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] transition hover:scale-105"
+                src="/assets/aistudio/LogoCorpoDeBombeiros_57dfdd49.png"
+                alt="Brasão Oficial do Corpo de Bombeiros Militar de Minas Gerais"
+                className="w-12 h-12 object-contain drop-shadow-[0_0_12px_rgba(239,68,68,0.4)] transition hover:scale-105"
               />
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse" title="Sistema Online • Conectado" />
             </div>
 
             <div>
