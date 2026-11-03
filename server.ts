@@ -10,22 +10,36 @@ const app = express();
 const port = parseInt(process.env.PORT || '3000', 10);
 const isProd = process.env.NODE_ENV === 'production';
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '15mb' }));
 
-// Configurações e Estado do Daemon Intermediário em Memória / Arquivo
-const BASE_CBM_API = 'https://apicadbm.bombeiros.mg.gov.br';
+// Configurações do Proxy Reverso Nginx CBMMG (CORS aberto, token injetado pelo Nginx)
+const PROXY_REVERSO_URL = process.env.CBMMG_PROXY_URL || 'https://cobom-cad.duckdns.org';
 let ultimoAcessoRemoto = 0;
 let cacheAtivos: any = null;
-let cacheCatalogos: Record<string, any> = {};
+let cacheCatalogos: any = null;
 let ultimaAtualizacao = new Date().toISOString();
+
+// Carregar snapshot inicial em cache caso disponível
+try {
+  const snapPath = path.resolve(__dirname, 'public/cbmmg_cad_dados.json');
+  if (fs.existsSync(snapPath)) {
+    cacheAtivos = JSON.parse(fs.readFileSync(snapPath, 'utf-8'));
+  }
+} catch (e) {
+  console.warn('Snapshot inicial não carregado:', e);
+}
 
 // Rota de status do backend intermediário
 app.get('/api/cbm/status', (req, res) => {
   res.json({
     sucesso: true,
     servico: 'CBMMG CAD Intermediary Proxy & Cache',
-    modo: 'Polite Daemon Active',
-    intervaloMinimoSegundos: 6,
+    proxyReverso: PROXY_REVERSO_URL,
+    regrasManual: {
+      regra1_tokenSeguroServidor: 'Injetado pelo Nginx no proxy reverso (nunca exposto ao frontend)',
+      regra2_catalogo6h: 'Catálogos auxiliares renovados a cada 6h com cache local',
+      regra3_intervalo10min: 'Leitura de /ativos a cada 10 minutos (espaçamento mínimo de 30s)',
+    },
     ultimaAtualizacao,
     cacheAtivosPresente: !!cacheAtivos,
     totalAtivosEmCache: cacheAtivos?.total || 0,
@@ -33,21 +47,12 @@ app.get('/api/cbm/status', (req, res) => {
   });
 });
 
-// Testar conexão com a API do CBMMG (/codigos conforme Seção 6 do manual)
-app.post('/api/cbm/test-connection', async (req, res) => {
-  const token = req.body?.token || process.env.CBM_API_TOKEN;
-  if (!token) {
-    return res.json({
-      sucesso: false,
-      mensagem: 'Nenhum token fornecido. O sistema está operando no modo de simulação com cache local.',
-    });
-  }
-
-  // Garantir intervalo de segurança de 6s
+// Testar conexão com o proxy (/codigos conforme Seção 6 do manual)
+app.all('/api/cbm/test-connection', async (req, res) => {
   const agora = Date.now();
   const tempoDesdeUltimo = (agora - ultimoAcessoRemoto) / 1000;
-  if (tempoDesdeUltimo < 6) {
-    await new Promise((resolve) => setTimeout(resolve, (6 - tempoDesdeUltimo) * 1000));
+  if (tempoDesdeUltimo < 5) {
+    await new Promise((resolve) => setTimeout(resolve, (5 - tempoDesdeUltimo) * 1000));
   }
   ultimoAcessoRemoto = Date.now();
 
@@ -55,73 +60,47 @@ app.post('/api/cbm/test-connection', async (req, res) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const resp = await fetch(`${BASE_CBM_API}/codigos`, {
+    const resp = await fetch(`${PROXY_REVERSO_URL}/codigos`, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
         'User-Agent': 'CBMMG-Proxy-App/1.0',
       },
       signal: controller.signal,
     });
     clearTimeout(timeout);
 
-    if (resp.status === 200) {
+    if (resp.ok) {
       const data = await resp.json();
+      cacheCatalogos = data;
       return res.json({
         sucesso: true,
-        mensagem: 'Conexão validada com sucesso! Resposta 200 recebida da API CAD CBMMG.',
+        mensagem: `Conexão validada com sucesso! HTTP 200 recebido do Proxy Reverso Nginx (${PROXY_REVERSO_URL}).`,
         dados: data,
-      });
-    } else if (resp.status === 401) {
-      return res.status(401).json({
-        sucesso: false,
-        mensagem: 'Erro 401: Credencial inválida. O token não é válido ou foi revogado.',
-      });
-    } else if (resp.status === 429) {
-      const retryAfter = resp.headers.get('Retry-After') || '30';
-      return res.status(429).json({
-        sucesso: false,
-        mensagem: `Erro 429: Rate limit atingido. Aguarde ${retryAfter}s conforme orientação do manual.`,
       });
     } else {
       return res.json({
         sucesso: false,
-        mensagem: `Servidor retornou status HTTP ${resp.status}`,
+        mensagem: `Proxy retornou status HTTP ${resp.status}`,
       });
     }
   } catch (err: any) {
-    const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('timeout');
-    const msg = isTimeout
-      ? `Bloqueio de IP do Firewall PRODEMGE: A rede do Governo de MG bloqueou a conexão originada da nuvem pública (Timeout de conexão). Para integrar em tempo real, execute o agente local (python cbmmg_bridge.py) e ative a opção "Agente Local (127.0.0.1:8080)" no painel.`
-      : `Erro ao conectar com ${BASE_CBM_API}: ${err.message}. Operando em modo de contingência com cache local.`;
-
     return res.json({
       sucesso: false,
-      bloqueioProdemge: isTimeout,
-      mensagem: msg,
+      mensagem: `Erro ao conectar com ${PROXY_REVERSO_URL}: ${err.message}`,
     });
   }
 });
 
 // Sincronização /ativos com respeito estrito às 3 regras do manual
-app.post('/api/cbm/sync', async (req, res) => {
-  const token = req.body?.token || process.env.CBM_API_TOKEN;
+app.all('/api/cbm/sync', async (req, res) => {
   const agora = Date.now();
   const tempoDesdeUltimo = (agora - ultimoAcessoRemoto) / 1000;
 
-  if (tempoDesdeUltimo < 6) {
-    const espera = Math.ceil(6 - tempoDesdeUltimo);
-    return res.json({
-      sucesso: false,
-      aviso: `Regra de Ouro #3: Espaçamento de segurança ativo. Próxima requisição permitida em ${espera} segundos.`,
-      dados: cacheAtivos,
-      atualizado_em: ultimaAtualizacao,
-    });
-  }
-
-  if (!token) {
+  // Regra 3: Espaçamento de segurança de no mínimo 30s entre chamadas diretas
+  if (tempoDesdeUltimo < 30 && cacheAtivos) {
     return res.json({
       sucesso: true,
-      aviso: 'Token remoto não configurado. Mantendo ocorrências do cache enriquecido.',
+      aviso: `Regra de Ouro #3: Espaçamento de segurança ativo (≥30s). Dados servidos do cache intermediário.`,
       dados: cacheAtivos,
       atualizado_em: ultimaAtualizacao,
     });
@@ -130,33 +109,46 @@ app.post('/api/cbm/sync', async (req, res) => {
   ultimoAcessoRemoto = Date.now();
 
   try {
-    const resp = await fetch(`${BASE_CBM_API}/ativos`, {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const resp = await fetch(`${PROXY_REVERSO_URL}/ativos`, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
         'User-Agent': 'CBMMG-Proxy-App/1.0',
       },
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
-    if (resp.status === 200) {
+    if (resp.ok) {
       const json = await resp.json();
       cacheAtivos = json;
-      ultimaAtualizacao = json.atualizado_em || new Date().toISOString();
+      ultimaAtualizacao = new Date().toISOString();
       return res.json({
         sucesso: true,
+        fonte: PROXY_REVERSO_URL,
         dados: json,
+        atualizado_em: ultimaAtualizacao,
+      });
+    } else if (resp.status === 429) {
+      return res.json({
+        sucesso: true,
+        aviso: 'Rate limit (HTTP 429) detectado. Servindo ocorrências do cache intermediário.',
+        dados: cacheAtivos,
         atualizado_em: ultimaAtualizacao,
       });
     } else {
       return res.json({
         sucesso: false,
-        aviso: `API retornou código ${resp.status}. Mantendo cache local.`,
+        aviso: `Proxy retornou código ${resp.status}. Mantendo cache local.`,
         dados: cacheAtivos,
       });
     }
   } catch (e: any) {
     return res.json({
       sucesso: false,
-      aviso: `Falha ao alcançar servidor da API CAD (${e.message}). Mantendo cache local ativo.`,
+      aviso: `Falha ao alcançar proxy reverso (${e.message}). Mantendo cache local ativo.`,
       dados: cacheAtivos,
     });
   }
@@ -182,6 +174,7 @@ async function startServer() {
 
   app.listen(port, '0.0.0.0', () => {
     console.log(`[CBMMG CAD Dashboard] Servidor iniciado na porta ${port}`);
+    console.log(`[CBMMG CAD Dashboard] Conectado ao Proxy Reverso: ${PROXY_REVERSO_URL}`);
   });
 }
 

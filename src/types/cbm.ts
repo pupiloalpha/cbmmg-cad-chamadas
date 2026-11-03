@@ -59,12 +59,13 @@ export interface RecursoEmpenhado {
   placaMeioMaterial?: string;
   complementoPrefixo?: string;
   prefixoMeioMaterial?: string;
-  dataHoraAtivacao: string;
+  dataHoraAtivacao?: string;
   codigoSituacaoRecurso?: CodigoSituacaoEmpenho;
   codigoSituacaoEmpenhoRecurso?: CodigoSituacaoEmpenho;
   idUnidadeServico?: number;
   unidadeNome?: string;
   componentes?: number; // Qtd bombeiros
+  nomesMilitares?: string[];
   idMotivoIndisponibilidadeRecurso?: number | null;
 }
 

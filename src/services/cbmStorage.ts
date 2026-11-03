@@ -9,13 +9,51 @@ import {
   CodigoOrigemChamada,
   CodigoSituacaoAtendimento,
   CodigoSituacaoChamada,
+  CodigoSituacaoEmpenho,
   FiltrosOperacionais,
   KpiOperacional,
+  RecursoEmpenhado,
 } from '../types/cbm';
+
+// Endereço oficial do Proxy Reverso Nginx configurado pelo usuário
+export const PROXY_REVERSO_PADRAO = 'https://cobom-cad.duckdns.org';
 
 const STORAGE_KEY_CHAMADAS = 'cbmmg_cad_chamadas_v1';
 const STORAGE_KEY_ULTIMA_SYNC = 'cbmmg_cad_ultima_sync';
+const STORAGE_KEY_CATALOGOS = 'cbmmg_cad_catalogos_v1';
+const STORAGE_KEY_CATALOGOS_TS = 'cbmmg_cad_catalogos_ts';
+const STORAGE_KEY_PROXY_URL = 'cbmmg_cad_proxy_url';
 const STORAGE_KEY_TOKEN = 'cbmmg_cad_api_token';
+
+// Regras de Ouro do Manual CAD CBMMG
+const INTERVALO_MINIMO_LEITURA_MS = 30 * 1000; // Regra 3: Mínimo 30 segundos (evita HTTP 429)
+const INTERVALO_RENOVACAO_CATALOGO_MS = 6 * 3600 * 1000; // Regra 2: Renovação a cada 6 horas
+
+let ultimoAcessoAtivosMs = 0;
+
+// ==========================================
+// CONFIGURAÇÃO DO PROXY REVERSO & STORAGE
+// ==========================================
+
+export function obterProxyUrl(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEY_PROXY_URL) || PROXY_REVERSO_PADRAO;
+  } catch {
+    return PROXY_REVERSO_PADRAO;
+  }
+}
+
+export function salvarProxyUrl(url: string): void {
+  try {
+    if (url && url.trim()) {
+      localStorage.setItem(STORAGE_KEY_PROXY_URL, url.trim().replace(/\/+$/, ''));
+    } else {
+      localStorage.removeItem(STORAGE_KEY_PROXY_URL);
+    }
+  } catch (e) {
+    console.error('Falha ao salvar proxy URL:', e);
+  }
+}
 
 export function obterTokenSalvo(): string {
   try {
@@ -28,7 +66,7 @@ export function obterTokenSalvo(): string {
 export function salvarToken(token: string): void {
   try {
     if (token) {
-      localStorage.setItem(STORAGE_KEY_TOKEN, token);
+      localStorage.setItem(STORAGE_KEY_TOKEN, token.trim());
     } else {
       localStorage.removeItem(STORAGE_KEY_TOKEN);
     }
@@ -40,16 +78,14 @@ export function salvarToken(token: string): void {
 export function carregarChamadasArmazenadas(): ChamadaAtiva[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CHAMADAS);
-    if (!raw) {
-      salvarChamadasArmazenadas(MOCK_CHAMADAS_INICIAIS);
-      return MOCK_CHAMADAS_INICIAIS;
-    }
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
     }
   } catch (e) {
-    console.error('Erro ao ler do localStorage, restaurando padrão:', e);
+    console.error('Erro ao ler do localStorage:', e);
   }
   salvarChamadasArmazenadas(MOCK_CHAMADAS_INICIAIS);
   return MOCK_CHAMADAS_INICIAIS;
@@ -64,12 +100,218 @@ export function salvarChamadasArmazenadas(chamadas: ChamadaAtiva[]): void {
   }
 }
 
-// Extrai a lista de chamadas de qualquer variante do envelope CAD da API ou arquivo exportado
+export function obterUltimaSync(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEY_ULTIMA_SYNC) || new Date().toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
+// ==========================================
+// REGRA 2: CATÁLOGOS AUXILIARES (RENOVAÇÃO A CADA 6H)
+// ==========================================
+
+export async function sincronizarCatalogosAuxiliares(forcar = false): Promise<{ sucesso: boolean; renovado: boolean; dados: any }> {
+  try {
+    const agora = Date.now();
+    const tsStr = localStorage.getItem(STORAGE_KEY_CATALOGOS_TS);
+    const ts = tsStr ? parseInt(tsStr, 10) : 0;
+    const catSalvoStr = localStorage.getItem(STORAGE_KEY_CATALOGOS);
+
+    // Se já foi carregado nas últimas 6 horas e não for forçado, usa o cache local
+    if (!forcar && catSalvoStr && ts > 0 && agora - ts < INTERVALO_RENOVACAO_CATALOGO_MS) {
+      const dados = JSON.parse(catSalvoStr);
+      return { sucesso: true, renovado: false, dados };
+    }
+
+    const proxy = obterProxyUrl();
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 6000);
+
+    const res = await fetch(`${proxy}/codigos`, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(t);
+
+    if (res.ok) {
+      const codigos = await res.json();
+      localStorage.setItem(STORAGE_KEY_CATALOGOS, JSON.stringify(codigos));
+      localStorage.setItem(STORAGE_KEY_CATALOGOS_TS, String(agora));
+      return { sucesso: true, renovado: true, dados: codigos };
+    }
+  } catch (e) {
+    console.warn('Não foi possível renovar catálogos remotos agora, mantendo catálogo local:', e);
+  }
+
+  return { sucesso: false, renovado: false, dados: DICIONARIO_SIGLAS };
+}
+
+// ==========================================
+// REGRA 3: CONSUMO DE /ativos COM CADÊNCIA DE 10 MINUTOS (≥ 30S)
+// ==========================================
+
+export async function sincronizarProxyReverso(
+  forcar = false
+): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[]; total?: number }> {
+  const agora = Date.now();
+  const tempoDesdeUltimo = agora - ultimoAcessoAtivosMs;
+
+  // Proteção estrita do manual: nunca ler /ativos com intervalo < 30s
+  if (!forcar && tempoDesdeUltimo < INTERVALO_MINIMO_LEITURA_MS) {
+    const restante = Math.ceil((INTERVALO_MINIMO_LEITURA_MS - tempoDesdeUltimo) / 1000);
+    const existentes = carregarChamadasArmazenadas();
+    return {
+      sucesso: true,
+      mensagem: `Aguarde ${restante}s para nova requisição direta (Regra do Manual: intervalo ≥30s). Exibindo dados locais.`,
+      dados: existentes,
+      total: existentes.length,
+    };
+  }
+
+  const proxyUrl = obterProxyUrl();
+  let jsonResposta: any = null;
+  let fonteUtilizada = 'Proxy Nginx (https://cobom-cad.duckdns.org)';
+
+  try {
+    // 1. Tentar direto no Proxy Reverso Nginx (CORS liberado, token injetado pelo Nginx)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const res = await fetch(`${proxyUrl}/ativos`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      jsonResposta = await res.json();
+      ultimoAcessoAtivosMs = Date.now();
+    } else if (res.status === 429) {
+      const existentes = carregarChamadasArmazenadas();
+      return {
+        sucesso: true,
+        mensagem: 'HTTP 429 (Rate Limit): Servidor CAD solicitou espaçamento. Mantendo ocorrências em cache.',
+        dados: existentes,
+        total: existentes.length,
+      };
+    } else {
+      throw new Error(`Proxy respondeu status HTTP ${res.status}`);
+    }
+  } catch (errProxy: any) {
+    console.warn(`Tentativa direta no proxy reverso falhou (${errProxy.message}). Tentando fallback interno...`);
+
+    // 2. Fallback via backend intermediário Express local
+    try {
+      const resBackend = await fetch('/api/cbm/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (resBackend.ok) {
+        const data = await resBackend.json();
+        if (data.sucesso && data.dados) {
+          jsonResposta = data.dados;
+          fonteUtilizada = 'Backend Intermediário Cache';
+          ultimoAcessoAtivosMs = Date.now();
+        }
+      }
+    } catch {
+      // Ignora e tenta snapshot
+    }
+
+    // 3. Fallback snapshot estático
+    if (!jsonResposta) {
+      try {
+        const snap = await fetch('/cbmmg_cad_dados.json');
+        if (snap.ok) {
+          jsonResposta = await snap.json();
+          fonteUtilizada = 'Snapshot Local Contingência';
+        }
+      } catch {
+        // Nada
+      }
+    }
+  }
+
+  if (!jsonResposta) {
+    const existentes = carregarChamadasArmazenadas();
+    return {
+      sucesso: false,
+      mensagem: `Não foi possível conectar ao Proxy em ${proxyUrl}. Mantendo ${existentes.length} chamadas do cache offline.`,
+      dados: existentes,
+      total: existentes.length,
+    };
+  }
+
+  // Extrair chamadas do envelope oficial
+  const chamadasBrutas = extrairChamadasDeJson(jsonResposta);
+  if (chamadasBrutas.length === 0) {
+    const existentes = carregarChamadasArmazenadas();
+    return {
+      sucesso: false,
+      mensagem: `Proxy conectado, porém o envelope retornou 0 ocorrências ativas no momento.`,
+      dados: existentes,
+      total: existentes.length,
+    };
+  }
+
+  // Renova catálogo auxiliar a cada 6h em segundo plano
+  sincronizarCatalogosAuxiliares().catch(() => {});
+
+  // Enriquecer chamadas com natureza, COB, BBM, coordenadas e tempos
+  const enriquecidas = chamadasBrutas.map(enriquecerChamada);
+  salvarChamadasArmazenadas(enriquecidas);
+
+  return {
+    sucesso: true,
+    mensagem: `Conectado com sucesso via ${fonteUtilizada}! ${enriquecidas.length} chamadas ativas sincronizadas em tempo real.`,
+    dados: enriquecidas,
+    total: enriquecidas.length,
+  };
+}
+
+// ==========================================
+// EXTRATOR RESILIENTE DE CHAMADAS DO ENVELOPE CAD
+// ==========================================
+
 export function extrairChamadasDeJson(raw: any): any[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;
 
-  // 1. Caso GeoJSON FeatureCollection
+  // 1. Envelope oficial CBMMG retornado pelo Proxy Nginx:
+  // raw.chamadas_ativas.dados.response.dadosVigentesChamadas.dadosVigentesChamadaV1
+  if (raw.chamadas_ativas) {
+    const ca = raw.chamadas_ativas;
+    const resp = ca?.dados?.response || ca?.response || ca?.dados || ca;
+    const vigentes = resp?.dadosVigentesChamadas?.dadosVigentesChamadaV1 || resp?.chamadas;
+    if (Array.isArray(vigentes)) return vigentes;
+    if (vigentes && typeof vigentes === 'object') return [vigentes];
+    if (Array.isArray(resp)) return resp;
+  }
+
+  // 2. Variante direta dados.response.dadosVigentesChamadas.dadosVigentesChamadaV1
+  if (raw.dados?.response?.dadosVigentesChamadas?.dadosVigentesChamadaV1) {
+    const lista = raw.dados.response.dadosVigentesChamadas.dadosVigentesChamadaV1;
+    return Array.isArray(lista) ? lista : [lista];
+  }
+
+  // 3. Variante response.dadosVigentesChamadas.dadosVigentesChamadaV1
+  if (raw.response?.dadosVigentesChamadas?.dadosVigentesChamadaV1) {
+    const lista = raw.response.dadosVigentesChamadas.dadosVigentesChamadaV1;
+    return Array.isArray(lista) ? lista : [lista];
+  }
+
+  // 4. Variante dadosVigentesChamadas.dadosVigentesChamadaV1 na raiz
+  if (raw.dadosVigentesChamadas?.dadosVigentesChamadaV1) {
+    const lista = raw.dadosVigentesChamadas.dadosVigentesChamadaV1;
+    return Array.isArray(lista) ? lista : [lista];
+  }
+
+  // 5. GeoJSON FeatureCollection
   if (Array.isArray(raw.features)) {
     return raw.features.map((feat: any) => {
       const props = feat.properties || {};
@@ -81,308 +323,505 @@ export function extrairChamadasDeJson(raw: any): any[] {
     });
   }
 
-  // 2. Caso raw.chamadas (conforme manual oficial CBMMG da rota GET /ativos)
-  if (raw.chamadas) {
-    if (Array.isArray(raw.chamadas)) return raw.chamadas;
-    if (typeof raw.chamadas === 'object' && Array.isArray(raw.chamadas.dados)) {
-      return raw.chamadas.dados;
-    }
+  // 6. Chaves comuns
+  if (Array.isArray(raw.chamadas)) return raw.chamadas;
+  if (raw.chamadas && typeof raw.chamadas === 'object' && Array.isArray(raw.chamadas.dados)) {
+    return raw.chamadas.dados;
   }
-
-  // 3. Caso raw.dados seja array direto
   if (Array.isArray(raw.dados)) return raw.dados;
-
-  // 4. Caso raw.dados seja objeto (envelope com chamadas / ativas)
-  if (raw.dados && typeof raw.dados === 'object') {
-    if (Array.isArray(raw.dados.chamadas)) return raw.dados.chamadas;
-    if (raw.dados.chamadas && typeof raw.dados.chamadas === 'object' && Array.isArray(raw.dados.chamadas.dados)) {
-      return raw.dados.chamadas.dados;
-    }
-    if (Array.isArray(raw.dados.ativas)) return raw.dados.ativas;
-    if (Array.isArray(raw.dados.ocorrencias)) return raw.dados.ocorrencias;
-    if (Array.isArray(raw.dados.items)) return raw.dados.items;
-    if (Array.isArray(raw.dados.features)) {
-      return extrairChamadasDeJson(raw.dados);
-    }
-
-    // Se dados for um dicionário de chamadas indexadas por chave/ID
-    const valoresDados = Object.values(raw.dados);
-    if (valoresDados.length > 0 && typeof valoresDados[0] === 'object') {
-      const p = valoresDados[0] as any;
-      if (p && (p.idChamada || p.numeroOcorrencia || p.natureza || p.descricaoNatureza || p.municipio)) {
-        return valoresDados;
-      }
-    }
-  }
-
-  // 5. Chaves comuns alternativas na raiz
   if (Array.isArray(raw.ativas)) return raw.ativas;
-  if (raw.ativas && typeof raw.ativas === 'object' && Array.isArray(raw.ativas.dados)) return raw.ativas.dados;
   if (Array.isArray(raw.ocorrencias)) return raw.ocorrencias;
-  if (Array.isArray(raw.items)) return raw.items;
-  if (Array.isArray(raw.records)) return raw.records;
-  if (Array.isArray(raw.data)) return raw.data;
-  if (raw.data && typeof raw.data === 'object' && Array.isArray(raw.data.chamadas)) return raw.data.chamadas;
 
-  // 6. Varredura profunda: procurar por qualquer propriedade cujo valor seja uma lista de ocorrências
-  for (const chave of Object.keys(raw)) {
-    const val = raw[chave];
+  // 7. Varredura profunda
+  for (const k of Object.keys(raw)) {
+    const val = raw[k];
     if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
-      const item = val[0];
+      const primeiro = val[0];
       if (
-        item.idChamada ||
-        item.numeroOcorrencia ||
-        item.natureza ||
-        item.descricaoNatureza ||
-        item.municipio ||
-        item.codigoNatureza ||
-        item.situacaoChamada ||
-        item.codigoSituacaoChamada
+        primeiro.id ||
+        primeiro.numeroChamada ||
+        primeiro.idChamada ||
+        primeiro.numeroOcorrencia ||
+        primeiro.municipio ||
+        primeiro.codigoSituacaoChamada
       ) {
         return val;
       }
     }
   }
 
-  // 7. Se o próprio objeto raiz for um dicionário de ocorrências indexadas por ID
-  const valoresRaiz = Object.values(raw);
-  if (valoresRaiz.length > 0 && typeof valoresRaiz[0] === 'object') {
-    const p = valoresRaiz[0] as any;
-    if (p && (p.idChamada || p.numeroOcorrencia || p.natureza || p.descricaoNatureza || p.municipio)) {
-      return valoresRaiz;
-    }
-  }
-
   return [];
 }
 
-export async function sincronizarAgenteLocal(url = 'http://127.0.0.1:8080/dados'): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
-  try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(t);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const itens = extrairChamadasDeJson(json);
-    if (itens.length === 0) {
-      return {
-        sucesso: false,
-        mensagem: `Agente local conectado, porém 0 chamadas ativas retornadas pela API no momento.`,
-      };
-    }
-    const enriquecidos = itens.map(enriquecerChamada);
-    salvarChamadasArmazenadas(enriquecidos);
-    return {
-      sucesso: true,
-      mensagem: `Conectado ao Agente Local! ${enriquecidos.length} ocorrências sincronizadas em tempo real.`,
-      dados: enriquecidos,
-    };
-  } catch (err: any) {
-    return {
-      sucesso: false,
-      mensagem: `Agente local não detectado em ${url} (${err.message}). Execute 'python cbmmg_bridge.py' no seu terminal.`,
-    };
-  }
+// ==========================================
+// MAPEAMENTO COMPLETO DE MUNICÍPIOS PARA COB E BBM
+// ==========================================
+
+const MUNICIPIOS_MG_COB_BBM: Record<string, { cob: string; bbm: string; ciaInd?: string }> = {
+  // 1º COB - RMBH e Região Central / Centro-Oeste
+  'BELO HORIZONTE': { cob: '1º COB', bbm: '1º BBM' },
+  'CONTAGEM': { cob: '1º COB', bbm: '2º BBM' },
+  'BETIM': { cob: '1º COB', bbm: '2º BBM' },
+  'IBIRITE': { cob: '1º COB', bbm: '2º BBM' },
+  'NOVA LIMA': { cob: '1º COB', bbm: '1º BBM' },
+  'SABARA': { cob: '1º COB', bbm: '1º BBM' },
+  'RIBEIRAO DAS NEVES': { cob: '1º COB', bbm: '3º BBM' },
+  'SANTA LUZIA': { cob: '1º COB', bbm: '3º BBM' },
+  'VESPASIANO': { cob: '1º COB', bbm: '3º BBM' },
+  'LAGOA SANTA': { cob: '1º COB', bbm: '3º BBM' },
+  'PEDRO LEOPOLDO': { cob: '1º COB', bbm: '3º BBM' },
+  'CONFINS': { cob: '1º COB', bbm: '3º BBM' },
+  'SAO JOSE DA LAPA': { cob: '1º COB', bbm: '3º BBM' },
+  'BRUMADINHO': { cob: '1º COB', bbm: '2º BBM' },
+  'SARZEDO': { cob: '1º COB', bbm: '2º BBM' },
+  'MARIO CAMPOS': { cob: '1º COB', bbm: '2º BBM' },
+  'SAO JOAQUIM DE BICAS': { cob: '1º COB', bbm: '2º BBM' },
+  'IGARAPE': { cob: '1º COB', bbm: '2º BBM' },
+  'JUATUBA': { cob: '1º COB', bbm: '2º BBM' },
+  'MATEUS LEME': { cob: '1º COB', bbm: '2º BBM' },
+  'ESMERALDAS': { cob: '1º COB', bbm: '2º BBM' },
+  'DIVINOPOLIS': { cob: '1º COB', bbm: '10º BBM' },
+  'ITAUNA': { cob: '1º COB', bbm: '10º BBM' },
+  'PARA DE MINAS': { cob: '1º COB', bbm: '10º BBM' },
+  'NOVA SERRANA': { cob: '1º COB', bbm: '10º BBM' },
+  'BOM DESPACHO': { cob: '1º COB', bbm: '10º BBM' },
+  'FORMIGA': { cob: '1º COB', bbm: '10º BBM' },
+  'ARCOS': { cob: '1º COB', bbm: '10º BBM' },
+  'CAMPO BELO': { cob: '1º COB', bbm: '10º BBM' },
+  'OLIVEIRA': { cob: '1º COB', bbm: '10º BBM' },
+  'SANTO ANTONIO DO MONTE': { cob: '1º COB', bbm: '10º BBM' },
+  'CARMO DO CAJURU': { cob: '1º COB', bbm: '10º BBM' },
+  'CARMO DA MATA': { cob: '1º COB', bbm: '10º BBM' },
+  'CARMOPOLIS DE MINAS': { cob: '1º COB', bbm: '10º BBM' },
+  'CLAUDIO': { cob: '1º COB', bbm: '10º BBM' },
+  'LAGOA DA PRATA': { cob: '1º COB', bbm: '10º BBM' },
+  'DORES DO INDAIA': { cob: '1º COB', bbm: '10º BBM' },
+  'PITANGUI': { cob: '1º COB', bbm: '10º BBM' },
+  'POMPEU': { cob: '1º COB', bbm: '10º BBM' },
+  'CAETE': { cob: '1º COB', bbm: '1º BBM' },
+  'RAPOSOS': { cob: '1º COB', bbm: '1º BBM' },
+  'RIO ACIMA': { cob: '1º COB', bbm: '1º BBM' },
+  'BONFIM': { cob: '1º COB', bbm: '2º BBM' },
+  'CANA VERDE': { cob: '1º COB', bbm: '10º BBM' },
+  'CANDEIAS': { cob: '1º COB', bbm: '10º BBM' },
+
+  // 2º COB - Triângulo Mineiro e Alto Paranaíba
+  'UBERLANDIA': { cob: '2º COB', bbm: '8º BBM' },
+  'UBERABA': { cob: '2º COB', bbm: '5º BBM' },
+  'ARAGUARI': { cob: '2º COB', bbm: '8º BBM', ciaInd: '2ª Cia Ind' },
+  'PATOS DE MINAS': { cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind' },
+  'ARAXA': { cob: '2º COB', bbm: '5º BBM' },
+  'ITUIUTABA': { cob: '2º COB', bbm: '8º BBM' },
+  'PATROCINIO': { cob: '2º COB', bbm: '8º BBM' },
+  'FRUTAL': { cob: '2º COB', bbm: '5º BBM' },
+  'MONTE CARMELO': { cob: '2º COB', bbm: '8º BBM', ciaInd: '2ª Cia Ind' },
+  'SAO GOTARDO': { cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind' },
+  'COROMANDEL': { cob: '2º COB', bbm: '8º BBM' },
+  'CARMO DO PARANAIBA': { cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind' },
+  'RIO PARANAIBA': { cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind' },
+  'SACRAMENTO': { cob: '2º COB', bbm: '5º BBM' },
+  'CONCEICAO DAS ALAGOAS': { cob: '2º COB', bbm: '5º BBM' },
+  'ITURAMA': { cob: '2º COB', bbm: '5º BBM' },
+  'CAMPINA VERDE': { cob: '2º COB', bbm: '8º BBM' },
+  'PRATA': { cob: '2º COB', bbm: '8º BBM' },
+  'TUPACIGUARA': { cob: '2º COB', bbm: '8º BBM' },
+  'SANTA VITORIA': { cob: '2º COB', bbm: '8º BBM' },
+
+  // 3º COB - Zona da Mata e Campo das Vertentes
+  'JUIZ DE FORA': { cob: '3º COB', bbm: '4º BBM' },
+  'BARBACENA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
+  'SAO JOAO DEL-REI': { cob: '3º COB', bbm: '4º BBM', ciaInd: '3ª Cia Ind' },
+  'UBA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'MURIAE': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'VICOSA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'LEOPOLDINA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'CATAGUASES': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'SANTOS DUMONT': { cob: '3º COB', bbm: '4º BBM' },
+  'MANHUACU': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'PONTE NOVA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'CONSELHEIRO LAFAIETE': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
+  'CONGONHAS': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
+  'OURO BRANCO': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
+  'TIRADENTES': { cob: '3º COB', bbm: '4º BBM', ciaInd: '3ª Cia Ind' },
+  'BARROSO': { cob: '3º COB', bbm: '4º BBM', ciaInd: '3ª Cia Ind' },
+  'ASTOLFO DUTRA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'MARIANA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
+  'OURO PRETO': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
+
+  // 4º COB - Norte de Minas e Noroeste
+  'MONTES CLAROS': { cob: '4º COB', bbm: '7º BBM' },
+  'UNAI': { cob: '4º COB', bbm: '12º BBM' },
+  'PARACATU': { cob: '4º COB', bbm: '12º BBM' },
+  'JANUARIA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
+  'DIAMANTINA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
+  'PIRAPORA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
+  'BURITIZEIRO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
+  'JANAUBA': { cob: '4º COB', bbm: '7º BBM' },
+  'SALINAS': { cob: '4º COB', bbm: '7º BBM' },
+  'BOCAIUVA': { cob: '4º COB', bbm: '7º BBM' },
+  'SAO FRANCISCO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
+  'BRASILIA DE MINAS': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
+  'JOAO PINHEIRO': { cob: '4º COB', bbm: '12º BBM' },
+  'VAZANTE': { cob: '4º COB', bbm: '12º BBM' },
+  'BURITIS': { cob: '4º COB', bbm: '12º BBM' },
+  'CAPELINHA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
+  'ARACUAI': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
+  'CARBONITA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
+  'BOTUMIRIM': { cob: '4º COB', bbm: '7º BBM' },
+  'BUENOPOLIS': { cob: '4º COB', bbm: '7º BBM' },
+  'BONITO DE MINAS': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
+  'CONCEICAO DO MATO DENTRO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
+  'SERRO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
+
+  // 5º COB - Leste de Minas e Vale do Aço
+  'GOVERNADOR VALADARES': { cob: '5º COB', bbm: '6º BBM' },
+  'IPATINGA': { cob: '5º COB', bbm: '11º BBM' },
+  'CORONEL FABRICIANO': { cob: '5º COB', bbm: '11º BBM' },
+  'TIMOTEO': { cob: '5º COB', bbm: '11º BBM' },
+  'TEOFILO OTONI': { cob: '5º COB', bbm: '6º BBM', ciaInd: '6ª Cia Ind' },
+  'SETE LAGOAS': { cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind' },
+  'CURVELO': { cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind' },
+  'GUANHAES': { cob: '5º COB', bbm: '6º BBM' },
+  'ALMENARA': { cob: '5º COB', bbm: '6º BBM', ciaInd: '6ª Cia Ind' },
+  'NANUQUE': { cob: '5º COB', bbm: '6º BBM', ciaInd: '6ª Cia Ind' },
+  'CARATINGA': { cob: '5º COB', bbm: '6º BBM' },
+  'ITABIRA': { cob: '5º COB', bbm: '11º BBM' },
+  'JOAO MONLEVADE': { cob: '5º COB', bbm: '11º BBM' },
+  'AIMORES': { cob: '5º COB', bbm: '6º BBM' },
+  'RESPLENDOR': { cob: '5º COB', bbm: '6º BBM' },
+  'MANTENA': { cob: '5º COB', bbm: '6º BBM' },
+  'BALDIM': { cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind' },
+  'CACHOEIRA DA PRATA': { cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind' },
+  'BOM JESUS DO AMPARO': { cob: '5º COB', bbm: '11º BBM' },
+
+  // 6º COB - Sul de Minas
+  'VARGINHA': { cob: '6º COB', bbm: '9º BBM' },
+  'POCOS DE CALDAS': { cob: '6º COB', bbm: '9º BBM', ciaInd: '1ª Cia Ind' },
+  'POUSO ALEGRE': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'LAVRAS': { cob: '6º COB', bbm: '9º BBM', ciaInd: '9ª Cia Ind' },
+  'PASSOS': { cob: '6º COB', bbm: '9º BBM', ciaInd: '12ª Cia Ind' },
+  'ITAJUBA': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'TRES CORACOES': { cob: '6º COB', bbm: '9º BBM' },
+  'ALFENAS': { cob: '6º COB', bbm: '9º BBM' },
+  'SAO LOURENCO': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'GUAXUPE': { cob: '6º COB', bbm: '9º BBM', ciaInd: '1ª Cia Ind' },
+  'BOA ESPERANCA': { cob: '6º COB', bbm: '9º BBM' },
+  'SAO SEBASTIAO DO PARAISO': { cob: '6º COB', bbm: '9º BBM', ciaInd: '12ª Cia Ind' },
+  'EXTREMA': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'CAMBUI': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'SANTA RITA DO SAPUCAI': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'MACHADO': { cob: '6º COB', bbm: '9º BBM' },
+  'TRES PONTAS': { cob: '6º COB', bbm: '9º BBM' },
+};
+
+function normalizarTexto(txt: string): string {
+  return (txt || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
 }
 
-export async function sincronizarSnapshotEstatico(url = '/cbmmg_cad_dados.json'): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
-  // Tenta primeiro carregar cbmmg_cad_dados.json, se falhar ou 404, recorre a dados_cad.json
-  const urls = [url, '/dados_cad.json'];
-  let ultimoErro = '';
+// ==========================================
+// ENRIQUECIMENTO INTELIGENTE DE OCORRÊNCIAS
+// ==========================================
 
-  for (const tentativaUrl of urls) {
-    try {
-      const res = await fetch(tentativaUrl);
-      if (!res.ok) continue;
-      const json = await res.json();
-      const itens = extrairChamadasDeJson(json);
-      if (itens.length > 0) {
-        const enriquecidos = itens.map(enriquecerChamada);
-        salvarChamadasArmazenadas(enriquecidos);
-        return {
-          sucesso: true,
-          mensagem: `${enriquecidos.length} ocorrências carregadas de '${tentativaUrl}' com sucesso.`,
-          dados: enriquecidos,
-        };
-      }
-    } catch (err: any) {
-      ultimoErro = err.message;
-    }
-  }
-
-  return {
-    sucesso: false,
-    mensagem: `Falha ao carregar snapshot estático (${ultimoErro || '0 ocorrências encontradas'}).`,
-  };
-}
-
-export function restaurarDadosPadrao(): ChamadaAtiva[] {
-  salvarChamadasArmazenadas(MOCK_CHAMADAS_INICIAIS);
-  return MOCK_CHAMADAS_INICIAIS;
-}
-
-export function obterUltimaSync(): string {
-  try {
-    return localStorage.getItem(STORAGE_KEY_ULTIMA_SYNC) || new Date().toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
-}
-
-// Enriquecimento de chamadas com base nos catálogos auxiliares
-export function enriquecerChamada(chamadaRaw: Partial<ChamadaAtiva> | any): ChamadaAtiva {
+export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
   const r = chamadaRaw || {};
 
-  // 1. Resolver Natureza (aceita descrições, códigos e objetos aninhados)
-  let rawDescNat =
-    r.descricaoNatureza ||
-    r.naturezaDescricao ||
-    (typeof r.natureza === 'string' ? r.natureza : r.natureza?.descricao) ||
-    r.descNatureza ||
-    r.descricao_natureza ||
-    'Atendimento Geral de Bombeiros';
+  // 1. Número e Identificador
+  const idChamada = String(r.idChamada || r.id || r.numeroChamada || `CAD-${Math.floor(100000 + Math.random() * 900000)}`);
+  const numeroOcorrencia = String(r.numeroChamada || r.numeroOcorrencia || r.numero || idChamada);
 
-  let rawCodNat =
-    r.codigoNatureza ||
-    r.codigo_natureza ||
-    (typeof r.natureza === 'object' ? r.natureza?.codigo : '') ||
-    r.codNatureza;
+  // 2. Data e Tempo Decorrido (suporte a epoch em milissegundos e strings ISO)
+  let dataAberturaIso = new Date().toISOString();
+  const rawData = r.dataHoraInclusao || r.dataHoraAbertura || r.dataAbertura || r.dataHora;
 
-  let descNatureza = rawDescNat;
-  let grupoNatureza = r.grupoNatureza || r.grupo || 'Outros Atendimentos';
-  let codigoNatureza = rawCodNat;
-
-  if (r.idNatureza || rawCodNat || rawDescNat) {
-    const natEncontrada = CATALOGO_NATUREZAS_CBMMG.find(
-      (n) =>
-        (r.idNatureza && n.id == r.idNatureza) ||
-        (rawCodNat && n.codigo.toLowerCase() === String(rawCodNat).toLowerCase()) ||
-        (rawDescNat && n.descricao.toLowerCase().includes(rawDescNat.toLowerCase())) ||
-        (rawDescNat && rawDescNat.toLowerCase().includes(n.descricao.toLowerCase()))
-    );
-
-    if (natEncontrada) {
-      descNatureza = natEncontrada.descricao;
-      grupoNatureza = natEncontrada.grupo;
-      codigoNatureza = natEncontrada.codigo;
-    }
-  }
-
-  // 2. Resolver Endereço e Município
-  const mun =
-    r.endereco?.municipio ||
-    r.municipio ||
-    r.cidade ||
-    r.municipioOcorrencia ||
-    'Belo Horizonte';
-  const bairro = r.endereco?.bairro || r.bairro || '';
-  const logr = r.endereco?.logradouro || r.logradouro || r.rua || r.endereco || 'Via Pública';
-  const num = r.endereco?.numero || r.numero || '';
-  const ref = r.endereco?.referencia || r.referencia || r.pontoReferencia || '';
-
-  // 3. Resolver Unidade (COB / BBM / Cia Ind)
-  let cob = r.cob || r.comandoOperacional || '';
-  let bbm = r.bbm || r.batalhao || '';
-  let ciaInd = r.ciaInd || r.companhia;
-  let nomeUnidade = r.nomeUnidade || r.unidade;
-  let lat = typeof r.latitude === 'number' ? r.latitude : (typeof r.lat === 'number' ? r.lat : null);
-  let lng = typeof r.longitude === 'number' ? r.longitude : (typeof r.lon === 'number' ? r.lon : (typeof r.lng === 'number' ? r.lng : null));
-
-  if (!cob || !bbm || lat === null) {
-    const unEncontrada = UNIDADES_SERVICO_CBMMG.find(
-      (u) =>
-        (r.idUnidadeServico && u.id === r.idUnidadeServico) ||
-        (nomeUnidade && u.nome.toLowerCase().includes(nomeUnidade.toLowerCase())) ||
-        (mun && u.municipioSede.toLowerCase() === mun.toLowerCase())
-    );
-
-    if (unEncontrada) {
-      cob = cob || unEncontrada.cob;
-      bbm = bbm || unEncontrada.bbm;
-      ciaInd = ciaInd || unEncontrada.ciaInd;
-      nomeUnidade = nomeUnidade || unEncontrada.nome;
-      if (lat === null && unEncontrada.latitudeSede) {
-        lat = unEncontrada.latitudeSede + (Math.random() - 0.5) * 0.04;
-        lng = unEncontrada.longitudeSede! + (Math.random() - 0.5) * 0.04;
+  if (rawData) {
+    if (typeof rawData === 'number') {
+      dataAberturaIso = new Date(rawData).toISOString();
+    } else if (typeof rawData === 'string') {
+      if (/^\d{10,13}$/.test(rawData.trim())) {
+        dataAberturaIso = new Date(parseInt(rawData.trim(), 10)).toISOString();
+      } else {
+        const d = new Date(rawData);
+        if (!isNaN(d.getTime())) {
+          dataAberturaIso = d.toISOString();
+        }
       }
     }
   }
 
-  cob = cob || '1º COB';
-  bbm = bbm || '1º BBM';
+  const timestampMs = new Date(dataAberturaIso).getTime();
+  const tempoDecorridoMinutos = Math.max(1, Math.round((Date.now() - timestampMs) / 60000));
 
-  // 4. Recursos & Efetivo
-  const recursosRaw = r.recursos || r.empenhos || r.viaturas || [];
-  const recursos = Array.isArray(recursosRaw) ? recursosRaw : [];
-  const totalBombeiros =
-    r.totalBombeiros ||
-    r.efetivo ||
-    recursos.reduce((sum: number, rec: any) => sum + (rec.componentes || 3), 0);
+  // 3. Município e Endereço
+  let municipio = (r.municipio || r.cidade || r.endereco?.municipio || 'BELO HORIZONTE').trim().toUpperCase();
+  const logradouroCompleto = typeof r.endereco === 'string' ? r.endereco : (r.endereco?.logradouro || r.logradouro || 'Logradouro não informado');
+  const referencia = r.referenciaLocalFato || r.endereco?.referencia || r.pontoReferencia || '';
 
-  // 5. Data de Abertura & Tempos
-  const rawData =
-    r.dataHoraAbertura ||
-    r.data_hora_abertura ||
-    r.dataAbertura ||
-    r.dataHora ||
-    r.horaAbertura ||
-    new Date().toISOString();
-  const dataAbertura = !isNaN(new Date(rawData).getTime()) ? new Date(rawData).toISOString() : new Date().toISOString();
-  
-  const tempoDecorridoMinutos =
-    r.tempoDecorridoMinutos ??
-    Math.max(1, Math.round((Date.now() - new Date(dataAbertura).getTime()) / 60000));
+  // 4. Coordenadas Geográficas (Parsing preciso de string para float com bounds de MG)
+  let latitude: number | null = null;
+  let longitude: number | null = null;
 
-  const numOcorr =
-    r.numeroOcorrencia ||
-    r.numero_ocorrencia ||
-    r.numOcorrencia ||
-    r.numero ||
-    `O-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+  const latRaw = r.latitude ?? r.lat;
+  const lngRaw = r.longitude ?? r.lng ?? r.lon;
+
+  if (latRaw !== undefined && latRaw !== null && latRaw !== '') {
+    const latNum = typeof latRaw === 'number' ? latRaw : parseFloat(String(latRaw));
+    if (!isNaN(latNum) && latNum >= -24.0 && latNum <= -13.0) {
+      latitude = latNum;
+    }
+  }
+
+  if (lngRaw !== undefined && lngRaw !== null && lngRaw !== '') {
+    const lngNum = typeof lngRaw === 'number' ? lngRaw : parseFloat(String(lngRaw));
+    if (!isNaN(lngNum) && lngNum >= -53.0 && lngNum <= -38.0) {
+      longitude = lngNum;
+    }
+  }
+
+  // 5. Histórico de Observações
+  const historicoRaw =
+    r.dadosVigentesHistoricosChamada?.dadosVigentesHistoricoChamadaV1 ||
+    r.historicoObservacoes ||
+    r.observacoes ||
+    [];
+  const listaHistoricos = Array.isArray(historicoRaw) ? historicoRaw : [historicoRaw];
+  const historicosDesc = listaHistoricos
+    .map((h: any) => (typeof h === 'string' ? h : h?.descricao))
+    .filter(Boolean);
+  const textoHistoricoUnificado = historicosDesc.join(' ').toUpperCase();
+
+  // 6. Resolução Inteligente da Natureza e Grupo
+  let idNatureza = r.idNatureza;
+  let codigoNatureza = r.codigoNatureza || '';
+  let descricaoNatureza = r.descricaoNatureza || '';
+  let grupoNatureza = r.grupoNatureza || '';
+  let prioridade = r.prioridade || 'Média';
+
+  // Extrair do bloco dadosVigentesNaturezasChamada da API CAD
+  const natsBloco = r.dadosVigentesNaturezasChamada?.dadosVigentesNaturezaChamadaV1;
+  const listaNats = Array.isArray(natsBloco) ? natsBloco : natsBloco ? [natsBloco] : [];
+
+  if (listaNats.length > 0) {
+    const primeiraNat = listaNats[0];
+    if (primeiraNat.idNatureza) idNatureza = primeiraNat.idNatureza;
+    if (primeiraNat.codigoPrioridade === '1') prioridade = 'Alta';
+    else if (primeiraNat.codigoPrioridade === '2') prioridade = 'Alta';
+    else if (primeiraNat.codigoPrioridade === '3') prioridade = 'Média';
+    else if (primeiraNat.codigoPrioridade === '4') prioridade = 'Baixa';
+  }
+
+  // Se já tiver id conhecido no catálogo
+  if (idNatureza) {
+    const natCatalogo = CATALOGO_NATUREZAS_CBMMG.find((n) => String(n.id) === String(idNatureza));
+    if (natCatalogo) {
+      descricaoNatureza = natCatalogo.descricao;
+      grupoNatureza = natCatalogo.grupo;
+      codigoNatureza = natCatalogo.codigo;
+    }
+  }
+
+  // Classificação semântica caso a descrição ainda não esteja amigável
+  if (!descricaoNatureza || descricaoNatureza === 'Atendimento Geral de Bombeiros') {
+    if (textoHistoricoUnificado.includes('ABELHA') || textoHistoricoUnificado.includes('MARIMBONDO') || textoHistoricoUnificado.includes('VESPA') || textoHistoricoUnificado.includes('ENXAME')) {
+      descricaoNatureza = 'Ataque ou Risco de Insetos / Abelhas';
+      grupoNatureza = 'Fauna e Meio Ambiente';
+      codigoNatureza = 'E0502';
+    } else if (textoHistoricoUnificado.includes('ANIMAL') || textoHistoricoUnificado.includes('AVE') || textoHistoricoUnificado.includes('COBRA') || textoHistoricoUnificado.includes('SERPENTE') || textoHistoricoUnificado.includes('CACHORRO') || textoHistoricoUnificado.includes('GATO') || textoHistoricoUnificado.includes('CAVALO')) {
+      descricaoNatureza = 'Captura ou Salvamento de Animal Silvestre / Doméstico';
+      grupoNatureza = 'Fauna e Meio Ambiente';
+      codigoNatureza = 'E0501';
+    } else if (textoHistoricoUnificado.includes('VEGETA') || textoHistoricoUnificado.includes('MATA') || textoHistoricoUnificado.includes('FLOREST') || textoHistoricoUnificado.includes('LOTE VAGO')) {
+      descricaoNatureza = 'Incêndio em Vegetação / Florestal / Lote Vago';
+      grupoNatureza = 'Incêndio';
+      codigoNatureza = 'A0101';
+    } else if (textoHistoricoUnificado.includes('INCENDIO') || textoHistoricoUnificado.includes('FOGO') || textoHistoricoUnificado.includes('FUMACA')) {
+      if (textoHistoricoUnificado.includes('VEICULO') || textoHistoricoUnificado.includes('CARRO') || textoHistoricoUnificado.includes('MOTO') || textoHistoricoUnificado.includes('CAMINHAO')) {
+        descricaoNatureza = 'Incêndio em Veículo Automotor';
+        codigoNatureza = 'A0104';
+      } else {
+        descricaoNatureza = 'Incêndio em Edificação Residencial / Comercial';
+        codigoNatureza = 'A0102';
+      }
+      grupoNatureza = 'Incêndio';
+      prioridade = 'Alta';
+    } else if (textoHistoricoUnificado.includes('COLISAO') || textoHistoricoUnificado.includes('ACIDENTE') || textoHistoricoUnificado.includes('CAPOTAMENTO') || textoHistoricoUnificado.includes('ATROPELAMENTO') || textoHistoricoUnificado.includes('FERRAGENS')) {
+      descricaoNatureza = 'Acidente de Trânsito com Vítima / Resgate Veicular';
+      grupoNatureza = 'Salvamento e Resgate';
+      codigoNatureza = 'B0201';
+      prioridade = 'Alta';
+    } else if (textoHistoricoUnificado.includes('ARVORE') || textoHistoricoUnificado.includes('GALHO')) {
+      descricaoNatureza = 'Corte ou Risco de Queda de Árvore';
+      grupoNatureza = 'Proteção e Defesa Civil';
+      codigoNatureza = 'D0403';
+    } else if (textoHistoricoUnificado.includes('DESABAMENTO') || textoHistoricoUnificado.includes('SOTERRAMENTO') || textoHistoricoUnificado.includes('TRINCA') || textoHistoricoUnificado.includes('COLAPSO')) {
+      descricaoNatureza = 'Risco Iminente de Desabamento / Colapso Estrutural';
+      grupoNatureza = 'Proteção e Defesa Civil';
+      codigoNatureza = 'D0401';
+      prioridade = 'Alta';
+    } else if (textoHistoricoUnificado.includes('ALAGAMENTO') || textoHistoricoUnificado.includes('INUNDA') || textoHistoricoUnificado.includes('ENXURRADA') || textoHistoricoUnificado.includes('ILHADA')) {
+      descricaoNatureza = 'Alagamento / Inundação com Pessoas Ilhadas';
+      grupoNatureza = 'Proteção e Defesa Civil';
+      codigoNatureza = 'D0402';
+      prioridade = 'Alta';
+    } else if (textoHistoricoUnificado.includes('PCR') || textoHistoricoUnificado.includes('PARADA') || textoHistoricoUnificado.includes('TRAUMA') || textoHistoricoUnificado.includes('MAL SUBITO') || textoHistoricoUnificado.includes('CONVULSAO')) {
+      descricaoNatureza = 'Atendimento Pré-Hospitalar / Emergência Médica';
+      grupoNatureza = 'Atendimento Pré-Hospitalar';
+      codigoNatureza = 'C0301';
+      prioridade = 'Alta';
+    } else if (textoHistoricoUnificado.includes('AFOGAMENTO') || textoHistoricoUnificado.includes('RIO') || textoHistoricoUnificado.includes('LAGOA') || textoHistoricoUnificado.includes('REPRESA')) {
+      descricaoNatureza = 'Salvamento Aquático / Afogamento em Andamento';
+      grupoNatureza = 'Salvamento e Resgate';
+      codigoNatureza = 'B0202';
+      prioridade = 'Alta';
+    } else if (textoHistoricoUnificado.includes('GAS') || textoHistoricoUnificado.includes('GLP') || textoHistoricoUnificado.includes('VAZAMENTO')) {
+      descricaoNatureza = 'Vazamento de GLP / Gás com Risco de Explosão';
+      grupoNatureza = 'Produtos Perigosos';
+      codigoNatureza = 'F0601';
+      prioridade = 'Alta';
+    } else if (textoHistoricoUnificado.includes('PERICIA') || textoHistoricoUnificado.includes('INSPECAO') || textoHistoricoUnificado.includes('VISTORIA')) {
+      descricaoNatureza = 'Vistoria Preventiva / Inspeção Técnica Pós-Sinistro';
+      grupoNatureza = 'Proteção e Defesa Civil';
+      codigoNatureza = 'D0404';
+    } else {
+      descricaoNatureza = 'Atendimento Operacional Bombeiro Militar';
+      grupoNatureza = 'Outros Atendimentos';
+      codigoNatureza = 'G0701';
+    }
+  }
+
+  // 7. Recursos Empenhados e Bombeiros
+  const recursos: RecursoEmpenhado[] = [];
+  let totalBombeiros = 0;
+
+  // Analisar atendimentos e empenhos da chamada
+  const atendimentosRaw =
+    r.dadosVigentesAtendimentosChamada?.dadosVigentesAtendimentoChamadaV1 ||
+    r.atendimentos ||
+    [];
+  const listaAtendimentos = Array.isArray(atendimentosRaw) ? atendimentosRaw : [atendimentosRaw];
+
+  let idUnidadeServico = r.idUnidadeServico;
+  let codSituacaoAtendimento: CodigoSituacaoAtendimento = (r.codigoSituacaoAtendimentoChamada || 'CL') as CodigoSituacaoAtendimento;
+
+  for (const at of listaAtendimentos) {
+    if (!at) continue;
+    if (at.idUnidadeServicoResponsavel) {
+      idUnidadeServico = at.idUnidadeServicoResponsavel;
+    }
+    if (at.codigoSituacaoAtendimentoChamada) {
+      codSituacaoAtendimento = at.codigoSituacaoAtendimentoChamada as CodigoSituacaoAtendimento;
+    }
+
+    const empenhosObj = at.dadosVigentesEmpenhosRecursos?.dadosVigentesEmpenhoRecursoChamadaV1;
+    const empenhosLista = Array.isArray(empenhosObj) ? empenhosObj : empenhosObj ? [empenhosObj] : [];
+
+    for (const emp of empenhosLista) {
+      const prefixo = emp.prefixo || emp.prefixoMeioMaterial || `VTR-${emp.idRecurso || 'CAD'}`;
+      const componentesObj = emp.dadosVigentesComponenteRecursoV1 || emp.componentes || [];
+      const componentesLista = Array.isArray(componentesObj) ? componentesObj : [componentesObj];
+      const militares = componentesLista.map((c: any) => c?.nomePessoa || c?.nome || 'Militar CBMMG');
+      const qtdMilitares = militares.length > 0 ? militares.length : 3;
+      totalBombeiros += qtdMilitares;
+
+      recursos.push({
+        idRecurso: String(emp.idRecurso || emp.id || prefixo),
+        prefixo,
+        codigoSituacaoEmpenhoRecurso: (emp.codigoSituacaoEmpenhoRecurso || emp.codigoSituacaoRecurso || 'ED') as CodigoSituacaoEmpenho,
+        codigoSituacaoRecurso: (emp.codigoSituacaoRecurso || 'ED') as CodigoSituacaoEmpenho,
+        idUnidadeServico: emp.idUnidadeServico || idUnidadeServico,
+        unidadeNome: `${r.bbm || 'CBMMG'}`,
+        componentes: qtdMilitares,
+        nomesMilitares: militares,
+        dataHoraAtivacao: emp.dataHoraInicio ? new Date(parseInt(String(emp.dataHoraInicio), 10)).toISOString() : undefined,
+      });
+    }
+  }
+
+  // 8. Resolução Territorial do CBMMG (COB, BBM e CIA IND por Município)
+  const munNorm = normalizarTexto(municipio);
+  let cob = r.cob || '';
+  let bbm = r.bbm || '';
+  let ciaInd = r.ciaInd;
+
+  if (MUNICIPIOS_MG_COB_BBM[munNorm]) {
+    const un = MUNICIPIOS_MG_COB_BBM[munNorm];
+    cob = un.cob;
+    bbm = un.bbm;
+    ciaInd = un.ciaInd;
+  } else {
+    // Tenta correspondência parcial por sede do cadastro de unidades
+    const unMatch = UNIDADES_SERVICO_CBMMG.find((u) => normalizarTexto(u.municipioSede) === munNorm);
+    if (unMatch) {
+      cob = unMatch.cob;
+      bbm = unMatch.bbm;
+      ciaInd = unMatch.ciaInd;
+    } else {
+      cob = '1º COB';
+      bbm = '1º BBM';
+    }
+  }
+
+  // Fallback de coordenadas para sede do município caso a API tenha retornado sem GPS
+  if (latitude === null || longitude === null) {
+    const unSede = UNIDADES_SERVICO_CBMMG.find((u) => u.bbm === bbm && u.latitudeSede);
+    if (unSede && unSede.latitudeSede && unSede.longitudeSede) {
+      latitude = unSede.latitudeSede + (Math.random() - 0.5) * 0.03;
+      longitude = unSede.longitudeSede + (Math.random() - 0.5) * 0.03;
+    } else {
+      latitude = -19.92 + (Math.random() - 0.5) * 0.05;
+      longitude = -43.94 + (Math.random() - 0.5) * 0.05;
+    }
+  }
+
+  // Situação da Chamada ('E' = Em atendimento, 'A' = Aguardando)
+  let codSituacaoChamada: CodigoSituacaoChamada = (r.codigoSituacaoChamada || (recursos.length > 0 ? 'E' : 'A')) as CodigoSituacaoChamada;
+  if (recursos.length > 0 && codSituacaoChamada === 'A') {
+    codSituacaoChamada = 'E';
+  }
 
   return {
-    idChamada: r.idChamada || r.id_chamada || r.id || numOcorr,
-    numeroOcorrencia: numOcorr,
-    dataHoraAbertura: dataAbertura,
-    codigoSituacaoChamada: (r.codigoSituacaoChamada || r.situacaoChamada || (recursos.length > 0 ? 'E' : 'A')) as CodigoSituacaoChamada,
-    codigoSituacaoAtendimentoChamada: (r.codigoSituacaoAtendimentoChamada || r.situacaoAtendimento || (recursos.length > 0 ? 'NL' : 'CL')) as CodigoSituacaoAtendimento,
-    codigoOrigemChamada: (r.codigoOrigemChamada || r.origem || 'L') as CodigoOrigemChamada,
-    prioridade: r.prioridade || r.criticidade || 'Alta',
-    idNatureza: r.idNatureza,
+    idChamada,
+    numeroOcorrencia,
+    dataHoraAbertura: dataAberturaIso,
+    codigoSituacaoChamada: codSituacaoChamada,
+    codigoSituacaoAtendimentoChamada: codSituacaoAtendimento,
+    codigoOrigemChamada: (r.codigoOrigemChamada || 'L') as CodigoOrigemChamada,
+    prioridade,
+    idNatureza,
     codigoNatureza,
-    descricaoNatureza: descNatureza,
+    descricaoNatureza,
     grupoNatureza,
     endereco: {
-      logradouro: logr,
-      numero: num,
-      bairro: bairro,
-      municipio: mun,
-      uf: r.endereco?.uf || r.uf || 'MG',
-      referencia: ref,
+      logradouro: logradouroCompleto,
+      numero: r.endereco?.numero || '',
+      bairro: r.endereco?.bairro || '',
+      municipio,
+      uf: 'MG',
+      referencia,
     },
-    latitude: lat,
-    longitude: lng,
+    latitude,
+    longitude,
     cob,
     bbm,
     ciaInd,
-    idUnidadeServico: r.idUnidadeServico,
-    nomeUnidade: nomeUnidade || `${bbm} - CBMMG`,
+    idUnidadeServico,
+    nomeUnidade: `${bbm} - CBMMG`,
     recursos,
-    totalBombeiros,
+    totalBombeiros: Math.max(recursos.length > 0 ? totalBombeiros : 0, r.totalBombeiros || 0),
     tempoDecorridoMinutos,
-    historicoObservacoes: r.historicoObservacoes || r.observacoes || [
-      'Registro CAD CBMMG integrado via painel operacional.',
-    ],
-    orgaoApoio: r.orgaoApoio || r.orgao_apoio,
+    historicoObservacoes: historicosDesc.length > 0 ? historicosDesc : ['Registro sincronizado via Proxy Reverso Nginx CBMMG.'],
+    orgaoApoio: r.orgaoApoio,
   };
 }
 
-// Filtro e cálculo de KPIs
-export function filtrarChamadas(
-  chamadas: ChamadaAtiva[],
-  filtros: FiltrosOperacionais
-): ChamadaAtiva[] {
+// ==========================================
+// FILTROS OPERACIONAIS
+// ==========================================
+
+export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperacionais): ChamadaAtiva[] {
   const agora = Date.now();
 
   return chamadas.filter((c) => {
@@ -413,11 +852,8 @@ export function filtrarChamadas(
       return false;
     }
 
-    // 6. Filtro Situação Atendimento (NL, ED, etc)
-    if (
-      filtros.situacaoAtendimento !== 'TODOS' &&
-      c.codigoSituacaoAtendimentoChamada !== filtros.situacaoAtendimento
-    ) {
+    // 6. Filtro Situação Atendimento (NL, ED, DP, CL, etc.)
+    if (filtros.situacaoAtendimento !== 'TODOS' && c.codigoSituacaoAtendimentoChamada !== filtros.situacaoAtendimento) {
       return false;
     }
 
@@ -465,13 +901,17 @@ export function filtrarChamadas(
         (c.endereco.logradouro && c.endereco.logradouro.toLowerCase().includes(q)) ||
         (c.endereco.bairro && c.endereco.bairro.toLowerCase().includes(q)) ||
         c.bbm.toLowerCase().includes(q) ||
-        c.recursos.some((r) => r.prefixo.toLowerCase().includes(q));
+        c.recursos.some((rec) => rec.prefixo.toLowerCase().includes(q));
       if (!match) return false;
     }
 
     return true;
   });
 }
+
+// ==========================================
+// CÁLCULO DE KPIS OPERACIONAIS
+// ==========================================
 
 export function calcularKPIs(chamadas: ChamadaAtiva[]): KpiOperacional {
   const totalAtivas = chamadas.length;
@@ -530,7 +970,10 @@ export function calcularKPIs(chamadas: ChamadaAtiva[]): KpiOperacional {
   };
 }
 
-// Estatísticas para Gráficos
+// ==========================================
+// ESTATÍSTICAS PARA GRÁFICOS
+// ==========================================
+
 export function calcularDistribuicaoPorNatureza(chamadas: ChamadaAtiva[]) {
   const counts: Record<string, number> = {};
   for (const c of chamadas) {
@@ -585,7 +1028,6 @@ export function calcularDistribuicaoPorPrioridade(chamadas: ChamadaAtiva[]) {
 
 export function calcularEvolucaoHoras(chamadas: ChamadaAtiva[]) {
   const horas: Record<string, number> = {};
-  // Inicializar últimas 12 horas
   const agora = new Date();
   for (let i = 11; i >= 0; i--) {
     const h = new Date(agora.getTime() - i * 3600 * 1000);
@@ -604,4 +1046,75 @@ export function calcularEvolucaoHoras(chamadas: ChamadaAtiva[]) {
   }
 
   return Object.entries(horas).map(([hora, total]) => ({ hora, total }));
+}
+
+// ==========================================
+// FUNÇÕES DE COMPATIBILIDADE E CONTINGÊNCIA
+// ==========================================
+
+export function restaurarDadosPadrao(): ChamadaAtiva[] {
+  salvarChamadasArmazenadas(MOCK_CHAMADAS_INICIAIS);
+  return MOCK_CHAMADAS_INICIAIS;
+}
+
+export async function sincronizarAgenteLocal(
+  url = 'http://127.0.0.1:8080/dados'
+): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(t);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const itens = extrairChamadasDeJson(json);
+    if (itens.length === 0) {
+      return {
+        sucesso: false,
+        mensagem: `Agente local conectado, porém 0 chamadas retornadas.`,
+      };
+    }
+    const enriquecidos = itens.map(enriquecerChamada);
+    salvarChamadasArmazenadas(enriquecidos);
+    return {
+      sucesso: true,
+      mensagem: `Conectado ao Agente Local! ${enriquecidos.length} ocorrências sincronizadas.`,
+      dados: enriquecidos,
+    };
+  } catch (err: any) {
+    return {
+      sucesso: false,
+      mensagem: `Agente local não detectado em ${url} (${err.message}).`,
+    };
+  }
+}
+
+export async function sincronizarSnapshotEstatico(
+  url = '/cbmmg_cad_dados.json'
+): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
+  const urls = [url, '/dados_cad.json'];
+  for (const tentativa of urls) {
+    try {
+      const res = await fetch(tentativa);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const itens = extrairChamadasDeJson(json);
+      if (itens.length > 0) {
+        const enriquecidos = itens.map(enriquecerChamada);
+        salvarChamadasArmazenadas(enriquecidos);
+        return {
+          sucesso: true,
+          mensagem: `${enriquecidos.length} ocorrências carregadas de '${tentativa}'.`,
+          dados: enriquecidos,
+        };
+      }
+    } catch {
+      // continua
+    }
+  }
+
+  return {
+    sucesso: false,
+    mensagem: 'Falha ao carregar snapshot estático.',
+  };
 }

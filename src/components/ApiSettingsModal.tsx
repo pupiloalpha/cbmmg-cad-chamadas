@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import {
-  salvarToken,
-  obterTokenSalvo,
+  obterProxyUrl,
+  salvarProxyUrl,
+  PROXY_REVERSO_PADRAO,
+  sincronizarProxyReverso,
+  sincronizarCatalogosAuxiliares,
   restaurarDadosPadrao,
   sincronizarAgenteLocal,
 } from '../services/cbmStorage';
 import { ChamadaAtiva } from '../types/cbm';
 import {
-  Key,
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
@@ -15,9 +17,12 @@ import {
   X,
   Server,
   Zap,
-  Cpu,
-  Download,
+  Globe,
   Radio,
+  ExternalLink,
+  BookOpen,
+  Clock,
+  Layers,
 } from 'lucide-react';
 
 interface ApiSettingsModalProps {
@@ -37,7 +42,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   isSyncing,
   ultimaSync,
 }) => {
-  const [tokenInput, setTokenInput] = useState(() => obterTokenSalvo());
+  const [proxyUrlInput, setProxyUrlInput] = useState(() => obterProxyUrl());
   const [salvoMsg, setSalvoMsg] = useState(false);
   const [testeStatus, setTesteStatus] = useState<string | null>(null);
   const [testando, setTestando] = useState(false);
@@ -45,30 +50,49 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSalvarToken = () => {
-    salvarToken(tokenInput.trim());
+  const handleSalvarProxy = () => {
+    salvarProxyUrl(proxyUrlInput.trim() || PROXY_REVERSO_PADRAO);
     setSalvoMsg(true);
-    setTimeout(() => setSalvoMsg(false), 2000);
+    setTimeout(() => setSalvoMsg(false), 2500);
   };
 
-  const handleTestarConexao = async () => {
+  const handleRestaurarProxyPadrao = () => {
+    setProxyUrlInput(PROXY_REVERSO_PADRAO);
+    salvarProxyUrl(PROXY_REVERSO_PADRAO);
+    setSalvoMsg(true);
+    setTimeout(() => setSalvoMsg(false), 2500);
+  };
+
+  const handleTestarCodigos = async () => {
     setTestando(true);
     setTesteStatus(null);
     try {
-      const token = tokenInput.trim() || obterTokenSalvo();
-      const res = await fetch('/api/cbm/test-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-      const data = await res.json();
-      if (res.ok && data.sucesso) {
-        setTesteStatus(`✅ Conexão bem-sucedida! HTTP 200. Siglas carregadas da API oficial.`);
+      const proxy = proxyUrlInput.trim() || PROXY_REVERSO_PADRAO;
+      const res = await fetch(`${proxy}/codigos`);
+      if (res.ok) {
+        const data = await res.json();
+        setTesteStatus(`✅ Conexão validada com sucesso! HTTP 200 recebido de ${proxy}/codigos. CORS aberto e siglas operacionais sincronizadas.`);
       } else {
-        setTesteStatus(`⚠️ ${data.mensagem || 'Falha ao conectar à API CAD CBMMG'}`);
+        setTesteStatus(`⚠️ Proxy respondeu HTTP ${res.status}`);
       }
-    } catch {
-      setTesteStatus('ℹ️ Teste local: O backend intermediário simula o proxy seguro com a API CAD.');
+    } catch (err: any) {
+      setTesteStatus(`❌ Falha ao alcançar proxy em ${proxyUrlInput}: ${err.message}`);
+    } finally {
+      setTestando(false);
+    }
+  };
+
+  const handleForcarRenovacaoCatalogos = async () => {
+    setTestando(true);
+    try {
+      const res = await sincronizarCatalogosAuxiliares(true);
+      if (res.sucesso) {
+        setTesteStatus(`✅ Catálogos auxiliares renovados com sucesso! Próxima renovação agendada para daqui a 6 horas (Regra #2).`);
+      } else {
+        setTesteStatus(`ℹ️ Mantendo catálogo local.`);
+      }
+    } catch (e: any) {
+      setTesteStatus(`⚠️ Erro: ${e.message}`);
     } finally {
       setTestando(false);
     }
@@ -82,49 +106,75 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-amber-500" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              Configurações da API CAD CBMMG
-            </h3>
+        <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Server className="w-5 h-5 text-emerald-400" />
+            <div>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                Integração API CAD CBMMG (Proxy Nginx)
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Conexão através do proxy seguro com injeção de token e CORS aberto
+              </p>
+            </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-5 space-y-4 text-xs font-sans">
-          {/* Rules Banner from Manual */}
-          <div className="bg-amber-950/30 border border-amber-900/60 p-3 rounded-xl space-y-1 text-slate-300">
-            <div className="font-bold text-amber-400 flex items-center gap-1.5 text-xs">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>Regras Oficiais do Manual de Integração (Outubro 2026)</span>
+        {/* Scrollable Body */}
+        <div className="p-5 space-y-4 text-xs font-sans overflow-y-auto">
+          {/* Rules Banner from Official Manual */}
+          <div className="bg-gradient-to-r from-emerald-950/40 via-slate-950 to-slate-950 border border-emerald-900/60 p-3.5 rounded-xl space-y-2 text-slate-300">
+            <div className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Conformidade com as 3 Regras do Manual CBMMG</span>
             </div>
-            <p className="text-[11px] text-slate-400">
-              1. Token nunca na URL ou logs. 2. Auxiliares gravados localmente (renovados poucas vezes ao dia). 3. Mínimo técnico de 5s entre requisições (ciclo normal ≥ 30s).
-            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+              <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                <span className="font-semibold text-emerald-300 block">1. Token no Servidor</span>
+                <span className="text-slate-400">Injetado pelo Nginx. O frontend nunca armazena nem manipula o token.</span>
+              </div>
+              <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                <span className="font-semibold text-emerald-300 block">2. Catálogos a cada 6h</span>
+                <span className="text-slate-400">Codificações cacheadas localmente e renovadas a cada 6 horas.</span>
+              </div>
+              <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                <span className="font-semibold text-emerald-300 block">3. Intervalo 10 min</span>
+                <span className="text-slate-400">Leituras de /ativos espaçadas a cada 10 min (mínimo técnico ≥30s).</span>
+              </div>
+            </div>
           </div>
 
-          {/* Token Input */}
+          {/* Proxy URL Configuration */}
           <div className="space-y-1.5">
-            <label className="block text-slate-300 font-semibold">
-              Token de Acesso (Bearer / X-API-Key)
+            <label className="block text-slate-300 font-semibold flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-blue-400" />
+                URL do Proxy Reverso Nginx
+              </span>
+              <button
+                type="button"
+                onClick={handleRestaurarProxyPadrao}
+                className="text-[11px] text-amber-400 hover:text-amber-300 underline cursor-pointer"
+              >
+                Restaurar padrão ({PROXY_REVERSO_PADRAO})
+              </button>
             </label>
             <div className="flex gap-2">
               <input
-                type="password"
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder="cbm_live_..."
-                className="flex-1 bg-slate-950 border border-slate-700 focus:border-red-500 rounded-lg px-3 py-2 text-slate-200 font-mono text-xs focus:outline-none"
+                type="text"
+                value={proxyUrlInput}
+                onChange={(e) => setProxyUrlInput(e.target.value)}
+                placeholder="https://cobom-cad.duckdns.org"
+                className="flex-1 bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-lg px-3 py-2 text-slate-200 font-mono text-xs focus:outline-none"
               />
               <button
-                onClick={handleSalvarToken}
-                className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg transition"
+                onClick={handleSalvarProxy}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition cursor-pointer"
               >
                 Salvar
               </button>
@@ -132,77 +182,55 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
             {salvoMsg && (
               <span className="text-emerald-400 text-[11px] flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Token armazenado com segurança no cofre local.
+                URL do proxy atualizada com sucesso.
               </span>
             )}
+            <p className="text-[11px] text-slate-500">
+              O proxy reverso Nginx adiciona automaticamente os cabeçalhos <code>Authorization: Bearer</code> e libera CORS (<code>Access-Control-Allow-Origin: *</code>).
+            </p>
           </div>
 
-          {/* Connection Test & Sync */}
-          <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2.5">
+          {/* Test & Sync Actions */}
+          <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
             <div className="flex items-center justify-between text-slate-300">
               <span className="font-semibold flex items-center gap-1.5">
-                <Server className="w-3.5 h-3.5 text-blue-400" />
-                Estado da Sincronização
+                <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                Status da Conexão
               </span>
               <span className="text-[11px] font-mono text-slate-400">
                 Última sync: {new Date(ultimaSync).toLocaleTimeString('pt-BR')}
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
-                onClick={handleTestarConexao}
+                onClick={handleTestarCodigos}
                 disabled={testando}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg font-semibold transition"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg font-semibold transition cursor-pointer"
+                title="Testar requisição ao endpoint /codigos do proxy"
               >
                 <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>{testando ? 'Testando...' : 'Testar Conexão (GET /codigos)'}</span>
+                <span>Testar /codigos</span>
+              </button>
+
+              <button
+                onClick={handleForcarRenovacaoCatalogos}
+                disabled={testando}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg font-semibold transition cursor-pointer"
+                title="Forçar renovação imediata dos catálogos auxiliares (renovação 6h)"
+              >
+                <Layers className="w-3.5 h-3.5 text-blue-400" />
+                <span>Renovar 6h</span>
               </button>
 
               <button
                 onClick={onTriggerSync}
                 disabled={isSyncing}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/80 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg font-semibold transition"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg font-semibold transition cursor-pointer shadow-md"
+                title="Executar sincronização das chamadas ativas de /ativos"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar Remoto'}</span>
-              </button>
-            </div>
-
-            {/* Agente Local Bridge (Bypass do bloqueio de firewall) */}
-            <div className="pt-2 border-t border-slate-800/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5" />
-                  Agente Local (Bypass Firewall & CORS)
-                </span>
-                <a
-                  href="/cbmmg_bridge.py"
-                  download="cbmmg_bridge.py"
-                  className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 text-[11px]"
-                >
-                  <Download className="w-3 h-3" />
-                  <span>Baixar cbmmg_bridge.py</span>
-                </a>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Como o firewall da PRODEMGE bloqueia IPs de nuvem internacional, rode o script Python no seu computador para sincronizar em tempo real via <strong>http://127.0.0.1:8080</strong>:
-              </p>
-              <button
-                onClick={async () => {
-                  setTestando(true);
-                  const res = await sincronizarAgenteLocal();
-                  setTesteStatus(res.mensagem);
-                  if (res.sucesso && res.dados) {
-                    onResetData(res.dados);
-                  }
-                  setTestando(false);
-                }}
-                disabled={testando}
-                className="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold transition flex items-center justify-center gap-2"
-              >
-                <Radio className="w-4 h-4 text-emerald-300 animate-pulse" />
-                <span>Conectar ao Agente Local (127.0.0.1:8080)</span>
+                <span>{isSyncing ? 'Sincronizando...' : 'Ler /ativos'}</span>
               </button>
             </div>
 
@@ -213,44 +241,55 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
             )}
           </div>
 
+          {/* GitHub Pages & Streamlit Cloud Guide */}
+          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+            <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-blue-400" />
+              <span>Publicação no GitHub Pages ou Streamlit Cloud</span>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Como o proxy em <strong>https://cobom-cad.duckdns.org</strong> fornece cabeçalhos CORS abertos (<code>*</code>) e injeta o token Bearer no servidor Nginx, qualquer usuário que acessar o painel hospedado no GitHub Pages ou Streamlit tem acesso imediato aos dados operacionais em tempo real, sem necessidade de logins ou configurações manuais de chaves.
+            </p>
+          </div>
+
           {/* Reset Action */}
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-            <span className="text-[11px] text-slate-400">
-              Precisa recarregar a base padrão de Minas Gerais?
+            <span className="text-[11px] text-slate-500">
+              Restaurar registros padrão de demonstração:
             </span>
             {confirmandoReset ? (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-amber-300 font-medium">Tem certeza?</span>
+                <span className="text-[11px] text-amber-300 font-medium">Confirmar?</span>
                 <button
                   onClick={handleResetar}
-                  className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[11px] font-bold"
+                  className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[11px] font-bold"
                 >
-                  Sim, restaurar
+                  Sim
                 </button>
                 <button
                   onClick={() => setConfirmandoReset(false)}
                   className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px]"
                 >
-                  Cancelar
+                  Não
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => setConfirmandoReset(true)}
-                className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1"
+                className="text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1 text-[11px] cursor-pointer"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>Restaurar Padrão</span>
+                <span>Restaurar Base</span>
               </button>
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-3 bg-slate-950 border-t border-slate-800 flex justify-end">
+        <div className="p-3 bg-slate-950 border-t border-slate-800 flex justify-end shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition cursor-pointer"
           >
             Fechar
           </button>
