@@ -156,8 +156,10 @@ export interface KpiOperacional {
   totalAtivas: number;
   emAndamento: number;
   aguardando: number;
-  recursosEmpenhados: number;
-  totalBombeiros: number;
+  viaturasAtivas: number; // Viaturas com prefixo não-BM (sem situação TR)
+  recursosEmpenhados: number; // Total de recursos empenhados sem situação TR
+  bombeirosSemViatura: number; // Recursos com prefixo BM (máscara BM0000000, sem TR)
+  totalBombeiros: number; // Substituído cálculo inferido por recursos empenhados sem TR
   comCoordenadas: number;
   semCoordenadas: number;
   tempoMedioEsperaMin: number;

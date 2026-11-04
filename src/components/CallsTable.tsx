@@ -199,12 +199,15 @@ export const CallsTable: React.FC<CallsTableProps> = ({
                       )}
                     </td>
 
-                    {/* 4. Status Atendimento */}
+                    {/* 4. Status Atendimento (chamada_atendimento_situacao) */}
                     <td className="py-3 px-4">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold border ${corObj.bg}`}
+                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold border ${corObj.bg}`}
+                        title={`codigoSituacaoAtendimentoChamada: ${c.codigoSituacaoAtendimentoChamada} (${sitTexto})`}
                       >
-                        {sitTexto}
+                        <span className="font-mono font-bold text-[10px]">{c.codigoSituacaoAtendimentoChamada}</span>
+                        <span>•</span>
+                        <span className="capitalize">{sitTexto}</span>
                       </span>
                     </td>
 
@@ -224,20 +227,34 @@ export const CallsTable: React.FC<CallsTableProps> = ({
                       <div className="text-[10px] text-slate-400">{c.bbm} {c.ciaInd ? `• ${c.ciaInd}` : ''}</div>
                     </td>
 
-                    {/* 7. Viaturas */}
+                    {/* 7. Viaturas (empenho_situacao / codigoSituacaoEmpenhoRecurso) */}
                     <td className="py-3 px-4">
                       {c.recursos.length > 0 ? (
-                        <div className="flex flex-wrap items-center gap-1">
-                          {c.recursos.slice(0, 2).map((r, i) => (
-                            <span
-                              key={i}
-                              className="bg-slate-800 text-amber-300 border border-slate-700 font-mono text-[10px] px-1.5 py-0.5 rounded font-bold"
-                            >
-                              {r.prefixo}
-                            </span>
-                          ))}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {c.recursos.slice(0, 2).map((r, i) => {
+                            const codEmp = r.codigoSituacaoEmpenhoRecurso || 'ED';
+                            const empDesc = DICIONARIO_SIGLAS.empenho_situacao[codEmp] || codEmp;
+                            const isBm = r.prefixo?.trim().toUpperCase().startsWith('BM');
+                            const isTr = codEmp.toUpperCase() === 'TR';
+                            return (
+                              <span
+                                key={i}
+                                className={`border font-mono text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-1 ${
+                                  isTr
+                                    ? 'bg-slate-900 text-slate-500 border-slate-800 line-through'
+                                    : isBm
+                                    ? 'bg-blue-950/70 text-blue-300 border-blue-800/60'
+                                    : 'bg-slate-800 text-amber-300 border-slate-700'
+                                }`}
+                                title={`Prefixo: ${r.prefixo} ${isBm ? '(Bombeiro sem viatura BM0000000)' : '(Viatura Operacional)'} | Situação: ${codEmp} (${empDesc})`}
+                              >
+                                <span>{r.prefixo}</span>
+                                <span className="text-[9px] text-slate-400 font-normal">[{codEmp}]</span>
+                              </span>
+                            );
+                          })}
                           {c.recursos.length > 2 && (
-                            <span className="text-[10px] text-slate-400">+{c.recursos.length - 2}</span>
+                            <span className="text-[10px] text-slate-400 font-mono font-medium">+{c.recursos.length - 2}</span>
                           )}
                         </div>
                       ) : (

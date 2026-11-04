@@ -1,8 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { ChamadaAtiva } from '../types/cbm';
-import { CORES_SITUACAO_ATENDIMENTO, DICIONARIO_SIGLAS } from '../data/catalogoAuxiliares';
-import { Maximize2, Minimize2, Navigation, Layers, Flame, ShieldAlert } from 'lucide-react';
+import {
+  CORES_SITUACAO_ATENDIMENTO,
+  CORES_SITUACAO_EMPENHO,
+  DICIONARIO_SIGLAS,
+} from '../data/catalogoAuxiliares';
+import { Maximize2, Minimize2, Navigation, Layers, Flame, ShieldAlert, Truck } from 'lucide-react';
 
 interface OperationalMapProps {
   chamadas: ChamadaAtiva[];
@@ -21,6 +25,7 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapStyle, setMapStyle] = useState<'dark' | 'streets' | 'satellite'>('dark');
+  const [legendaAba, setLegendaAba] = useState<'atendimento' | 'empenho'>('atendimento');
 
   // Coordenadas centrais aproximadas de Minas Gerais (Curvelo / Cordisburgo)
   const MG_CENTER: [number, number] = [-18.5, -44.5];
@@ -163,15 +168,19 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
       const sitTexto = DICIONARIO_SIGLAS.chamada_atendimento_situacao[sitAtend] || sitAtend;
       const recursosTexto =
         c.recursos.length > 0
-          ? c.recursos.map((r) => `<span class="bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1">${r.prefixo}</span>`).join('')
+          ? c.recursos.map((r) => {
+              const codEmp = r.codigoSituacaoEmpenhoRecurso || 'ED';
+              const empDesc = DICIONARIO_SIGLAS.empenho_situacao[codEmp] || codEmp;
+              return `<span class="bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 inline-block" title="Situação de Empenho (${codEmp}): ${empDesc}">${r.prefixo} <span class="text-[9px] text-slate-300 font-bold">[${codEmp} - ${empDesc}]</span></span>`;
+            }).join(' ')
           : '<span class="text-slate-400 italic text-xs">Nenhum recurso empenhado ainda</span>';
 
       const popupContent = `
-        <div class="p-1 min-w-[240px] text-slate-900 font-sans">
+        <div class="p-1 min-w-[260px] text-slate-900 font-sans">
           <div class="flex items-center justify-between border-b pb-1 mb-1.5">
             <span class="font-mono font-bold text-xs text-red-700">${c.numeroOcorrencia}</span>
-            <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded" style="background-color: ${corObj.hex}20; color: ${corObj.hex};">
-              ${sitTexto}
+            <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded" style="background-color: ${corObj.hex}20; color: ${corObj.hex}; border: 1px solid ${corObj.hex}40;">
+              ${sitAtend} • ${sitTexto}
             </span>
           </div>
           <div class="font-bold text-sm text-slate-800 leading-tight mb-1">${c.descricaoNatureza}</div>
@@ -183,7 +192,7 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
             <div class="font-medium text-slate-700">${c.cob} • ${c.bbm} ${c.ciaInd ? '• ' + c.ciaInd : ''}</div>
           </div>
           <div class="mb-2">
-            <div class="text-[10px] text-slate-500 uppercase font-semibold mb-1">Viaturas / Efetivo:</div>
+            <div class="text-[10px] text-slate-500 uppercase font-semibold mb-1">Viaturas & Empenhos (codigoSituacaoEmpenhoRecurso):</div>
             <div class="flex flex-wrap gap-1">${recursosTexto}</div>
           </div>
           <button id="btn-detalhes-${c.idChamada}" class="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-1.5 px-2 rounded transition text-center block mt-1 cursor-pointer">
@@ -369,34 +378,147 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
         </button>
       </div>
 
-      {/* Map Legend */}
-      <div className="absolute bottom-3 left-3 z-[1000] bg-slate-950/90 backdrop-blur-md p-2 rounded-lg border border-slate-800 shadow-lg text-[11px] text-slate-300 space-y-1">
-        <div className="font-semibold text-[10px] text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-          <ShieldAlert className="w-3 h-3 text-red-400" />
-          <span>Status de Atendimento</span>
+      {/* Map Legend: Situação de Atendimento & Empenho */}
+      <div className="absolute bottom-3 left-3 z-[1000] bg-slate-950/95 backdrop-blur-md p-2.5 rounded-lg border border-slate-800 shadow-xl text-[11px] text-slate-300 max-w-xl">
+        <div className="flex items-center justify-between mb-1.5 border-b border-slate-800 pb-1 gap-2">
+          <div className="flex items-center bg-slate-900 p-0.5 rounded border border-slate-800 text-[10px]">
+            <button
+              onClick={() => setLegendaAba('atendimento')}
+              className={`px-2 py-0.5 rounded transition flex items-center gap-1 cursor-pointer ${
+                legendaAba === 'atendimento'
+                  ? 'bg-red-600 text-white font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ShieldAlert className="w-3 h-3" />
+              Atendimento ({Object.keys(DICIONARIO_SIGLAS.chamada_atendimento_situacao).length})
+            </button>
+            <button
+              onClick={() => setLegendaAba('empenho')}
+              className={`px-2 py-0.5 rounded transition flex items-center gap-1 cursor-pointer ${
+                legendaAba === 'empenho'
+                  ? 'bg-amber-600 text-white font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Truck className="w-3 h-3" />
+              Empenho Recurso ({Object.keys(DICIONARIO_SIGLAS.empenho_situacao).length})
+            </button>
+          </div>
+          <span className="text-[9px] text-slate-500 font-mono hidden sm:inline">
+            {legendaAba === 'atendimento'
+              ? 'chamada_atendimento_situacao'
+              : 'empenho_situacao'}
+          </span>
         </div>
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
-            <span>No Local (NL)</span>
+
+        {legendaAba === 'atendimento' ? (
+          <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[10px]">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
+              <span className="font-mono font-bold text-red-300">NL</span>
+              <span className="text-slate-400">no local</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="font-mono font-bold text-amber-300">ED</span>
+              <span className="text-slate-400">em direção</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="font-mono font-bold text-blue-300">DP</span>
+              <span className="text-slate-400">despachada</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="font-mono font-bold text-emerald-300">EC</span>
+              <span className="text-slate-400">em controle</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-purple-500" />
+              <span className="font-mono font-bold text-purple-300">CL</span>
+              <span className="text-slate-400">classificada</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-cyan-500" />
+              <span className="font-mono font-bold text-cyan-300">AO</span>
+              <span className="text-slate-400">atribuída ao órgão</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-500" />
+              <span className="font-mono font-bold text-orange-300">LI</span>
+              <span className="text-slate-400">local intermediário</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-slate-500" />
+              <span className="font-mono font-bold text-slate-300">ER</span>
+              <span className="text-slate-400">em retorno</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span className="font-mono font-bold text-indigo-300">EN</span>
+              <span className="text-slate-400">encerrada</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-zinc-600" />
+              <span className="font-mono font-bold text-zinc-300">TR</span>
+              <span className="text-slate-400">terminada</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-            <span>Em Direção (ED)</span>
+        ) : (
+          <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[10px]">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-zinc-600" />
+              <span className="font-mono font-bold text-zinc-300">TR</span>
+              <span className="text-slate-400">terminado</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="font-mono font-bold text-amber-300">ED</span>
+              <span className="text-slate-400">em direção</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span className="font-mono font-bold text-indigo-300">EN</span>
+              <span className="text-slate-400">encerramento</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-cyan-500" />
+              <span className="font-mono font-bold text-cyan-300">DP</span>
+              <span className="text-slate-400">despachado</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="font-mono font-bold text-blue-300">AC</span>
+              <span className="text-slate-400">a caminho</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-slate-500" />
+              <span className="font-mono font-bold text-slate-300">ER</span>
+              <span className="text-slate-400">em retorno</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="font-mono font-bold text-emerald-300">NL</span>
+              <span className="text-slate-400">no local</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-500" />
+              <span className="font-mono font-bold text-orange-300">LI</span>
+              <span className="text-slate-400">no local intermediário</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-teal-500" />
+              <span className="font-mono font-bold text-teal-300">EC</span>
+              <span className="text-slate-400">em controle</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-purple-500" />
+              <span className="font-mono font-bold text-purple-300">SU</span>
+              <span className="text-slate-400">suspenso</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-            <span>Despachada (DP)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span>Em Controle (EC)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-ping" />
-            <span>Aguardando (CL)</span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Map DOM Element */}

@@ -271,12 +271,27 @@ export default function App() {
         {/* 2. Tactical KPI Cards */}
         <KPIGrid
           kpis={kpis}
-          onFiltrarSituacao={(sit) =>
-            setFiltros({
-              ...filtros,
-              situacaoChamada: sit,
-            })
-          }
+          onFiltrarSituacao={(sit) => {
+            if (sit === 'AO') {
+              setFiltros({
+                ...filtros,
+                situacaoAtendimento: 'AO',
+                situacaoChamada: 'TODOS',
+              });
+            } else if (sit === 'EM_ATENDIMENTO') {
+              setFiltros({
+                ...filtros,
+                situacaoAtendimento: 'TODOS',
+                situacaoChamada: 'E',
+              });
+            } else {
+              setFiltros({
+                ...filtros,
+                situacaoChamada: sit,
+                situacaoAtendimento: 'TODOS',
+              });
+            }
+          }}
         />
 
         {/* 3. Operational Filter Controls */}

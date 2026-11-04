@@ -36,7 +36,7 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, onFiltrarSituacao }) => 
 
       {/* 2. Em Atendimento */}
       <div
-        onClick={() => onFiltrarSituacao && onFiltrarSituacao('E')}
+        onClick={() => onFiltrarSituacao && onFiltrarSituacao('EM_ATENDIMENTO')}
         className="bg-slate-900/90 border border-blue-900/50 hover:border-blue-600/60 rounded-xl p-3.5 shadow-sm transition cursor-pointer relative overflow-hidden group"
       >
         <div className="absolute top-0 right-0 w-16 h-16 bg-blue-600/10 rounded-bl-full pointer-events-none group-hover:bg-blue-600/20 transition" />
@@ -55,13 +55,13 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, onFiltrarSituacao }) => 
           </span>
         </div>
         <div className="mt-2 text-[10px] text-slate-400 truncate">
-          Viaturas no local ou em direção
+          Ocorrências ativas (não AO)
         </div>
       </div>
 
-      {/* 3. Aguardando Despacho */}
+      {/* 3. Aguardando (Situação AO) */}
       <div
-        onClick={() => onFiltrarSituacao && onFiltrarSituacao('A')}
+        onClick={() => onFiltrarSituacao && onFiltrarSituacao('AO')}
         className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-sm transition cursor-pointer relative overflow-hidden group ${
           kpis.aguardando > 0
             ? 'border-amber-600/50 hover:border-amber-500 bg-amber-950/20'
@@ -71,7 +71,7 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, onFiltrarSituacao }) => 
         <div className="absolute top-0 right-0 w-16 h-16 bg-amber-600/10 rounded-bl-full pointer-events-none group-hover:bg-amber-600/20 transition" />
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">
-            Aguardando
+            Aguardando (AO)
           </span>
           <Clock className={`w-4 h-4 ${kpis.aguardando > 0 ? 'text-amber-400 animate-spin' : 'text-slate-500'}`} style={{ animationDuration: '6s' }} />
         </div>
@@ -79,31 +79,38 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, onFiltrarSituacao }) => 
           <span className="text-2xl font-black text-amber-300 font-mono tracking-tight">
             {kpis.aguardando}
           </span>
-          <span className="text-[11px] text-amber-400/80">em fila</span>
+          <span className="text-[11px] text-amber-400/80">em fila (AO)</span>
         </div>
         <div className="mt-2 text-[10px] text-amber-400/90 truncate">
           Espera média: <strong>{kpis.tempoMedioEsperaMin} min</strong>
         </div>
       </div>
 
-      {/* 4. Viaturas Empenhadas */}
+      {/* 4. Viaturas Ativas (prefixo não-BM) & Recursos Empenhados (sem TR) */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-sm relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-16 h-16 bg-red-600/10 rounded-bl-full pointer-events-none group-hover:bg-red-600/20 transition" />
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400" title="Viaturas em campo com prefixo que não inicia em BM (e sem situação TR)">
             Viaturas Ativas
           </span>
           <Truck className="w-4 h-4 text-red-400" />
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-black text-white font-mono tracking-tight">
-            {kpis.recursosEmpenhados}
+            {kpis.viaturasAtivas}
           </span>
-          <span className="text-[11px] text-slate-400">recursos CAD</span>
+          <span className="text-[11px] text-slate-400">viaturas (não BM)</span>
         </div>
-        <div className="mt-2 flex items-center gap-1 text-[10px] text-slate-400">
-          <Users className="w-3 h-3 text-amber-400" />
-          <span><strong>{kpis.totalBombeiros}</strong> bombeiros em campo</span>
+        <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+          <div className="flex items-center gap-1 truncate" title="Recursos empenhados sem a situação TR">
+            <Users className="w-3 h-3 text-amber-400 shrink-0" />
+            <span><strong>{kpis.recursosEmpenhados}</strong> recursos (sem TR)</span>
+          </div>
+          {kpis.bombeirosSemViatura > 0 && (
+            <span className="font-mono text-[9px] text-slate-500 shrink-0" title="Bombeiros empenhados sem viatura com máscara BM0000000">
+              +{kpis.bombeirosSemViatura} BM a pé
+            </span>
+          )}
         </div>
       </div>
 

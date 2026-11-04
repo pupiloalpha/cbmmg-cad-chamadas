@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { ChamadaAtiva } from '../types/cbm';
-import { CORES_SITUACAO_ATENDIMENTO, DICIONARIO_SIGLAS } from '../data/catalogoAuxiliares';
+import {
+  CORES_SITUACAO_ATENDIMENTO,
+  CORES_SITUACAO_EMPENHO,
+  DICIONARIO_SIGLAS,
+} from '../data/catalogoAuxiliares';
 import {
   X,
   MapPin,
@@ -111,14 +115,17 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
           {/* Status Bar */}
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className="px-3 py-1 rounded-full text-xs font-bold border"
+              className="px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5"
               style={{
                 backgroundColor: `${corObj.hex}25`,
                 borderColor: `${corObj.hex}50`,
                 color: corObj.hex,
               }}
+              title="Chave: chamada_atendimento_situacao | Campo: codigoSituacaoAtendimentoChamada"
             >
-              {sitTexto} ({chamada.codigoSituacaoAtendimentoChamada})
+              <span className="font-mono font-black">{chamada.codigoSituacaoAtendimentoChamada}</span>
+              <span>•</span>
+              <span className="capitalize">{sitTexto}</span>
             </span>
 
             <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
@@ -211,16 +218,29 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
 
           {/* Recursos Empenhados */}
           <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <Truck className="w-3.5 h-3.5 text-amber-500" />
-                Viaturas e Recursos Operacionais ({chamada.recursos.length})
-              </span>
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Users className="w-3 h-3 text-slate-400" />
-                {chamada.totalBombeiros} bombeiros empenhados
-              </span>
-            </div>
+            {(() => {
+              const recursosAtivosSemTr = chamada.recursos.filter(
+                (r) => (r.codigoSituacaoEmpenhoRecurso || '').toUpperCase() !== 'TR'
+              );
+              const viaturasAtivasQtd = recursosAtivosSemTr.filter(
+                (r) => !r.prefixo?.trim().toUpperCase().startsWith('BM')
+              ).length;
+              const bombeirosSemVtrQtd = recursosAtivosSemTr.filter(
+                (r) => r.prefixo?.trim().toUpperCase().startsWith('BM')
+              ).length;
+              return (
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <Truck className="w-3.5 h-3.5 text-amber-500" />
+                    Viaturas e Recursos Operacionais ({chamada.recursos.length})
+                  </span>
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <Users className="w-3 h-3 text-slate-400" />
+                    {recursosAtivosSemTr.length} recursos empenhados ({viaturasAtivasQtd} viaturas{bombeirosSemVtrQtd > 0 ? `, ${bombeirosSemVtrQtd} BM a pé` : ''})
+                  </span>
+                </div>
+              );
+            })()}
 
             {chamada.recursos.length === 0 ? (
               <p className="text-slate-500 italic py-2">
@@ -228,26 +248,54 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {chamada.recursos.map((r, i) => (
-                  <div
-                    key={i}
-                    className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex items-start justify-between"
-                  >
-                    <div>
-                      <div className="font-mono font-bold text-amber-400 text-xs">
-                        {r.prefixo}
+                {chamada.recursos.map((r, i) => {
+                  const isBm = (r.prefixo || '').trim().toUpperCase().startsWith('BM');
+                  return (
+                    <div
+                      key={i}
+                      className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex items-start justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-amber-400 text-xs">
+                            {r.prefixo}
+                          </span>
+                          {isBm && (
+                            <span
+                              className="text-[9px] font-semibold bg-blue-950/80 text-blue-300 border border-blue-700/50 px-1 py-0.2 rounded"
+                              title="Bombeiro empenhado sem viatura (máscara BM0000000)"
+                            >
+                              BM sem Viatura
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-300 font-medium">
+                          {isBm ? 'Bombeiro militar a pé / sem viatura' : r.tipo || 'Viatura Operacional'}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          {r.unidadeNome || 'CBMMG'}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-slate-300 font-medium">{r.tipo}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">
-                        {r.componentes || 3} militares • {r.unidadeNome || 'CBMMG'}
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
-                      {r.codigoSituacaoEmpenhoRecurso || 'NL'}
-                    </span>
+                    {(() => {
+                      const codEmp = (r.codigoSituacaoEmpenhoRecurso || 'NL').toUpperCase();
+                      const descEmp = DICIONARIO_SIGLAS.empenho_situacao[codEmp] || codEmp;
+                      const corEmp = CORES_SITUACAO_EMPENHO[codEmp] || { bg: 'bg-slate-800 text-slate-300', dot: 'bg-slate-400' };
+                      return (
+                        <div className="flex flex-col items-end">
+                          <span
+                            title={`empenho_situacao: ${descEmp}`}
+                            className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-full border border-current/20 flex items-center gap-1.5 shadow-sm ${corEmp.bg}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${corEmp.dot}`} />
+                            <strong>{codEmp}</strong> • {descEmp}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
-                ))}
-              </div>
+                );
+              })}
+            </div>
             )}
           </div>
 

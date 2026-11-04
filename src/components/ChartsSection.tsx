@@ -5,9 +5,15 @@ import {
   calcularDistribuicaoPorOrigem,
   calcularDistribuicaoPorPrioridade,
   calcularDistribuicaoPorSituacao,
+  calcularDistribuicaoPorEmpenho,
   calcularEvolucaoHoras,
 } from '../services/cbmStorage';
-import { BarChart3, TrendingUp, AlertCircle, PhoneCall, PieChart } from 'lucide-react';
+import {
+  CORES_SITUACAO_ATENDIMENTO,
+  CORES_SITUACAO_EMPENHO,
+  DICIONARIO_SIGLAS,
+} from '../data/catalogoAuxiliares';
+import { BarChart3, TrendingUp, AlertCircle, PhoneCall, PieChart, Truck } from 'lucide-react';
 
 interface ChartsSectionProps {
   chamadas: ChamadaAtiva[];
@@ -15,9 +21,11 @@ interface ChartsSectionProps {
 
 export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
   const [modoHoras, setModoHoras] = React.useState<'24h' | '12h'>('24h');
+  const [abaSituacao, setAbaSituacao] = React.useState<'chamadas' | 'empenhos'>('chamadas');
 
   const distribuicaoNatureza = calcularDistribuicaoPorNatureza(chamadas);
   const distribuicaoSituacao = calcularDistribuicaoPorSituacao(chamadas);
+  const distribuicaoEmpenho = calcularDistribuicaoPorEmpenho(chamadas);
   const distribuicaoOrigem = calcularDistribuicaoPorOrigem(chamadas);
   const distribuicaoPrioridade = calcularDistribuicaoPorPrioridade(chamadas);
   const evolucaoHoras = calcularEvolucaoHoras(chamadas, modoHoras);
@@ -25,6 +33,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
   const maxHora = Math.max(...evolucaoHoras.map((h) => h.total), 1);
   const maxNatureza = Math.max(...distribuicaoNatureza.map((n) => n.total), 1);
   const totalChamadas = chamadas.length || 1;
+  const totalRecursos = chamadas.reduce((acc, c) => acc + c.recursos.length, 0) || 1;
 
   // Identificar hora de pico
   const horaPico = evolucaoHoras.reduce(
@@ -191,36 +200,146 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
         </div>
       </div>
 
-      {/* 3. Situação Operacional de Atendimento */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md">
-        <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+      {/* 3. Situação Operacional de Atendimento & Empenho */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md flex flex-col justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800 pb-2">
           <div className="flex items-center gap-2">
-            <PieChart className="w-4 h-4 text-blue-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              Situação do Atendimento Operacional
-            </h3>
+            {abaSituacao === 'chamadas' ? (
+              <PieChart className="w-4 h-4 text-blue-500" />
+            ) : (
+              <Truck className="w-4 h-4 text-amber-500" />
+            )}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                {abaSituacao === 'chamadas'
+                  ? 'Situação do Atendimento'
+                  : 'Situação do Empenho'}
+              </h3>
+              <p className="text-[10px] text-slate-500 font-mono">
+                {abaSituacao === 'chamadas'
+                  ? 'Chave: chamada_atendimento_situacao'
+                  : 'Chave: empenho_situacao'}
+              </p>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-400 font-mono">Status CAD</span>
+
+          <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px] font-semibold">
+            <button
+              onClick={() => setAbaSituacao('chamadas')}
+              className={`px-2.5 py-1 rounded transition flex items-center gap-1 ${
+                abaSituacao === 'chamadas'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <PieChart className="w-3 h-3" />
+              Chamadas
+            </button>
+            <button
+              onClick={() => setAbaSituacao('empenhos')}
+              className={`px-2.5 py-1 rounded transition flex items-center gap-1 ${
+                abaSituacao === 'empenhos'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Truck className="w-3 h-3" />
+              Recursos
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
-          {distribuicaoSituacao.map((item, idx) => {
-            const pct = Math.round((item.total / totalChamadas) * 100);
-            return (
-              <div
-                key={idx}
-                className="bg-slate-950/70 border border-slate-800 rounded-lg p-2.5 flex flex-col justify-between"
-              >
-                <span className="text-[11px] text-slate-400 font-medium truncate mb-1">
-                  {item.situacao}
-                </span>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-lg font-mono font-bold text-slate-200">{item.total}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">{pct}%</span>
+        {abaSituacao === 'chamadas' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+            {distribuicaoSituacao.map((item, idx) => {
+              const pct = Math.round((item.total / totalChamadas) * 100);
+              const siglaUpper = item.sigla?.toUpperCase();
+              const cor = CORES_SITUACAO_ATENDIMENTO[siglaUpper as any] || {
+                bg: 'bg-slate-800 text-slate-300',
+              };
+              const desc =
+                DICIONARIO_SIGLAS.chamada_atendimento_situacao[siglaUpper as any] || item.situacao;
+
+              return (
+                <div
+                  key={idx}
+                  className="bg-slate-950/70 border border-slate-800 rounded-lg p-2.5 flex flex-col justify-between hover:border-slate-700 transition"
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span
+                      className={`font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border border-current/20 ${cor.bg}`}
+                    >
+                      {siglaUpper}
+                    </span>
+                    <span className="text-[11px] text-slate-300 font-medium truncate capitalize">
+                      {desc}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between mt-1">
+                    <span className="text-lg font-mono font-bold text-slate-200">{item.total}</span>
+                    <span className="text-[10px] text-slate-500 font-mono">{pct}%</span>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+            {distribuicaoEmpenho.length === 0 ? (
+              <div className="col-span-3 text-center py-6 text-xs text-slate-500">
+                Nenhum recurso empenhado nas ocorrências filtradas.
               </div>
-            );
-          })}
+            ) : (
+              distribuicaoEmpenho.map((item, idx) => {
+                const pct = Math.round((item.total / totalRecursos) * 100);
+                const siglaUpper = item.sigla?.toUpperCase();
+                const cor = CORES_SITUACAO_EMPENHO[siglaUpper as any] || {
+                  bg: 'bg-slate-800 text-slate-300',
+                };
+                const desc =
+                  DICIONARIO_SIGLAS.empenho_situacao[siglaUpper as any] || item.descricao;
+
+                return (
+                  <div
+                    key={idx}
+                    className="bg-slate-950/70 border border-slate-800 rounded-lg p-2.5 flex flex-col justify-between hover:border-slate-700 transition"
+                  >
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span
+                        className={`font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border border-current/20 ${cor.bg}`}
+                      >
+                        {siglaUpper}
+                      </span>
+                      <span className="text-[11px] text-slate-300 font-medium truncate capitalize">
+                        {desc}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <span className="text-lg font-mono font-bold text-amber-300">{item.total}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">{pct}%</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        <div className="pt-2 border-t border-slate-800/60 mt-2 flex items-center justify-between text-[11px] text-slate-400">
+          <span>
+            Campo:{' '}
+            <code className="text-amber-400 font-mono text-[10px]">
+              {abaSituacao === 'chamadas'
+                ? 'codigoSituacaoAtendimentoChamada'
+                : 'codigoSituacaoEmpenhoRecurso'}
+            </code>
+          </span>
+          <span className="font-mono text-slate-300">
+            Total:{' '}
+            <strong>
+              {abaSituacao === 'chamadas' ? totalChamadas : totalRecursos}
+            </strong>
+          </span>
         </div>
       </div>
 

@@ -106,6 +106,26 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
     letra = codigo.charAt(0).toUpperCase();
   }
 
+  let sitAtend = (c.codigoSituacaoAtendimentoChamada || 'CL').toUpperCase() as CodigoSituacaoAtendimento;
+  let sitChamada = c.codigoSituacaoChamada;
+
+  // 1. Chamadas "Aguardando" são aquelas com situação AO
+  if (sitChamada === 'A' && (!sitAtend || sitAtend === 'CL')) {
+    sitAtend = 'AO';
+  }
+  if (sitAtend === 'AO') {
+    sitChamada = 'A';
+  } else if (!sitChamada || sitChamada === 'A') {
+    sitChamada = 'E';
+  }
+
+  // 2.1. Substituir cálculo inferido de bombeiros por recursos empenhados (sem TR)
+  const recursosValidos = c.recursos || [];
+  const recursosSemTr = recursosValidos.filter(
+    (r) => (r.codigoSituacaoEmpenhoRecurso || '').toUpperCase() !== 'TR'
+  );
+  const totalRecursosSemTr = recursosSemTr.length;
+
   if (letra && GRUPOS_NATUREZAS_CBMMG[letra]) {
     const def = GRUPOS_NATUREZAS_CBMMG[letra];
     return {
@@ -114,6 +134,9 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
       letraGrupoNatureza: letra,
       grupoNatureza: def.rotuloCompleto,
       categoriaNatureza: def.categoria,
+      codigoSituacaoAtendimentoChamada: sitAtend,
+      codigoSituacaoChamada: sitChamada,
+      totalBombeiros: totalRecursosSemTr,
     };
   }
 
@@ -123,6 +146,9 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
     letraGrupoNatureza: letra || 'S',
     grupoNatureza: c.grupoNatureza || 'S - REFERENTE À BUSCA E SALVAMENTO',
     categoriaNatureza: c.categoriaNatureza || 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR',
+    codigoSituacaoAtendimentoChamada: sitAtend,
+    codigoSituacaoChamada: sitChamada,
+    totalBombeiros: totalRecursosSemTr,
   };
 }
 
@@ -863,11 +889,15 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     }
   }
 
-  // Situação da Chamada ('E' = Em atendimento, 'A' = Aguardando)
-  let codSituacaoChamada: CodigoSituacaoChamada = (r.codigoSituacaoChamada || (recursos.length > 0 ? 'E' : 'A')) as CodigoSituacaoChamada;
-  if (recursos.length > 0 && codSituacaoChamada === 'A') {
-    codSituacaoChamada = 'E';
-  }
+  // 1. Chamadas "Aguardando" são aquelas com situação AO
+  const isAguardando = (codSituacaoAtendimento || '').toUpperCase() === 'AO';
+  const codSituacaoChamada: CodigoSituacaoChamada = isAguardando ? 'A' : 'E';
+
+  // 2.1. Substituir cálculo inferido de bombeiros por recursos empenhados (sem a situação TR)
+  const recursosSemTr = recursos.filter(
+    (rec) => (rec.codigoSituacaoEmpenhoRecurso || '').toUpperCase() !== 'TR'
+  );
+  const totalRecursosSemTr = recursosSemTr.length;
 
   return {
     idChamada,
@@ -899,7 +929,7 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     idUnidadeServico,
     nomeUnidade: `${bbm} - CBMMG`,
     recursos,
-    totalBombeiros: Math.max(recursos.length > 0 ? totalBombeiros : 0, r.totalBombeiros || 0),
+    totalBombeiros: totalRecursosSemTr,
     tempoDecorridoMinutos,
     historicoObservacoes: historicosDesc.length > 0 ? historicosDesc : ['Registro sincronizado via Proxy Reverso Nginx CBMMG.'],
     orgaoApoio: r.orgaoApoio,
@@ -995,11 +1025,14 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
       }
     }
 
-    // 11. Busca por termo (Ocorrência, Natureza por código e descrição, Município, Bairro, Viatura)
+    // 11. Busca por termo (Ocorrência, Natureza, Situação Atendimento/Empenho, Município, Bairro, Viatura)
     if (filtros.termoBusca && filtros.termoBusca.trim() !== '') {
       const q = filtros.termoBusca.toLowerCase().trim();
+      const descAtend = DICIONARIO_SIGLAS.chamada_atendimento_situacao[c.codigoSituacaoAtendimentoChamada] || '';
       const match =
         c.numeroOcorrencia.toLowerCase().includes(q) ||
+        c.codigoSituacaoAtendimentoChamada.toLowerCase().includes(q) ||
+        descAtend.toLowerCase().includes(q) ||
         (c.codigoNatureza && c.codigoNatureza.toLowerCase().includes(q)) ||
         (c.descricaoNatureza && c.descricaoNatureza.toLowerCase().includes(q)) ||
         (c.grupoNatureza && c.grupoNatureza.toLowerCase().includes(q)) ||
@@ -1010,7 +1043,15 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
         c.bbm.toLowerCase().includes(q) ||
         c.cob.toLowerCase().includes(q) ||
         (c.ciaInd && c.ciaInd.toLowerCase().includes(q)) ||
-        c.recursos.some((rec) => rec.prefixo.toLowerCase().includes(q));
+        c.recursos.some((rec) => {
+          const sitEmp = rec.codigoSituacaoEmpenhoRecurso || 'ED';
+          const descEmp = DICIONARIO_SIGLAS.empenho_situacao[sitEmp] || '';
+          return (
+            rec.prefixo.toLowerCase().includes(q) ||
+            sitEmp.toLowerCase().includes(q) ||
+            descEmp.toLowerCase().includes(q)
+          );
+        });
       if (!match) return false;
     }
 
@@ -1026,8 +1067,9 @@ export function calcularKPIs(chamadas: ChamadaAtiva[]): KpiOperacional {
   const totalAtivas = chamadas.length;
   let emAndamento = 0;
   let aguardando = 0;
+  let viaturasAtivas = 0;
   let recursosEmpenhados = 0;
-  let totalBombeiros = 0;
+  let bombeirosSemViatura = 0;
   let comCoordenadas = 0;
   let semCoordenadas = 0;
   let prioridadeAltaQtd = 0;
@@ -1035,16 +1077,39 @@ export function calcularKPIs(chamadas: ChamadaAtiva[]): KpiOperacional {
   let chamadasAguardandoComTempo = 0;
 
   for (const c of chamadas) {
-    if (c.codigoSituacaoChamada === 'E') {
-      emAndamento++;
-    } else {
+    // 1. Chamadas "Aguardando" são aquelas com situação AO (atribuída ao órgão)
+    const sitAtend = (c.codigoSituacaoAtendimentoChamada || '').toUpperCase();
+    const isAguardando = sitAtend === 'AO';
+
+    if (isAguardando) {
       aguardando++;
       somaTempoEsperaMin += c.tempoDecorridoMinutos || 10;
       chamadasAguardandoComTempo++;
+    } else {
+      emAndamento++;
     }
 
-    recursosEmpenhados += c.recursos.length;
-    totalBombeiros += c.totalBombeiros;
+    // 2. Viaturas Ativas e Recursos Empenhados (sem situação TR)
+    // 2.1. O cálculo de bombeiros em campo foi inferido? Substitua por recursos empenhados (sem a situação TR).
+    for (const r of c.recursos) {
+      const sitEmp = (r.codigoSituacaoEmpenhoRecurso || r.codigoSituacaoRecurso || '').toUpperCase();
+      // Recursos terminados (TR) não são considerados ativos em campo
+      if (sitEmp === 'TR') {
+        continue;
+      }
+
+      // Total de recursos empenhados ativos (sem situação TR)
+      recursosEmpenhados++;
+
+      const prefixo = (r.prefixo || '').trim().toUpperCase();
+      // Recursos cujo prefixo inicia com BM são bombeiros empenhados sem viatura (máscara BM0000000)
+      if (prefixo.startsWith('BM')) {
+        bombeirosSemViatura++;
+      } else {
+        // Viaturas ativas são aquelas cujo prefixo NÃO inicia em BM
+        viaturasAtivas++;
+      }
+    }
 
     if (c.latitude !== null && c.longitude !== null) {
       comCoordenadas++;
@@ -1069,8 +1134,10 @@ export function calcularKPIs(chamadas: ChamadaAtiva[]): KpiOperacional {
     totalAtivas,
     emAndamento,
     aguardando,
+    viaturasAtivas,
     recursosEmpenhados,
-    totalBombeiros,
+    bombeirosSemViatura,
+    totalBombeiros: recursosEmpenhados, // Substituído cálculo inferido por recursos empenhados (sem TR)
     comCoordenadas,
     semCoordenadas,
     tempoMedioEsperaMin,
@@ -1107,13 +1174,32 @@ export function calcularDistribuicaoPorGrupoNatureza(chamadas: ChamadaAtiva[]) {
 }
 
 export function calcularDistribuicaoPorSituacao(chamadas: ChamadaAtiva[]) {
-  const counts: Record<string, number> = {};
+  const counts: Record<string, { sigla: string; situacao: string; total: number }> = {};
   for (const c of chamadas) {
     const sigla = c.codigoSituacaoAtendimentoChamada;
     const desc = DICIONARIO_SIGLAS.chamada_atendimento_situacao[sigla] || sigla;
-    counts[desc] = (counts[desc] || 0) + 1;
+    const rotulo = `${sigla} (${desc})`;
+    if (!counts[sigla]) {
+      counts[sigla] = { sigla, situacao: rotulo, total: 0 };
+    }
+    counts[sigla].total++;
   }
-  return Object.entries(counts).map(([situacao, total]) => ({ situacao, total }));
+  return Object.values(counts).sort((a, b) => b.total - a.total);
+}
+
+export function calcularDistribuicaoPorEmpenho(chamadas: ChamadaAtiva[]) {
+  const counts: Record<string, { sigla: string; descricao: string; total: number }> = {};
+  for (const c of chamadas) {
+    for (const r of c.recursos) {
+      const sigla = r.codigoSituacaoEmpenhoRecurso || 'ED';
+      const desc = DICIONARIO_SIGLAS.empenho_situacao[sigla] || sigla;
+      if (!counts[sigla]) {
+        counts[sigla] = { sigla, descricao: desc, total: 0 };
+      }
+      counts[sigla].total++;
+    }
+  }
+  return Object.values(counts).sort((a, b) => b.total - a.total);
 }
 
 export function calcularDistribuicaoPorOrigem(chamadas: ChamadaAtiva[]) {

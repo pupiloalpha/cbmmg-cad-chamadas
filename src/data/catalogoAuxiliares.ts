@@ -21,45 +21,79 @@ export const DICIONARIO_SIGLAS = {
     A: 'Aguardando Atendimento',
   } as Record<CodigoSituacaoChamada, string>,
 
+  // Chave oficial do CAD: empenho_situacao
+  // Campo correspondente na API CAD: codigoSituacaoEmpenhoRecurso
   empenho_situacao: {
-    TR: 'Terminado',
-    ED: 'Em Direção',
-    EN: 'Encerramento',
-    DP: 'Despachado',
-    AC: 'A Caminho',
-    ER: 'Em Retorno',
-    NL: 'No Local',
-    LI: 'No Local Intermediário',
-    EC: 'Em Controle',
-    SU: 'Suspenso',
-  } as Record<CodigoSituacaoEmpenho, string>,
+    TR: 'terminado',
+    ED: 'em direção',
+    EN: 'encerramento',
+    DP: 'despachado',
+    AC: 'a caminho',
+    ER: 'em retorno',
+    NL: 'no local',
+    LI: 'no local intermediário',
+    EC: 'em controle',
+    SU: 'suspenso',
+  } as Record<string, string>,
 
+  // Chave oficial do CAD: chamada_atendimento_situacao
+  // Campo correspondente na API CAD: codigoSituacaoAtendimentoChamada
   chamada_atendimento_situacao: {
-    ER: 'Em Retorno',
-    NL: 'No Local',
-    CL: 'Classificada',
-    DP: 'Despachada',
-    EC: 'Em Controle',
-    EN: 'Encerramento',
-    LI: 'Local Intermediário',
-    ED: 'Em Direção',
-    TR: 'Terminada',
-    AO: 'Atribuída ao Órgão',
-  } as Record<CodigoSituacaoAtendimento, string>,
+    ER: 'em retorno',
+    NL: 'no local',
+    CL: 'classificada',
+    DP: 'despachada',
+    EC: 'em controle',
+    EN: 'encerrada',
+    LI: 'local intermediário',
+    ED: 'em direção',
+    TR: 'terminada',
+    AO: 'atribuída ao órgão',
+  } as Record<string, string>,
 };
 
-export const CORES_SITUACAO_ATENDIMENTO: Record<CodigoSituacaoAtendimento, { bg: string; text: string; hex: string }> = {
-  NL: { bg: 'bg-red-500/20 border-red-500/40 text-red-300', text: 'text-red-400', hex: '#ef4444' }, // No Local (Crítico)
-  ED: { bg: 'bg-amber-500/20 border-amber-500/40 text-amber-300', text: 'text-amber-400', hex: '#f59e0b' }, // Em Direção
-  DP: { bg: 'bg-blue-500/20 border-blue-500/40 text-blue-300', text: 'text-blue-400', hex: '#3b82f6' }, // Despachada
-  EC: { bg: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300', text: 'text-emerald-400', hex: '#10b981' }, // Em Controle
-  CL: { bg: 'bg-purple-500/20 border-purple-500/40 text-purple-300', text: 'text-purple-400', hex: '#a855f7' }, // Classificada
-  AO: { bg: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300', text: 'text-cyan-400', hex: '#06b6d4' }, // Atribuída ao Órgão
-  LI: { bg: 'bg-orange-500/20 border-orange-500/40 text-orange-300', text: 'text-orange-400', hex: '#ea580c' }, // Local Intermediário
-  ER: { bg: 'bg-slate-500/20 border-slate-500/40 text-slate-300', text: 'text-slate-400', hex: '#64748b' }, // Em Retorno
-  EN: { bg: 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300', text: 'text-indigo-400', hex: '#6366f1' }, // Encerramento
-  TR: { bg: 'bg-zinc-600/20 border-zinc-600/40 text-zinc-300', text: 'text-zinc-400', hex: '#71717a' }, // Terminada
+export const CORES_SITUACAO_ATENDIMENTO: Record<string, { bg: string; text: string; hex: string }> = {
+  NL: { bg: 'bg-red-500/20 border-red-500/40 text-red-300', text: 'text-red-400', hex: '#ef4444' }, // no local (crítico)
+  ED: { bg: 'bg-amber-500/20 border-amber-500/40 text-amber-300', text: 'text-amber-400', hex: '#f59e0b' }, // em direção
+  DP: { bg: 'bg-blue-500/20 border-blue-500/40 text-blue-300', text: 'text-blue-400', hex: '#3b82f6' }, // despachada
+  EC: { bg: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300', text: 'text-emerald-400', hex: '#10b981' }, // em controle
+  CL: { bg: 'bg-purple-500/20 border-purple-500/40 text-purple-300', text: 'text-purple-400', hex: '#a855f7' }, // classificada
+  AO: { bg: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300', text: 'text-cyan-400', hex: '#06b6d4' }, // atribuída ao órgão
+  LI: { bg: 'bg-orange-500/20 border-orange-500/40 text-orange-300', text: 'text-orange-400', hex: '#ea580c' }, // local intermediário
+  ER: { bg: 'bg-slate-500/20 border-slate-500/40 text-slate-300', text: 'text-slate-400', hex: '#64748b' }, // em retorno
+  EN: { bg: 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300', text: 'text-indigo-400', hex: '#6366f1' }, // encerrada
+  TR: { bg: 'bg-zinc-600/20 border-zinc-600/40 text-zinc-300', text: 'text-zinc-400', hex: '#71717a' }, // terminada
 };
+
+export const CORES_SITUACAO_EMPENHO: Record<string, { bg: string; text: string; hex: string; dot?: string }> = {
+  NL: { bg: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300', text: 'text-emerald-400', hex: '#10b981', dot: 'bg-emerald-400' }, // no local
+  ED: { bg: 'bg-amber-500/20 border-amber-500/40 text-amber-300', text: 'text-amber-400', hex: '#f59e0b', dot: 'bg-amber-400' }, // em direção
+  AC: { bg: 'bg-blue-500/20 border-blue-500/40 text-blue-300', text: 'text-blue-400', hex: '#3b82f6', dot: 'bg-blue-400' }, // a caminho
+  DP: { bg: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300', text: 'text-cyan-400', hex: '#06b6d4', dot: 'bg-cyan-400' }, // despachado
+  EC: { bg: 'bg-teal-500/20 border-teal-500/40 text-teal-300', text: 'text-teal-400', hex: '#14b8a6', dot: 'bg-teal-400' }, // em controle
+  ER: { bg: 'bg-slate-500/20 border-slate-500/40 text-slate-300', text: 'text-slate-400', hex: '#64748b', dot: 'bg-slate-400' }, // em retorno
+  LI: { bg: 'bg-orange-500/20 border-orange-500/40 text-orange-300', text: 'text-orange-400', hex: '#ea580c', dot: 'bg-orange-400' }, // no local intermediário
+  EN: { bg: 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300', text: 'text-indigo-400', hex: '#6366f1', dot: 'bg-indigo-400' }, // encerramento
+  TR: { bg: 'bg-zinc-600/20 border-zinc-600/40 text-zinc-300', text: 'text-zinc-400', hex: '#71717a', dot: 'bg-zinc-400' }, // terminado
+  SU: { bg: 'bg-purple-500/20 border-purple-500/40 text-purple-300', text: 'text-purple-400', hex: '#a855f7', dot: 'bg-purple-400' }, // suspenso
+};
+
+export function formatarTextoSigla(texto: string): string {
+  if (!texto) return '';
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+export function obterDescricaoSituacaoAtendimento(sigla: string): string {
+  const s = sigla?.toUpperCase() as CodigoSituacaoAtendimento;
+  const desc = DICIONARIO_SIGLAS.chamada_atendimento_situacao[s];
+  return desc ? formatarTextoSigla(desc) : sigla;
+}
+
+export function obterDescricaoSituacaoEmpenho(sigla: string): string {
+  const s = sigla?.toUpperCase() as CodigoSituacaoEmpenho;
+  const desc = DICIONARIO_SIGLAS.empenho_situacao[s];
+  return desc ? formatarTextoSigla(desc) : sigla;
+}
 
 export const UNIDADES_SERVICO_CBMMG: UnidadeServicoAuxiliar[] = [
   // 1º COB - RMBH e Região Central
