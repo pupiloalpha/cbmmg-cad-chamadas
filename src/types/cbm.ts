@@ -10,7 +10,9 @@ export type CodigoSituacaoAtendimento =
   | 'LI'
   | 'ED'
   | 'TR'
-  | 'AO';
+  | 'AO'
+  | 'AC'
+  | 'SU';
 
 export type CodigoSituacaoEmpenho =
   | 'TR'

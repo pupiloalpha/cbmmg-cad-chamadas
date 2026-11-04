@@ -464,6 +464,16 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
               <span className="font-mono font-bold text-zinc-300">TR</span>
               <span className="text-slate-400">terminada</span>
             </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="font-mono font-bold text-blue-300">AC</span>
+              <span className="text-slate-400">a caminho</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-purple-500" />
+              <span className="font-mono font-bold text-purple-300">SU</span>
+              <span className="text-slate-400">suspenso</span>
+            </div>
           </div>
         ) : (
           <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[10px]">

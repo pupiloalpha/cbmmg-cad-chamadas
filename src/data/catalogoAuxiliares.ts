@@ -49,6 +49,8 @@ export const DICIONARIO_SIGLAS = {
     ED: 'em direção',
     TR: 'terminada',
     AO: 'atribuída ao órgão',
+    AC: 'a caminho',
+    SU: 'suspenso',
   } as Record<string, string>,
 };
 
@@ -63,6 +65,8 @@ export const CORES_SITUACAO_ATENDIMENTO: Record<string, { bg: string; text: stri
   ER: { bg: 'bg-slate-500/20 border-slate-500/40 text-slate-300', text: 'text-slate-400', hex: '#64748b' }, // em retorno
   EN: { bg: 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300', text: 'text-indigo-400', hex: '#6366f1' }, // encerrada
   TR: { bg: 'bg-zinc-600/20 border-zinc-600/40 text-zinc-300', text: 'text-zinc-400', hex: '#71717a' }, // terminada
+  AC: { bg: 'bg-blue-500/20 border-blue-500/40 text-blue-300', text: 'text-blue-400', hex: '#3b82f6' }, // a caminho
+  SU: { bg: 'bg-purple-500/20 border-purple-500/40 text-purple-300', text: 'text-purple-400', hex: '#a855f7' }, // suspenso
 };
 
 export const CORES_SITUACAO_EMPENHO: Record<string, { bg: string; text: string; hex: string; dot?: string }> = {
