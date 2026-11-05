@@ -27,6 +27,7 @@ interface MultiSelectCheckboxDropdownProps {
   onChange: (selected: string[]) => void;
   placeholder: string;
   allLabel: string;
+  alignRight?: boolean;
 }
 
 const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = ({
@@ -37,6 +38,7 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
   onChange,
   placeholder,
   allLabel,
+  alignRight = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -101,7 +103,7 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
   }, [isAllSelected, selectedValues, allLabel, options]);
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={containerRef}>
       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
         {icon}
         {label}
@@ -148,7 +150,7 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-72 sm:w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col text-xs animate-in fade-in zoom-in-95 duration-100">
+        <div className={`absolute ${alignRight ? 'right-0 sm:right-0 sm:left-auto' : 'left-0'} top-full mt-1.5 w-72 sm:w-80 max-w-[calc(100vw-2.5rem)] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[100] overflow-hidden flex flex-col text-xs animate-in fade-in zoom-in-95 duration-100`}>
           {/* Header Controls */}
           <div className="p-2.5 bg-slate-950/80 border-b border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
@@ -433,7 +435,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3.5">
+    <div className="relative z-30 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3.5">
       {/* Top Filter Controls: Search & Temporal Buttons */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
         {/* Search Input */}
@@ -550,6 +552,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
           onChange={handleCiasIndChange}
           placeholder="Todas Cias Ind"
           allLabel="Todas Cias Ind (5 Oficiais)"
+          alignRight={true}
         />
 
         {/* 4. Natureza / Grupo SIDS */}

@@ -285,7 +285,7 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
       className={`relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl transition-all ${
         isFullscreen
           ? 'fixed inset-2 sm:inset-4 md:inset-6 z-[9999] rounded-2xl border-2 border-red-500/80 shadow-[0_0_60px_rgba(0,0,0,0.95)] flex flex-col'
-          : 'h-[500px] w-full'
+          : 'h-[500px] w-full z-10'
       }`}
     >
       {/* Top Map Control Bar */}
