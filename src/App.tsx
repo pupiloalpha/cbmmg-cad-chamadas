@@ -8,6 +8,8 @@ import {
   obterUltimaSync,
   sincronizarProxyReverso,
   sincronizarSnapshotEstatico,
+  sincronizarTabelaNaturezas,
+  enriquecerChamada,
 } from './services/cbmStorage';
 import { Header } from './components/Header';
 import { KPIGrid } from './components/KPIGrid';
@@ -96,14 +98,25 @@ export default function App() {
     }
   };
 
-  // Inicializar dados: carrega cache persistente e sincroniza imediatamente com o proxy reverso Nginx
+  // Inicializar dados: carrega cache persistente, tabela oficial de naturezas CAD (2.245 registros) e sincroniza com proxy
   useEffect(() => {
     const dadosIniciais = carregarChamadasArmazenadas();
     if (dadosIniciais && dadosIniciais.length > 0) {
       setChamadas(dadosIniciais);
     }
 
-    // Dispara leitura imediata das 700+ chamadas ativas via proxy reverso
+    // Carrega a tabela oficial de naturezas do CAD (GET /dados-auxiliares/naturezas com 2.245 registros)
+    sincronizarTabelaNaturezas(false).then((res) => {
+      if (res.sucesso && res.total > 0) {
+        setChamadas((prev) => {
+          const atualizadas = prev.map((c) => enriquecerChamada(c));
+          salvarChamadasArmazenadas(atualizadas);
+          return atualizadas;
+        });
+      }
+    }).catch(() => {});
+
+    // Dispara leitura das chamadas ativas via proxy reverso
     executarSincronizacaoProxy(false);
   }, []);
 

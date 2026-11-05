@@ -152,6 +152,7 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
             <div className="flex flex-wrap items-center gap-2 pt-1 text-slate-400">
               <span className="bg-slate-800 px-2 py-0.5 rounded font-mono text-[11px] text-amber-300 font-bold">
                 Código CAD: {chamada.codigoNatureza || 'S0101'}
+                {chamada.idNatureza ? ` (ID CAD: ${chamada.idNatureza})` : ''}
               </span>
               <span>•</span>
               <span className="text-slate-300">{chamada.grupoNatureza}</span>

@@ -17,6 +17,7 @@ const PROXY_REVERSO_URL = process.env.CBMMG_PROXY_URL || 'https://cobom-cad.duck
 let ultimoAcessoRemoto = 0;
 let cacheAtivos: any = null;
 let cacheCatalogos: any = null;
+let cacheNaturezas: any = null;
 let ultimaAtualizacao = new Date().toISOString();
 
 // Carregar snapshot inicial em cache caso disponível
@@ -27,6 +28,15 @@ try {
   }
 } catch (e) {
   console.warn('Snapshot inicial não carregado:', e);
+}
+
+try {
+  const natPath = path.resolve(__dirname, 'public/cad_naturezas.json');
+  if (fs.existsSync(natPath)) {
+    cacheNaturezas = JSON.parse(fs.readFileSync(natPath, 'utf-8'));
+  }
+} catch (e) {
+  console.warn('Snapshot de naturezas não carregado:', e);
 }
 
 // Rota de status do backend intermediário
@@ -89,6 +99,50 @@ app.all('/api/cbm/test-connection', async (req, res) => {
       mensagem: `Erro ao conectar com ${PROXY_REVERSO_URL}: ${err.message}`,
     });
   }
+});
+
+// Catálogo Oficial de Naturezas (GET /dados-auxiliares/naturezas conforme Seção 10 / Regra 2)
+app.all('/api/cbm/naturezas', async (req, res) => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const resp = await fetch(`${PROXY_REVERSO_URL}/dados-auxiliares/naturezas`, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'CBMMG-Proxy-App/1.0',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      cacheNaturezas = data;
+      return res.json({
+        sucesso: true,
+        fonte: `${PROXY_REVERSO_URL}/dados-auxiliares/naturezas`,
+        total: data.total || (data.dados?.value ? data.dados.value.length : 0),
+        dados: data,
+      });
+    }
+  } catch (err: any) {
+    console.warn(`Falha ao buscar naturezas remotas (${err.message}). Servindo do cache local...`);
+  }
+
+  if (cacheNaturezas) {
+    return res.json({
+      sucesso: true,
+      fonte: 'Cache Local / Snapshot Contingência',
+      total: cacheNaturezas.total || (cacheNaturezas.dados?.value ? cacheNaturezas.dados.value.length : 0),
+      dados: cacheNaturezas,
+    });
+  }
+
+  return res.status(500).json({
+    sucesso: false,
+    mensagem: 'Não foi possível carregar o catálogo de naturezas.',
+  });
 });
 
 // Sincronização /ativos com respeito estrito às 3 regras do manual

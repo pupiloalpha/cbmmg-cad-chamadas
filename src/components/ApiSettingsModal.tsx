@@ -5,6 +5,8 @@ import {
   PROXY_REVERSO_PADRAO,
   sincronizarProxyReverso,
   sincronizarCatalogosAuxiliares,
+  sincronizarTabelaNaturezas,
+  obterTotalNaturezasOficiaisCarregadas,
   restaurarDadosPadrao,
   sincronizarAgenteLocal,
 } from '../services/cbmStorage';
@@ -93,6 +95,23 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
       }
     } catch (e: any) {
       setTesteStatus(`⚠️ Erro: ${e.message}`);
+    } finally {
+      setTestando(false);
+    }
+  };
+
+  const handleTestarNaturezas = async () => {
+    setTestando(true);
+    setTesteStatus(null);
+    try {
+      const res = await sincronizarTabelaNaturezas(true);
+      if (res.sucesso) {
+        setTesteStatus(`✅ Tabela oficial de naturezas CAD sincronizada! Total: ${res.total} naturezas carregadas via ${res.fonte}.`);
+      } else {
+        setTesteStatus(`⚠️ Não foi possível sincronizar naturezas.`);
+      }
+    } catch (e: any) {
+      setTesteStatus(`❌ Erro: ${e.message}`);
     } finally {
       setTestando(false);
     }
@@ -206,35 +225,45 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 onClick={handleTestarCodigos}
                 disabled={testando}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg font-semibold transition cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg font-semibold transition cursor-pointer text-center"
                 title="Testar requisição ao endpoint /codigos do proxy"
               >
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>Testar /codigos</span>
+                <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">/codigos</span>
+              </button>
+
+              <button
+                onClick={handleTestarNaturezas}
+                disabled={testando}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg font-semibold transition cursor-pointer text-center"
+                title="Testar e sincronizar endpoint GET /dados-auxiliares/naturezas (2.245 naturezas CAD)"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">Naturezas CAD</span>
               </button>
 
               <button
                 onClick={handleForcarRenovacaoCatalogos}
                 disabled={testando}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg font-semibold transition cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg font-semibold transition cursor-pointer text-center"
                 title="Forçar renovação imediata dos catálogos auxiliares (renovação 6h)"
               >
-                <Layers className="w-3.5 h-3.5 text-blue-400" />
-                <span>Renovar 6h</span>
+                <Layers className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span className="truncate">Renovar 6h</span>
               </button>
 
               <button
                 onClick={onTriggerSync}
                 disabled={isSyncing}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg font-semibold transition cursor-pointer shadow-md"
+                className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg font-semibold transition cursor-pointer shadow-md text-center"
                 title="Executar sincronização das chamadas ativas de /ativos"
               >
-                <RotateCcw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Sincronizando...' : 'Ler /ativos'}</span>
+                <RotateCcw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''} shrink-0`} />
+                <span className="truncate">{isSyncing ? 'Lendo...' : 'Ler /ativos'}</span>
               </button>
             </div>
 

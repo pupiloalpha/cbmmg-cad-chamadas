@@ -23,6 +23,8 @@ const STORAGE_KEY_CHAMADAS = 'cbmmg_cad_chamadas_v1';
 const STORAGE_KEY_ULTIMA_SYNC = 'cbmmg_cad_ultima_sync';
 const STORAGE_KEY_CATALOGOS = 'cbmmg_cad_catalogos_v1';
 const STORAGE_KEY_CATALOGOS_TS = 'cbmmg_cad_catalogos_ts';
+const STORAGE_KEY_NATUREZAS = 'cbmmg_cad_naturezas_v1';
+const STORAGE_KEY_NATUREZAS_TS = 'cbmmg_cad_naturezas_ts';
 const STORAGE_KEY_PROXY_URL = 'cbmmg_cad_proxy_url';
 const STORAGE_KEY_TOKEN = 'cbmmg_cad_api_token';
 
@@ -31,6 +33,68 @@ const INTERVALO_MINIMO_LEITURA_MS = 30 * 1000; // Regra 3: Mínimo 30 segundos (
 const INTERVALO_RENOVACAO_CATALOGO_MS = 6 * 3600 * 1000; // Regra 2: Renovação a cada 6 horas
 
 let ultimoAcessoAtivosMs = 0;
+
+// ==========================================
+// ESTRUTURA OFICIAL CAD (GET /dados-auxiliares/naturezas)
+// ==========================================
+
+export interface NaturezaCadOficial {
+  id: number;
+  codigo: string;
+  descricao: string;
+  codigoPrioridade?: string;
+  codigoTipoServico?: string;
+  atividade?: boolean;
+  emergencia?: boolean;
+  permiteTentado?: boolean;
+  dataHoraAtivacao?: number;
+  dataHoraExpiracao?: number | null;
+  codigosTiposServico?: string[];
+}
+
+const mapaNaturezasPorId = new Map<string, NaturezaCadOficial>();
+const mapaNaturezasPorCodigo = new Map<string, NaturezaCadOficial>();
+let tabelaNaturezasCarregada = false;
+
+export function formatarCodigoNatureza(codigo: string): string {
+  if (!codigo) return '';
+  const clean = codigo.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (clean.length === 6 && /^[A-Z]\d{5}$/.test(clean)) {
+    return `${clean.slice(0, 3)}.${clean.slice(3)}`;
+  }
+  return codigo.toUpperCase();
+}
+
+export function popularMapasNaturezas(lista: NaturezaCadOficial[]): void {
+  if (!Array.isArray(lista) || lista.length === 0) return;
+  for (const n of lista) {
+    if (!n) continue;
+    if (n.id !== undefined && n.id !== null) {
+      mapaNaturezasPorId.set(String(n.id), n);
+    }
+    if (n.codigo) {
+      const codNorm = n.codigo.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      mapaNaturezasPorCodigo.set(codNorm, n);
+      mapaNaturezasPorCodigo.set(n.codigo.toUpperCase(), n);
+    }
+  }
+  tabelaNaturezasCarregada = true;
+}
+
+export function obterNaturezaCadPorId(id: string | number): NaturezaCadOficial | undefined {
+  if (!id) return undefined;
+  return mapaNaturezasPorId.get(String(id));
+}
+
+export function obterNaturezaCadPorCodigo(codigo: string): NaturezaCadOficial | undefined {
+  if (!codigo) return undefined;
+  const clean = codigo.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return mapaNaturezasPorCodigo.get(clean) || mapaNaturezasPorCodigo.get(codigo.toUpperCase());
+}
+
+export function obterTotalNaturezasOficiaisCarregadas(): number {
+  return mapaNaturezasPorId.size;
+}
 
 // ==========================================
 // CONFIGURAÇÃO DO PROXY REVERSO & STORAGE
@@ -78,28 +142,40 @@ export function salvarToken(token: string): void {
 
 export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
   let codigo = c.codigoNatureza || '';
+  let descricao = c.descricaoNatureza || '';
   let grupo = c.grupoNatureza || '';
   let letra = c.letraGrupoNatureza || '';
 
-  // Migra códigos ou grupos antigos se presentes
-  if (codigo.startsWith('A01') && (grupo.includes('Incêndio') || c.descricaoNatureza?.toLowerCase().includes('incêndio'))) {
+  // Se a tabela oficial CAD já estiver carregada, sincroniza descrição e código
+  if (c.idNatureza) {
+    const cad = obterNaturezaCadPorId(c.idNatureza);
+    if (cad) {
+      codigo = formatarCodigoNatureza(cad.codigo);
+      descricao = cad.descricao;
+      letra = cad.codigo.charAt(0).toUpperCase();
+    }
+  } else if (codigo) {
+    const cad = obterNaturezaCadPorCodigo(codigo);
+    if (cad) {
+      codigo = formatarCodigoNatureza(cad.codigo);
+      descricao = cad.descricao;
+      letra = cad.codigo.charAt(0).toUpperCase();
+    }
+  }
+
+  // Migra códigos ou grupos legados se presentes
+  if (codigo.startsWith('A01') && (grupo.includes('Incêndio') || descricao.toLowerCase().includes('incêndio'))) {
     codigo = 'O' + codigo.slice(1);
     letra = 'O';
   } else if (codigo.startsWith('B02') || grupo.includes('Salvamento')) {
     codigo = 'S' + codigo.slice(1);
     letra = 'S';
-  } else if (codigo.startsWith('C03') || grupo.includes('Pré-Hospitalar') || c.descricaoNatureza?.toLowerCase().includes('pcr')) {
+  } else if (codigo.startsWith('C03') || grupo.includes('Pré-Hospitalar') || descricao.toLowerCase().includes('pcr')) {
     codigo = 'V' + codigo.slice(1);
     letra = 'V';
   } else if (codigo.startsWith('D04') || grupo.includes('Defesa Civil')) {
     codigo = 'R' + codigo.slice(1);
     letra = 'R';
-  } else if (codigo.startsWith('E05') || c.descricaoNatureza?.toLowerCase().includes('animal') || c.descricaoNatureza?.toLowerCase().includes('abelha')) {
-    codigo = 'S0401';
-    letra = 'S';
-  } else if (codigo.startsWith('F06') || c.descricaoNatureza?.toLowerCase().includes('glp')) {
-    codigo = 'O0201';
-    letra = 'O';
   }
 
   if (!letra && codigo) {
@@ -131,6 +207,7 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
     return {
       ...c,
       codigoNatureza: codigo,
+      descricaoNatureza: descricao || c.descricaoNatureza,
       letraGrupoNatureza: letra,
       grupoNatureza: def.rotuloCompleto,
       categoriaNatureza: def.categoria,
@@ -143,6 +220,7 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
   return {
     ...c,
     codigoNatureza: codigo || 'S0101',
+    descricaoNatureza: descricao || c.descricaoNatureza,
     letraGrupoNatureza: letra || 'S',
     grupoNatureza: c.grupoNatureza || 'S - REFERENTE À BUSCA E SALVAMENTO',
     categoriaNatureza: c.categoriaNatureza || 'CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR',
@@ -224,6 +302,121 @@ export async function sincronizarCatalogosAuxiliares(forcar = false): Promise<{ 
   }
 
   return { sucesso: false, renovado: false, dados: DICIONARIO_SIGLAS };
+}
+
+// ==========================================
+// REGRA 2: TABELA OFICIAL DE NATUREZAS CAD (GET /dados-auxiliares/naturezas - RENOVAÇÃO A CADA 6H)
+// ==========================================
+
+export async function sincronizarTabelaNaturezas(
+  forcar = false
+): Promise<{ sucesso: boolean; renovado: boolean; total: number; fonte: string }> {
+  const agora = Date.now();
+
+  // 1. Se já populado em memória e cache válido nas últimas 6h
+  if (!forcar && tabelaNaturezasCarregada && mapaNaturezasPorId.size > 0) {
+    const tsStr = localStorage.getItem(STORAGE_KEY_NATUREZAS_TS);
+    const ts = tsStr ? parseInt(tsStr, 10) : 0;
+    if (ts > 0 && agora - ts < INTERVALO_RENOVACAO_CATALOGO_MS) {
+      return { sucesso: true, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Memória' };
+    }
+  }
+
+  // 2. Se não estiver em memória mas estiver em localStorage dentro de 6h
+  if (!forcar && !tabelaNaturezasCarregada) {
+    try {
+      const tsStr = localStorage.getItem(STORAGE_KEY_NATUREZAS_TS);
+      const ts = tsStr ? parseInt(tsStr, 10) : 0;
+      const salvo = localStorage.getItem(STORAGE_KEY_NATUREZAS);
+      if (salvo && ts > 0 && agora - ts < INTERVALO_RENOVACAO_CATALOGO_MS) {
+        const lista: NaturezaCadOficial[] = JSON.parse(salvo);
+        if (Array.isArray(lista) && lista.length > 0) {
+          popularMapasNaturezas(lista);
+          return { sucesso: true, renovado: false, total: lista.length, fonte: 'LocalStorage Cache' };
+        }
+      }
+    } catch {
+      // continua para fetch
+    }
+  }
+
+  const proxy = obterProxyUrl();
+  let listaExtraida: NaturezaCadOficial[] | null = null;
+  let fonteObtida = '';
+
+  // 3. Tentar direto no proxy reverso Nginx: GET /dados-auxiliares/naturezas
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`${proxy}/dados-auxiliares/naturezas`, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(t);
+    if (res.ok) {
+      const data = await res.json();
+      const itens = data?.dados?.value || data?.dados || data;
+      if (Array.isArray(itens) && itens.length > 0) {
+        listaExtraida = itens;
+        fonteObtida = `${proxy}/dados-auxiliares/naturezas`;
+      }
+    }
+  } catch (e: any) {
+    console.warn(`Tentativa de carregar naturezas de ${proxy} falhou (${e.message}). Tentando rotas de contingência...`);
+  }
+
+  // 4. Fallback: rota local Express /api/cbm/naturezas
+  if (!listaExtraida) {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch('/api/cbm/naturezas', {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(t);
+      if (res.ok) {
+        const data = await res.json();
+        const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados;
+        if (Array.isArray(itens) && itens.length > 0) {
+          listaExtraida = itens;
+          fonteObtida = '/api/cbm/naturezas (Backend Intermediário)';
+        }
+      }
+    } catch {
+      // continua para snapshot estático
+    }
+  }
+
+  // 5. Fallback: snapshot estático local public/cad_naturezas.json
+  if (!listaExtraida) {
+    try {
+      const res = await fetch('/cad_naturezas.json');
+      if (res.ok) {
+        const data = await res.json();
+        const itens = data?.dados?.value || data?.dados || data;
+        if (Array.isArray(itens) && itens.length > 0) {
+          listaExtraida = itens;
+          fonteObtida = 'Snapshot Local Contingência (/cad_naturezas.json)';
+        }
+      }
+    } catch (e: any) {
+      console.warn('Erro ao carregar snapshot local de naturezas:', e);
+    }
+  }
+
+  if (listaExtraida && listaExtraida.length > 0) {
+    popularMapasNaturezas(listaExtraida);
+    try {
+      localStorage.setItem(STORAGE_KEY_NATUREZAS, JSON.stringify(listaExtraida));
+      localStorage.setItem(STORAGE_KEY_NATUREZAS_TS, String(agora));
+    } catch {
+      // Se estourar cota do localStorage, os mapas em memória já garantem o enriquecimento perfeito
+    }
+    return { sucesso: true, renovado: true, total: listaExtraida.length, fonte: fonteObtida };
+  }
+
+  return { sucesso: false, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Nenhuma' };
 }
 
 // ==========================================
@@ -337,10 +530,11 @@ export async function sincronizarProxyReverso(
     };
   }
 
-  // Renova catálogo auxiliar a cada 6h em segundo plano
+  // Renova tabela oficial de naturezas CAD (2.245 registros) e catálogos auxiliares a cada 6h
+  await sincronizarTabelaNaturezas(false);
   sincronizarCatalogosAuxiliares().catch(() => {});
 
-  // Enriquecer chamadas com natureza, COB, BBM, coordenadas e tempos
+  // Enriquecer chamadas com tabela oficial de naturezas CAD, COB, BBM, coordenadas e tempos
   const enriquecidas = chamadasBrutas.map(enriquecerChamada);
   salvarChamadasArmazenadas(enriquecidas);
 
@@ -697,11 +891,36 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     else if (primeiraNat.codigoPrioridade === '4') prioridade = 'Baixa';
   }
 
-  // Se já tiver código ou id conhecido no catálogo
-  if (codigoNatureza) {
-    const natCatalogo = CATALOGO_NATUREZAS_CBMMG.find(
-      (n) => n.codigo.toUpperCase() === codigoNatureza.toUpperCase()
-    );
+  // 1º: Consultar na tabela oficial de naturezas CAD (GET /dados-auxiliares/naturezas com 2.245 itens)
+  const cadOficial = (idNatureza ? obterNaturezaCadPorId(idNatureza) : undefined) ||
+                     (codigoNatureza ? obterNaturezaCadPorCodigo(codigoNatureza) : undefined);
+
+  if (cadOficial) {
+    codigoNatureza = formatarCodigoNatureza(cadOficial.codigo);
+    descricaoNatureza = cadOficial.descricao;
+    if (cadOficial.codigoPrioridade === '1' || cadOficial.codigoPrioridade === '2') {
+      prioridade = 'Alta';
+    } else if (cadOficial.codigoPrioridade === '3') {
+      prioridade = 'Média';
+    } else if (cadOficial.codigoPrioridade === '4') {
+      prioridade = 'Baixa';
+    }
+    letraGrupoNatureza = cadOficial.codigo.charAt(0).toUpperCase();
+    const grupoDef = GRUPOS_NATUREZAS_CBMMG[letraGrupoNatureza];
+    if (grupoDef) {
+      grupoNatureza = grupoDef.rotuloCompleto;
+      categoriaNatureza = grupoDef.categoria;
+    } else {
+      grupoNatureza = `${letraGrupoNatureza} - OUTRAS NATUREZAS SIDS / INTEGRADAS`;
+      categoriaNatureza = 'CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS';
+    }
+  } else if (codigoNatureza) {
+    // 2º: Catálogo auxiliar local CBMMG
+    const codNorm = codigoNatureza.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const natCatalogo = CATALOGO_NATUREZAS_CBMMG.find((n) => {
+      const nCodNorm = n.codigo.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      return nCodNorm === codNorm || n.codigo.toUpperCase() === codigoNatureza.toUpperCase();
+    });
     if (natCatalogo) {
       descricaoNatureza = descricaoNatureza || natCatalogo.descricao;
       grupoNatureza = natCatalogo.grupo;
@@ -723,68 +942,68 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
   if (!descricaoNatureza || descricaoNatureza === 'Atendimento Geral de Bombeiros' || !codigoNatureza) {
     if (textoHistoricoUnificado.includes('ABELHA') || textoHistoricoUnificado.includes('MARIMBONDO') || textoHistoricoUnificado.includes('VESPA') || textoHistoricoUnificado.includes('ENXAME')) {
       descricaoNatureza = 'Risco ou Ataque de Insetos / Abelhas';
-      codigoNatureza = 'S0402';
+      codigoNatureza = 'S04.002';
       letraGrupoNatureza = 'S';
     } else if (textoHistoricoUnificado.includes('ANIMAL') || textoHistoricoUnificado.includes('AVE') || textoHistoricoUnificado.includes('COBRA') || textoHistoricoUnificado.includes('SERPENTE') || textoHistoricoUnificado.includes('CACHORRO') || textoHistoricoUnificado.includes('GATO') || textoHistoricoUnificado.includes('CAVALO')) {
       descricaoNatureza = 'Captura ou Salvamento de Animal Silvestre / Serpente';
-      codigoNatureza = 'S0401';
+      codigoNatureza = 'S04.001';
       letraGrupoNatureza = 'S';
     } else if (textoHistoricoUnificado.includes('VEGETA') || textoHistoricoUnificado.includes('MATA') || textoHistoricoUnificado.includes('FLOREST') || textoHistoricoUnificado.includes('LOTE VAGO')) {
       descricaoNatureza = 'Incêndio em Vegetação / Florestal / Lote Vago';
-      codigoNatureza = 'O0101';
+      codigoNatureza = 'O01.001';
       letraGrupoNatureza = 'O';
       prioridade = 'Alta';
     } else if (textoHistoricoUnificado.includes('INCENDIO') || textoHistoricoUnificado.includes('FOGO') || textoHistoricoUnificado.includes('FUMACA')) {
       if (textoHistoricoUnificado.includes('VEICULO') || textoHistoricoUnificado.includes('CARRO') || textoHistoricoUnificado.includes('MOTO') || textoHistoricoUnificado.includes('CAMINHAO')) {
         descricaoNatureza = 'Incêndio em Veículo Automotor';
-        codigoNatureza = 'O0104';
+        codigoNatureza = 'O01.004';
       } else {
         descricaoNatureza = 'Incêndio em Edificação Residencial / Comercial';
-        codigoNatureza = 'O0102';
+        codigoNatureza = 'O01.002';
       }
       letraGrupoNatureza = 'O';
       prioridade = 'Alta';
     } else if (textoHistoricoUnificado.includes('COLISAO') || textoHistoricoUnificado.includes('ACIDENTE') || textoHistoricoUnificado.includes('CAPOTAMENTO') || textoHistoricoUnificado.includes('ATROPELAMENTO') || textoHistoricoUnificado.includes('FERRAGENS')) {
       descricaoNatureza = 'Acidente de Trânsito com Vítima Presa às Ferragens';
-      codigoNatureza = 'S0101';
+      codigoNatureza = 'S01.001';
       letraGrupoNatureza = 'S';
       prioridade = 'Alta';
     } else if (textoHistoricoUnificado.includes('ARVORE') || textoHistoricoUnificado.includes('GALHO')) {
       descricaoNatureza = 'Corte ou Risco de Queda de Árvore';
-      codigoNatureza = 'R0103';
+      codigoNatureza = 'R01.003';
       letraGrupoNatureza = 'R';
     } else if (textoHistoricoUnificado.includes('DESABAMENTO') || textoHistoricoUnificado.includes('SOTERRAMENTO') || textoHistoricoUnificado.includes('TRINCA') || textoHistoricoUnificado.includes('COLAPSO')) {
       descricaoNatureza = 'Risco Iminente de Desabamento / Colapso Estrutural';
-      codigoNatureza = 'R0101';
+      codigoNatureza = 'R01.001';
       letraGrupoNatureza = 'R';
       prioridade = 'Alta';
     } else if (textoHistoricoUnificado.includes('ALAGAMENTO') || textoHistoricoUnificado.includes('INUNDA') || textoHistoricoUnificado.includes('ENXURRADA') || textoHistoricoUnificado.includes('ILHADA')) {
       descricaoNatureza = 'Alagamento / Inundação com Pessoas Ilhadas';
-      codigoNatureza = 'R0102';
+      codigoNatureza = 'R01.002';
       letraGrupoNatureza = 'R';
       prioridade = 'Alta';
     } else if (textoHistoricoUnificado.includes('PCR') || textoHistoricoUnificado.includes('PARADA') || textoHistoricoUnificado.includes('TRAUMA') || textoHistoricoUnificado.includes('MAL SUBITO') || textoHistoricoUnificado.includes('CONVULSAO')) {
       descricaoNatureza = 'Atendimento Pré-Hospitalar / PCR / Trauma';
-      codigoNatureza = 'V0101';
+      codigoNatureza = 'V01.001';
       letraGrupoNatureza = 'V';
       prioridade = 'Alta';
     } else if (textoHistoricoUnificado.includes('AFOGAMENTO') || textoHistoricoUnificado.includes('RIO') || textoHistoricoUnificado.includes('LAGOA') || textoHistoricoUnificado.includes('REPRESA')) {
       descricaoNatureza = 'Salvamento Aquático / Afogamento em Andamento';
-      codigoNatureza = 'S0201';
+      codigoNatureza = 'S02.001';
       letraGrupoNatureza = 'S';
       prioridade = 'Alta';
     } else if (textoHistoricoUnificado.includes('GAS') || textoHistoricoUnificado.includes('GLP') || textoHistoricoUnificado.includes('VAZAMENTO') || textoHistoricoUnificado.includes('EXPLOSA')) {
       descricaoNatureza = 'Explosão / Vazamento de GLP ou Combustível';
-      codigoNatureza = 'O0201';
+      codigoNatureza = 'O02.001';
       letraGrupoNatureza = 'O';
       prioridade = 'Alta';
     } else if (textoHistoricoUnificado.includes('PERICIA') || textoHistoricoUnificado.includes('INSPECAO') || textoHistoricoUnificado.includes('VISTORIA') || textoHistoricoUnificado.includes('PREVENCAO')) {
       descricaoNatureza = 'Vistoria Preventiva Operacional em Edificação';
-      codigoNatureza = 'P0101';
+      codigoNatureza = 'P01.001';
       letraGrupoNatureza = 'P';
     } else {
       descricaoNatureza = 'Atendimento Operacional Bombeiro Militar';
-      codigoNatureza = 'S0301';
+      codigoNatureza = 'S03.001';
       letraGrupoNatureza = 'S';
     }
   }
@@ -1042,6 +1261,7 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
         c.numeroOcorrencia.toLowerCase().includes(q) ||
         c.codigoSituacaoAtendimentoChamada.toLowerCase().includes(q) ||
         descAtend.toLowerCase().includes(q) ||
+        (c.idNatureza && String(c.idNatureza).includes(q)) ||
         (c.codigoNatureza && c.codigoNatureza.toLowerCase().includes(q)) ||
         (c.descricaoNatureza && c.descricaoNatureza.toLowerCase().includes(q)) ||
         (c.grupoNatureza && c.grupoNatureza.toLowerCase().includes(q)) ||
