@@ -100,44 +100,36 @@ export function obterDescricaoSituacaoEmpenho(sigla: string): string {
 }
 
 export const UNIDADES_SERVICO_CBMMG: UnidadeServicoAuxiliar[] = [
-  // 1º COB - RMBH e Região Central
+  // 1º COB - RMBH e Região Central / Centro-Oeste
   { id: 101, nome: '1º BBM - Belo Horizonte Sul', sigla: '1º BBM', cob: '1º COB', bbm: '1º BBM', municipioSede: 'Belo Horizonte', latitudeSede: -19.9238, longitudeSede: -43.9405 },
   { id: 102, nome: '2º BBM - Contagem e Betim', sigla: '2º BBM', cob: '1º COB', bbm: '2º BBM', municipioSede: 'Contagem', latitudeSede: -19.9320, longitudeSede: -44.0539 },
   { id: 103, nome: '3º BBM - Belo Horizonte Norte / Pampulha', sigla: '3º BBM', cob: '1º COB', bbm: '3º BBM', municipioSede: 'Belo Horizonte', latitudeSede: -19.8519, longitudeSede: -43.9559 },
   { id: 110, nome: '10º BBM - Divinópolis', sigla: '10º BBM', cob: '1º COB', bbm: '10º BBM', municipioSede: 'Divinópolis', latitudeSede: -20.1444, longitudeSede: -44.8912 },
+  { id: 105, nome: '5ª Cia Ind - Sete Lagoas', sigla: '5ª Cia Ind', cob: '1º COB', bbm: '3º BBM', ciaInd: '5ª Cia Ind', municipioSede: 'Sete Lagoas', latitudeSede: -19.4608, longitudeSede: -44.2469 },
   { id: 199, nome: 'BEMAD - Batalhão de Emergências Ambientais e Desastres', sigla: 'BEMAD', cob: '1º COB', bbm: 'BEMAD', municipioSede: 'Belo Horizonte', latitudeSede: -19.9555, longitudeSede: -43.9621 },
   { id: 198, nome: 'BOA - Batalhão de Operações Aéreas (Arcanjo)', sigla: 'BOA', cob: '1º COB', bbm: 'BOA', municipioSede: 'Belo Horizonte', latitudeSede: -19.8514, longitudeSede: -43.9506 },
 
   // 2º COB - Triângulo Mineiro e Alto Paranaíba
   { id: 205, nome: '5º BBM - Uberaba', sigla: '5º BBM', cob: '2º COB', bbm: '5º BBM', municipioSede: 'Uberaba', latitudeSede: -19.7472, longitudeSede: -47.9392 },
   { id: 208, nome: '8º BBM - Uberlândia', sigla: '8º BBM', cob: '2º COB', bbm: '8º BBM', municipioSede: 'Uberlândia', latitudeSede: -18.9186, longitudeSede: -48.2772 },
-  { id: 222, nome: '2ª Cia Ind - Araguari', sigla: '2ª Cia Ind', cob: '2º COB', bbm: '8º BBM', ciaInd: '2ª Cia Ind', municipioSede: 'Araguari', latitudeSede: -18.6481, longitudeSede: -48.1878 },
-  { id: 210, nome: '10ª Cia Ind - Patos de Minas', sigla: '10ª Cia Ind', cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind', municipioSede: 'Patos de Minas', latitudeSede: -18.5789, longitudeSede: -46.5181 },
+  { id: 212, nome: '12º BBM - Patos de Minas', sigla: '12º BBM', cob: '2º COB', bbm: '12º BBM', municipioSede: 'Patos de Minas', latitudeSede: -18.5789, longitudeSede: -46.5181 },
 
   // 3º COB - Zona da Mata e Campo das Vertentes
   { id: 304, nome: '4º BBM - Juiz de Fora', sigla: '4º BBM', cob: '3º COB', bbm: '4º BBM', municipioSede: 'Juiz de Fora', latitudeSede: -21.7642, longitudeSede: -43.3496 },
-  { id: 303, nome: '3ª Cia Ind - São João del-Rei', sigla: '3ª Cia Ind', cob: '3º COB', bbm: '4º BBM', ciaInd: '3ª Cia Ind', municipioSede: 'São João del-Rei', latitudeSede: -21.1356, longitudeSede: -44.2617 },
-  { id: 307, nome: '7ª Cia Ind - Barbacena', sigla: '7ª Cia Ind', cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind', municipioSede: 'Barbacena', latitudeSede: -21.2258, longitudeSede: -43.7744 },
-  { id: 3042, nome: '4ª Cia Ind - Ubá', sigla: '4ª Cia Ind', cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind', municipioSede: 'Ubá', latitudeSede: -21.1214, longitudeSede: -42.9428 },
+  { id: 302, nome: '2ª Cia Ind - Barbacena', sigla: '2ª Cia Ind', cob: '3º COB', bbm: '4º BBM', ciaInd: '2ª Cia Ind', municipioSede: 'Barbacena', latitudeSede: -21.2258, longitudeSede: -43.7744 },
 
   // 4º COB - Norte de Minas e Noroeste
   { id: 407, nome: '7º BBM - Montes Claros', sigla: '7º BBM', cob: '4º COB', bbm: '7º BBM', municipioSede: 'Montes Claros', latitudeSede: -16.7282, longitudeSede: -43.8616 },
-  { id: 412, nome: '12º BBM - Unaí / Noroeste', sigla: '12º BBM', cob: '4º COB', bbm: '12º BBM', municipioSede: 'Unaí', latitudeSede: -16.3575, longitudeSede: -46.9056 },
-  { id: 408, nome: '8ª Cia Ind - Januária', sigla: '8ª Cia Ind', cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind', municipioSede: 'Januária', latitudeSede: -15.4833, longitudeSede: -44.3667 },
-  { id: 409, nome: '9ª Cia Ind - Diamantina', sigla: '9ª Cia Ind', cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind', municipioSede: 'Diamantina', latitudeSede: -18.2436, longitudeSede: -43.6033 },
+  { id: 406, nome: '6ª Cia Ind - Diamantina', sigla: '6ª Cia Ind', cob: '4º COB', bbm: '7º BBM', ciaInd: '6ª Cia Ind', municipioSede: 'Diamantina', latitudeSede: -18.2436, longitudeSede: -43.6033 },
 
   // 5º COB - Leste de Minas e Vale do Aço
   { id: 506, nome: '6º BBM - Governador Valadares', sigla: '6º BBM', cob: '5º COB', bbm: '6º BBM', municipioSede: 'Governador Valadares', latitudeSede: -18.8547, longitudeSede: -41.9547 },
   { id: 511, nome: '11º BBM - Ipatinga / Vale do Aço', sigla: '11º BBM', cob: '5º COB', bbm: '11º BBM', municipioSede: 'Ipatinga', latitudeSede: -19.4683, longitudeSede: -42.5367 },
-  { id: 505, nome: '5ª Cia Ind - Sete Lagoas', sigla: '5ª Cia Ind', cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind', municipioSede: 'Sete Lagoas', latitudeSede: -19.4608, longitudeSede: -44.2469 },
-  { id: 5062, nome: '6ª Cia Ind - Teófilo Otoni', sigla: '6ª Cia Ind', cob: '5º COB', bbm: '6º BBM', ciaInd: '6ª Cia Ind', municipioSede: 'Teófilo Otoni', latitudeSede: -17.8575, longitudeSede: -41.5053 },
 
   // 6º COB - Sul de Minas
   { id: 609, nome: '9º BBM - Varginha', sigla: '9º BBM', cob: '6º COB', bbm: '9º BBM', municipioSede: 'Varginha', latitudeSede: -21.5558, longitudeSede: -45.4308 },
   { id: 601, nome: '1ª Cia Ind - Poços de Caldas', sigla: '1ª Cia Ind', cob: '6º COB', bbm: '9º BBM', ciaInd: '1ª Cia Ind', municipioSede: 'Poços de Caldas', latitudeSede: -21.7895, longitudeSede: -46.5642 },
-  { id: 6092, nome: '9ª Cia Ind - Lavras', sigla: '9ª Cia Ind', cob: '6º COB', bbm: '9º BBM', ciaInd: '9ª Cia Ind', municipioSede: 'Lavras', latitudeSede: -21.2458, longitudeSede: -44.9997 },
-  { id: 611, nome: '11ª Cia Ind - Pouso Alegre', sigla: '11ª Cia Ind', cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind', municipioSede: 'Pouso Alegre', latitudeSede: -22.2300, longitudeSede: -45.9367 },
-  { id: 612, nome: '12ª Cia Ind - Passos', sigla: '12ª Cia Ind', cob: '6º COB', bbm: '9º BBM', ciaInd: '12ª Cia Ind', municipioSede: 'Passos', latitudeSede: -20.7189, longitudeSede: -46.6097 },
+  { id: 607, nome: '7ª Cia Ind - Pouso Alegre', sigla: '7ª Cia Ind', cob: '6º COB', bbm: '9º BBM', ciaInd: '7ª Cia Ind', municipioSede: 'Pouso Alegre', latitudeSede: -22.2300, longitudeSede: -45.9367 },
 ];
 
 export interface GrupoNaturezaDef {

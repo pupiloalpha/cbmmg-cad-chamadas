@@ -139,9 +139,16 @@ export interface EnvelopeApiCad<T> {
 }
 
 export interface FiltrosOperacionais {
+  // Multi-seleção de Unidades e Comandos CBMMG
+  cobs: string[]; // ex: ['1º COB', '3º COB'], vazio ou com 'TODOS' significa todos
+  bbms: string[]; // ex: ['1º BBM', '2º BBM'], vazio ou com 'TODOS' significa todos
+  ciasInd: string[]; // ex: ['1ª Cia Ind', '2ª Cia Ind'], vazio ou com 'TODOS' significa todos
+  
+  // Retrocompatibilidade
   cob: string; // 'TODOS' ou nome do COB
   bbm: string; // 'TODOS' ou BBM
   ciaInd: string; // 'TODOS' ou Cia Ind
+  
   naturezaGrupo: string; // 'TODOS' ou grupo
   situacaoChamada: string; // 'TODOS' | 'E' | 'A'
   situacaoAtendimento: string; // 'TODOS' | código

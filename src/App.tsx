@@ -33,6 +33,9 @@ import {
 } from 'lucide-react';
 
 const FILTROS_PADRAO: FiltrosOperacionais = {
+  cobs: [],
+  bbms: [],
+  ciasInd: [],
   cob: 'TODOS',
   bbm: 'TODOS',
   ciaInd: 'TODOS',

@@ -486,17 +486,17 @@ const MUNICIPIOS_MG_COB_BBM: Record<string, { cob: string; bbm: string; ciaInd?:
   // 2º COB - Triângulo Mineiro e Alto Paranaíba
   'UBERLANDIA': { cob: '2º COB', bbm: '8º BBM' },
   'UBERABA': { cob: '2º COB', bbm: '5º BBM' },
-  'ARAGUARI': { cob: '2º COB', bbm: '8º BBM', ciaInd: '2ª Cia Ind' },
-  'PATOS DE MINAS': { cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind' },
+  'ARAGUARI': { cob: '2º COB', bbm: '8º BBM' },
+  'PATOS DE MINAS': { cob: '2º COB', bbm: '12º BBM' },
   'ARAXA': { cob: '2º COB', bbm: '5º BBM' },
   'ITUIUTABA': { cob: '2º COB', bbm: '8º BBM' },
   'PATROCINIO': { cob: '2º COB', bbm: '8º BBM' },
   'FRUTAL': { cob: '2º COB', bbm: '5º BBM' },
-  'MONTE CARMELO': { cob: '2º COB', bbm: '8º BBM', ciaInd: '2ª Cia Ind' },
-  'SAO GOTARDO': { cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind' },
+  'MONTE CARMELO': { cob: '2º COB', bbm: '8º BBM' },
+  'SAO GOTARDO': { cob: '2º COB', bbm: '12º BBM' },
   'COROMANDEL': { cob: '2º COB', bbm: '8º BBM' },
-  'CARMO DO PARANAIBA': { cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind' },
-  'RIO PARANAIBA': { cob: '2º COB', bbm: '5º BBM', ciaInd: '10ª Cia Ind' },
+  'CARMO DO PARANAIBA': { cob: '2º COB', bbm: '12º BBM' },
+  'RIO PARANAIBA': { cob: '2º COB', bbm: '12º BBM' },
   'SACRAMENTO': { cob: '2º COB', bbm: '5º BBM' },
   'CONCEICAO DAS ALAGOAS': { cob: '2º COB', bbm: '5º BBM' },
   'ITURAMA': { cob: '2º COB', bbm: '5º BBM' },
@@ -507,87 +507,87 @@ const MUNICIPIOS_MG_COB_BBM: Record<string, { cob: string; bbm: string; ciaInd?:
 
   // 3º COB - Zona da Mata e Campo das Vertentes
   'JUIZ DE FORA': { cob: '3º COB', bbm: '4º BBM' },
-  'BARBACENA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
-  'SAO JOAO DEL-REI': { cob: '3º COB', bbm: '4º BBM', ciaInd: '3ª Cia Ind' },
-  'UBA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
-  'MURIAE': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
-  'VICOSA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
-  'LEOPOLDINA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
-  'CATAGUASES': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
+  'BARBACENA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '2ª Cia Ind' },
+  'SAO JOAO DEL-REI': { cob: '3º COB', bbm: '4º BBM', ciaInd: '2ª Cia Ind' },
+  'UBA': { cob: '3º COB', bbm: '4º BBM' },
+  'MURIAE': { cob: '3º COB', bbm: '4º BBM' },
+  'VICOSA': { cob: '3º COB', bbm: '4º BBM' },
+  'LEOPOLDINA': { cob: '3º COB', bbm: '4º BBM' },
+  'CATAGUASES': { cob: '3º COB', bbm: '4º BBM' },
   'SANTOS DUMONT': { cob: '3º COB', bbm: '4º BBM' },
-  'MANHUACU': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
-  'PONTE NOVA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
-  'CONSELHEIRO LAFAIETE': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
-  'CONGONHAS': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
-  'OURO BRANCO': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
-  'TIRADENTES': { cob: '3º COB', bbm: '4º BBM', ciaInd: '3ª Cia Ind' },
-  'BARROSO': { cob: '3º COB', bbm: '4º BBM', ciaInd: '3ª Cia Ind' },
-  'ASTOLFO DUTRA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '4ª Cia Ind' },
-  'MARIANA': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
-  'OURO PRETO': { cob: '3º COB', bbm: '4º BBM', ciaInd: '7ª Cia Ind' },
+  'MANHUACU': { cob: '3º COB', bbm: '4º BBM' },
+  'PONTE NOVA': { cob: '3º COB', bbm: '4º BBM' },
+  'CONSELHEIRO LAFAIETE': { cob: '3º COB', bbm: '4º BBM', ciaInd: '2ª Cia Ind' },
+  'CONGONHAS': { cob: '3º COB', bbm: '4º BBM', ciaInd: '2ª Cia Ind' },
+  'OURO BRANCO': { cob: '3º COB', bbm: '4º BBM', ciaInd: '2ª Cia Ind' },
+  'TIRADENTES': { cob: '3º COB', bbm: '4º BBM', ciaInd: '2ª Cia Ind' },
+  'BARROSO': { cob: '3º COB', bbm: '4º BBM', ciaInd: '2ª Cia Ind' },
+  'ASTOLFO DUTRA': { cob: '3º COB', bbm: '4º BBM' },
+  'MARIANA': { cob: '1º COB', bbm: '1º BBM' },
+  'OURO PRETO': { cob: '1º COB', bbm: '1º BBM' },
 
   // 4º COB - Norte de Minas e Noroeste
   'MONTES CLAROS': { cob: '4º COB', bbm: '7º BBM' },
-  'UNAI': { cob: '4º COB', bbm: '12º BBM' },
-  'PARACATU': { cob: '4º COB', bbm: '12º BBM' },
-  'JANUARIA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
-  'DIAMANTINA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
-  'PIRAPORA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
-  'BURITIZEIRO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
+  'UNAI': { cob: '4º COB', bbm: '7º BBM' },
+  'PARACATU': { cob: '4º COB', bbm: '7º BBM' },
+  'JANUARIA': { cob: '4º COB', bbm: '7º BBM' },
+  'DIAMANTINA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '6ª Cia Ind' },
+  'PIRAPORA': { cob: '4º COB', bbm: '7º BBM' },
+  'BURITIZEIRO': { cob: '4º COB', bbm: '7º BBM' },
   'JANAUBA': { cob: '4º COB', bbm: '7º BBM' },
   'SALINAS': { cob: '4º COB', bbm: '7º BBM' },
   'BOCAIUVA': { cob: '4º COB', bbm: '7º BBM' },
-  'SAO FRANCISCO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
-  'BRASILIA DE MINAS': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
-  'JOAO PINHEIRO': { cob: '4º COB', bbm: '12º BBM' },
-  'VAZANTE': { cob: '4º COB', bbm: '12º BBM' },
-  'BURITIS': { cob: '4º COB', bbm: '12º BBM' },
-  'CAPELINHA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
-  'ARACUAI': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
-  'CARBONITA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
+  'SAO FRANCISCO': { cob: '4º COB', bbm: '7º BBM' },
+  'BRASILIA DE MINAS': { cob: '4º COB', bbm: '7º BBM' },
+  'JOAO PINHEIRO': { cob: '4º COB', bbm: '7º BBM' },
+  'VAZANTE': { cob: '4º COB', bbm: '7º BBM' },
+  'BURITIS': { cob: '4º COB', bbm: '7º BBM' },
+  'CAPELINHA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '6ª Cia Ind' },
+  'ARACUAI': { cob: '4º COB', bbm: '7º BBM', ciaInd: '6ª Cia Ind' },
+  'CARBONITA': { cob: '4º COB', bbm: '7º BBM', ciaInd: '6ª Cia Ind' },
   'BOTUMIRIM': { cob: '4º COB', bbm: '7º BBM' },
   'BUENOPOLIS': { cob: '4º COB', bbm: '7º BBM' },
-  'BONITO DE MINAS': { cob: '4º COB', bbm: '7º BBM', ciaInd: '8ª Cia Ind' },
-  'CONCEICAO DO MATO DENTRO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
-  'SERRO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '9ª Cia Ind' },
+  'BONITO DE MINAS': { cob: '4º COB', bbm: '7º BBM' },
+  'CONCEICAO DO MATO DENTRO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '6ª Cia Ind' },
+  'SERRO': { cob: '4º COB', bbm: '7º BBM', ciaInd: '6ª Cia Ind' },
 
   // 5º COB - Leste de Minas e Vale do Aço
   'GOVERNADOR VALADARES': { cob: '5º COB', bbm: '6º BBM' },
   'IPATINGA': { cob: '5º COB', bbm: '11º BBM' },
   'CORONEL FABRICIANO': { cob: '5º COB', bbm: '11º BBM' },
   'TIMOTEO': { cob: '5º COB', bbm: '11º BBM' },
-  'TEOFILO OTONI': { cob: '5º COB', bbm: '6º BBM', ciaInd: '6ª Cia Ind' },
-  'SETE LAGOAS': { cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind' },
-  'CURVELO': { cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind' },
+  'TEOFILO OTONI': { cob: '5º COB', bbm: '6º BBM' },
+  'SETE LAGOAS': { cob: '1º COB', bbm: '3º BBM', ciaInd: '5ª Cia Ind' },
+  'CURVELO': { cob: '1º COB', bbm: '3º BBM', ciaInd: '5ª Cia Ind' },
   'GUANHAES': { cob: '5º COB', bbm: '6º BBM' },
-  'ALMENARA': { cob: '5º COB', bbm: '6º BBM', ciaInd: '6ª Cia Ind' },
-  'NANUQUE': { cob: '5º COB', bbm: '6º BBM', ciaInd: '6ª Cia Ind' },
+  'ALMENARA': { cob: '5º COB', bbm: '6º BBM' },
+  'NANUQUE': { cob: '5º COB', bbm: '6º BBM' },
   'CARATINGA': { cob: '5º COB', bbm: '6º BBM' },
   'ITABIRA': { cob: '5º COB', bbm: '11º BBM' },
   'JOAO MONLEVADE': { cob: '5º COB', bbm: '11º BBM' },
   'AIMORES': { cob: '5º COB', bbm: '6º BBM' },
   'RESPLENDOR': { cob: '5º COB', bbm: '6º BBM' },
   'MANTENA': { cob: '5º COB', bbm: '6º BBM' },
-  'BALDIM': { cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind' },
-  'CACHOEIRA DA PRATA': { cob: '5º COB', bbm: '6º BBM', ciaInd: '5ª Cia Ind' },
+  'BALDIM': { cob: '1º COB', bbm: '3º BBM', ciaInd: '5ª Cia Ind' },
+  'CACHOEIRA DA PRATA': { cob: '1º COB', bbm: '3º BBM', ciaInd: '5ª Cia Ind' },
   'BOM JESUS DO AMPARO': { cob: '5º COB', bbm: '11º BBM' },
 
   // 6º COB - Sul de Minas
   'VARGINHA': { cob: '6º COB', bbm: '9º BBM' },
   'POCOS DE CALDAS': { cob: '6º COB', bbm: '9º BBM', ciaInd: '1ª Cia Ind' },
-  'POUSO ALEGRE': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
-  'LAVRAS': { cob: '6º COB', bbm: '9º BBM', ciaInd: '9ª Cia Ind' },
-  'PASSOS': { cob: '6º COB', bbm: '9º BBM', ciaInd: '12ª Cia Ind' },
-  'ITAJUBA': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'POUSO ALEGRE': { cob: '6º COB', bbm: '9º BBM', ciaInd: '7ª Cia Ind' },
+  'LAVRAS': { cob: '6º COB', bbm: '9º BBM' },
+  'PASSOS': { cob: '6º COB', bbm: '9º BBM' },
+  'ITAJUBA': { cob: '6º COB', bbm: '9º BBM', ciaInd: '7ª Cia Ind' },
   'TRES CORACOES': { cob: '6º COB', bbm: '9º BBM' },
   'ALFENAS': { cob: '6º COB', bbm: '9º BBM' },
-  'SAO LOURENCO': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'SAO LOURENCO': { cob: '6º COB', bbm: '9º BBM', ciaInd: '7ª Cia Ind' },
   'GUAXUPE': { cob: '6º COB', bbm: '9º BBM', ciaInd: '1ª Cia Ind' },
   'BOA ESPERANCA': { cob: '6º COB', bbm: '9º BBM' },
-  'SAO SEBASTIAO DO PARAISO': { cob: '6º COB', bbm: '9º BBM', ciaInd: '12ª Cia Ind' },
-  'EXTREMA': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
-  'CAMBUI': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
-  'SANTA RITA DO SAPUCAI': { cob: '6º COB', bbm: '9º BBM', ciaInd: '11ª Cia Ind' },
+  'SAO SEBASTIAO DO PARAISO': { cob: '6º COB', bbm: '9º BBM' },
+  'EXTREMA': { cob: '6º COB', bbm: '9º BBM', ciaInd: '7ª Cia Ind' },
+  'CAMBUI': { cob: '6º COB', bbm: '9º BBM', ciaInd: '7ª Cia Ind' },
+  'SANTA RITA DO SAPUCAI': { cob: '6º COB', bbm: '9º BBM', ciaInd: '7ª Cia Ind' },
   'MACHADO': { cob: '6º COB', bbm: '9º BBM' },
   'TRES PONTAS': { cob: '6º COB', bbm: '9º BBM' },
 };
@@ -944,19 +944,28 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
   const agora = Date.now();
 
   return chamadas.filter((c) => {
-    // 1. Filtro COB
-    if (filtros.cob !== 'TODOS' && c.cob !== filtros.cob) {
+    // 1. Filtro COB (multi-select com suporte a retrocompatibilidade)
+    const cobsAtivos = filtros.cobs && filtros.cobs.length > 0
+      ? filtros.cobs.filter((cob) => cob !== 'TODOS')
+      : (filtros.cob && filtros.cob !== 'TODOS' ? [filtros.cob] : []);
+    if (cobsAtivos.length > 0 && !cobsAtivos.includes(c.cob)) {
       return false;
     }
 
-    // 2. Filtro BBM
-    if (filtros.bbm !== 'TODOS' && c.bbm !== filtros.bbm) {
+    // 2. Filtro BBM (multi-select com suporte a retrocompatibilidade)
+    const bbmsAtivos = filtros.bbms && filtros.bbms.length > 0
+      ? filtros.bbms.filter((bbm) => bbm !== 'TODOS')
+      : (filtros.bbm && filtros.bbm !== 'TODOS' ? [filtros.bbm] : []);
+    if (bbmsAtivos.length > 0 && !bbmsAtivos.includes(c.bbm)) {
       return false;
     }
 
-    // 3. Filtro CIA IND
-    if (filtros.ciaInd !== 'TODOS') {
-      if (!c.ciaInd || c.ciaInd !== filtros.ciaInd) {
+    // 3. Filtro CIA IND (multi-select com suporte a retrocompatibilidade)
+    const ciasAtivas = filtros.ciasInd && filtros.ciasInd.length > 0
+      ? filtros.ciasInd.filter((cia) => cia !== 'TODOS')
+      : (filtros.ciaInd && filtros.ciaInd !== 'TODOS' ? [filtros.ciaInd] : []);
+    if (ciasAtivas.length > 0) {
+      if (!c.ciaInd || !ciasAtivas.includes(c.ciaInd)) {
         return false;
       }
     }
