@@ -2,9 +2,12 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { FiltrosOperacionais } from '../types/cbm';
 import {
   UNIDADES_SERVICO_CBMMG,
-  CATALOGO_NATUREZAS_CBMMG,
   DICIONARIO_SIGLAS,
 } from '../data/catalogoAuxiliares';
+import {
+  obterTodasNaturezasOficiais,
+  formatarCodigoNatureza,
+} from '../services/cbmStorage';
 import {
   Filter,
   Search,
@@ -17,6 +20,7 @@ import {
   X,
   Building,
   Flag,
+  Flame,
 } from 'lucide-react';
 
 interface MultiSelectCheckboxDropdownProps {
@@ -28,6 +32,7 @@ interface MultiSelectCheckboxDropdownProps {
   placeholder: string;
   allLabel: string;
   alignRight?: boolean;
+  widthClass?: string;
 }
 
 const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = ({
@@ -39,6 +44,7 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
   placeholder,
   allLabel,
   alignRight = false,
+  widthClass,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -150,7 +156,7 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className={`absolute ${alignRight ? 'right-0 sm:right-0 sm:left-auto' : 'left-0'} top-full mt-1.5 w-72 sm:w-80 max-w-[calc(100vw-2.5rem)] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[100] overflow-hidden flex flex-col text-xs animate-in fade-in zoom-in-95 duration-100`}>
+        <div className={`absolute ${alignRight ? 'right-0 sm:right-0 sm:left-auto' : 'left-0'} top-full mt-1.5 ${widthClass || 'w-72 sm:w-80'} max-w-[calc(100vw-2.5rem)] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden flex flex-col text-xs animate-in fade-in zoom-in-95 duration-100`}>
           {/* Header Controls */}
           <div className="p-2.5 bg-slate-950/80 border-b border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
@@ -434,8 +440,61 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     });
   };
 
+  // 4. Lista de Naturezas da Tabela Auxiliar CAD (2.245 registros) + Categorias Macro e Grupos
+  const listaNaturezas = useMemo(() => {
+    const itens: { value: string; label: string; subLabel?: string }[] = [
+      // Macros
+      { value: 'CAT_II', label: '★ Categoria II (Típicas Bombeiro Militar)', subLabel: 'Grupos O, P, R, S, V' },
+      { value: 'CAT_III', label: '★ Categoria III (Ações e Operações SIDS)', subLabel: 'Grupos A, Q, W, Y, X, U' },
+      // Grupos
+      { value: 'O', label: 'Grupo O - Explosão e Incêndio', subLabel: 'Categoria II BM' },
+      { value: 'P', label: 'Grupo P - Prevenção e Vistoria', subLabel: 'Categoria II BM' },
+      { value: 'R', label: 'Grupo R - Atividades de Defesa Civil', subLabel: 'Categoria II BM' },
+      { value: 'S', label: 'Grupo S - Busca e Salvamento', subLabel: 'Categoria II BM' },
+      { value: 'V', label: 'Grupo V - Atendimento Pré-Hospitalar (APH)', subLabel: 'Categoria II BM' },
+      { value: 'A', label: 'Grupo A - Ações de Defesa Social', subLabel: 'Categoria III SIDS' },
+      { value: 'Q', label: 'Grupo Q - Demonstrações e Treinamentos', subLabel: 'Categoria III SIDS' },
+      { value: 'W', label: 'Grupo W - Procedimentos CIAD', subLabel: 'Categoria III SIDS' },
+      { value: 'Y', label: 'Grupo Y - Operações de Defesa Social', subLabel: 'Categoria III SIDS' },
+      { value: 'X', label: 'Grupo X - Coordenação e Controle Operacional', subLabel: 'Categoria III SIDS' },
+      { value: 'U', label: 'Grupo U - Comunicações e Solicitações', subLabel: 'Categoria III SIDS' },
+    ];
+
+    const cadNaturezas = obterTodasNaturezasOficiais();
+    const jaAdicionados = new Set<string>();
+
+    for (const nat of cadNaturezas) {
+      if (!nat.codigo || jaAdicionados.has(nat.codigo)) continue;
+      jaAdicionados.add(nat.codigo);
+      const codFormatado = formatarCodigoNatureza(nat.codigo);
+      const letra = nat.codigo.charAt(0).toUpperCase();
+      itens.push({
+        value: nat.codigo,
+        label: `${codFormatado} - ${nat.descricao}`,
+        subLabel: `Grupo ${letra} • CAD #${nat.id}`,
+      });
+    }
+
+    return itens;
+  }, []);
+
+  // Manipulação de seleção múltipla para Naturezas da Tabela Auxiliar
+  const handleNaturezasChange = (novasNaturezas: string[]) => {
+    const naturezasValidas = novasNaturezas.filter((n) => n !== 'TODOS');
+    onChangeFiltros({
+      ...filtros,
+      naturezas: naturezasValidas,
+      naturezaGrupo:
+        naturezasValidas.length === 1
+          ? naturezasValidas[0]
+          : naturezasValidas.length === 0
+          ? 'TODOS'
+          : naturezasValidas.join(', '),
+    });
+  };
+
   return (
-    <div className="relative z-30 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3.5">
+    <div className="relative z-40 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3.5">
       {/* Top Filter Controls: Search & Temporal Buttons */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
         {/* Search Input */}
@@ -555,38 +614,17 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
           alignRight={true}
         />
 
-        {/* 4. Natureza / Grupo SIDS */}
-        <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Natureza / Grupo SIDS
-          </label>
-          <select
-            value={filtros.naturezaGrupo}
-            onChange={(e) => onChangeFiltros({ ...filtros, naturezaGrupo: e.target.value })}
-            className="w-full bg-slate-950 border border-slate-700 focus:border-red-500 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
-          >
-            <option value="TODOS">Todas as Naturezas (Geral)</option>
-            <option value="CAT_II">★ Categoria II (Típicas Bombeiro Militar)</option>
-            <option value="CAT_III">★ Categoria III (Ações e Operações SIDS)</option>
-
-            <optgroup label="CATEGORIA II - OCORRÊNCIAS TÍPICAS DE BOMBEIRO MILITAR">
-              <option value="O">O - REFERENTE À EXPLOSÃO E INCÊNDIO</option>
-              <option value="P">P - REFERENTE À PREVENÇÃO E VISTORIA</option>
-              <option value="R">R - REFERENTE ÀS ATIVIDADES DE DEFESA CIVIL</option>
-              <option value="S">S - REFERENTE À BUSCA E SALVAMENTO</option>
-              <option value="V">V - REFERENTE AO ATENDIMENTO PRÉ-HOSPITALAR (APH)</option>
-            </optgroup>
-
-            <optgroup label="CATEGORIA III - AÇÕES E OPERAÇÕES DECORRENTES DO SIDS">
-              <option value="A">A - AÇÕES DE DEFESA SOCIAL</option>
-              <option value="Q">Q - DEMONSTRAÇÕES, PALESTRAS E TREINAMENTOS</option>
-              <option value="W">W - PROCEDIMENTOS ADMINISTRATIVOS CIAD</option>
-              <option value="Y">Y - OPERAÇÕES DE DEFESA SOCIAL</option>
-              <option value="X">X - COORDENAÇÃO E CONTROLE OPERACIONAL E ADMINISTRATIVO</option>
-              <option value="U">U - COMUNICAÇÕES, DENÚNCIAS, RECLAMAÇÕES E SOLICITAÇÕES DIVERSAS</option>
-            </optgroup>
-          </select>
-        </div>
+        {/* 4. Natureza / Tabela Auxiliar CAD (Multi-select com Checkbox) */}
+        <MultiSelectCheckboxDropdown
+          label="Natureza da Ocorrência"
+          icon={<Flame className="w-3 h-3 text-red-500" />}
+          options={listaNaturezas}
+          selectedValues={filtros.naturezas || []}
+          onChange={handleNaturezasChange}
+          placeholder="Todas as Naturezas"
+          allLabel="Todas as Naturezas (CAD)"
+          widthClass="w-80 sm:w-96"
+        />
 
         {/* 5. Situação Atendimento */}
         <div>
@@ -635,7 +673,8 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
           {(totalFiltrado < totalGeral ||
             (filtros.cobs && filtros.cobs.length > 0) ||
             (filtros.bbms && filtros.bbms.length > 0) ||
-            (filtros.ciasInd && filtros.ciasInd.length > 0)) && (
+            (filtros.ciasInd && filtros.ciasInd.length > 0) ||
+            (filtros.naturezas && filtros.naturezas.length > 0)) && (
             <span className="bg-red-500/10 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full font-medium">
               Filtro ativo
             </span>

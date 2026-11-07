@@ -149,7 +149,8 @@ export interface FiltrosOperacionais {
   bbm: string; // 'TODOS' ou BBM
   ciaInd: string; // 'TODOS' ou Cia Ind
   
-  naturezaGrupo: string; // 'TODOS' ou grupo
+  naturezas?: string[]; // Multi-seleção de naturezas ou grupos oficiais (vazio = todas)
+  naturezaGrupo: string; // 'TODOS' ou grupo (retrocompatibilidade)
   situacaoChamada: string; // 'TODOS' | 'E' | 'A'
   situacaoAtendimento: string; // 'TODOS' | código
   origem: string; // 'TODOS' | 'L' | 'I' | 'B' | 'A'

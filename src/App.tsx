@@ -18,15 +18,12 @@ import { OperationalMap } from './components/OperationalMap';
 import { ChartsSection } from './components/ChartsSection';
 import { CallsTable } from './components/CallsTable';
 import { CallDetailModal } from './components/CallDetailModal';
-import { ImportModal } from './components/ImportModal';
-import { StreamlitBridgeModal } from './components/StreamlitBridgeModal';
 import { ApiSettingsModal } from './components/ApiSettingsModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import {
   Map,
   BarChart3,
   Shield,
-  RotateCcw,
   CheckCircle2,
   Clock,
   Play,
@@ -38,6 +35,7 @@ const FILTROS_PADRAO: FiltrosOperacionais = {
   cobs: [],
   bbms: [],
   ciasInd: [],
+  naturezas: [],
   cob: 'TODOS',
   bbm: 'TODOS',
   ciaInd: 'TODOS',
@@ -59,8 +57,6 @@ export default function App() {
   const [chamadaSelecionada, setChamadaSelecionada] = useState<ChamadaAtiva | null>(null);
 
   // Modais
-  const [isImportOpen, setIsImportOpen] = useState(false);
-  const [isStreamlitBridgeOpen, setIsStreamlitBridgeOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Sincronização & Estado
@@ -152,13 +148,6 @@ export default function App() {
     await executarSincronizacaoProxy(false);
   };
 
-  const handleImportSuccess = (novasChamadas: ChamadaAtiva[]) => {
-    setChamadas(novasChamadas);
-    salvarChamadasArmazenadas(novasChamadas);
-    setUltimaSync(new Date().toISOString());
-    exibirToast(`${novasChamadas.length} ocorrências importadas e persistidas com sucesso!`);
-  };
-
   const handleResetData = (novasChamadas: ChamadaAtiva[]) => {
     setChamadas(novasChamadas);
     setFiltros(FILTROS_PADRAO);
@@ -175,8 +164,6 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-red-600 selection:text-white">
       {/* 1. Top Bar & PWA Header */}
       <Header
-        onOpenImport={() => setIsImportOpen(true)}
-        onOpenStreamlitBridge={() => setIsStreamlitBridgeOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onTriggerSync={handleTriggerSync}
         isSyncing={isSyncing}
@@ -234,17 +221,6 @@ export default function App() {
                 )}
               </button>
             </div>
-
-            {/* Manual Proxy Sync Button */}
-            <button
-              onClick={() => executarSincronizacaoProxy(false)}
-              disabled={isSyncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 rounded-lg text-xs font-semibold transition cursor-pointer"
-              title="Sincronizar imediatamente através do Proxy Reverso Nginx (respeitando intervalo mínimo de 30s)"
-            >
-              <RotateCcw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'Atualizando...' : 'Ler /ativos'}</span>
-            </button>
 
             {/* View Mode Switcher */}
             <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
@@ -379,23 +355,10 @@ export default function App() {
         onClose={() => setChamadaSelecionada(null)}
       />
 
-      <ImportModal
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onImportSuccess={handleImportSuccess}
-      />
-
-      <StreamlitBridgeModal
-        isOpen={isStreamlitBridgeOpen}
-        onClose={() => setIsStreamlitBridgeOpen(false)}
-      />
-
       <ApiSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onResetData={handleResetData}
-        onTriggerSync={handleTriggerSync}
-        isSyncing={isSyncing}
         ultimaSync={ultimaSync}
       />
     </div>

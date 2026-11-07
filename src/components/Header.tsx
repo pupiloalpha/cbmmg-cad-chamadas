@@ -1,21 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import {
-  Download,
   RotateCcw,
-  Upload,
   Settings,
-  HelpCircle,
-  Flame,
   Radio,
-  Server,
   Smartphone,
   Shield,
 } from 'lucide-react';
 
 interface HeaderProps {
-  onOpenImport: () => void;
-  onOpenStreamlitBridge: () => void;
   onOpenSettings: () => void;
   onTriggerSync: () => void;
   isSyncing: boolean;
@@ -23,8 +16,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  onOpenImport,
-  onOpenStreamlitBridge,
   onOpenSettings,
   onTriggerSync,
   isSyncing,
@@ -86,41 +77,22 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Sync Trigger Button */}
+          {/* Botão Único: Atualizar Chamadas da API CAD */}
           <button
             onClick={onTriggerSync}
             disabled={isSyncing}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-slate-300 hover:text-white rounded-lg border border-slate-800 transition shadow-sm font-medium"
-            title="Sincronizar chamadas com cache intermediário da API"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg transition shadow-md font-semibold cursor-pointer"
+            title="Atualizar chamadas ativas da API CAD via Proxy Nginx"
           >
-            <RotateCcw className={`w-3.5 h-3.5 text-blue-400 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{isSyncing ? 'Atualizando...' : 'Atualizar'}</span>
-          </button>
-
-          {/* Import JSON/CSV Button */}
-          <button
-            onClick={onOpenImport}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-lg border border-slate-800 transition shadow-sm font-medium"
-            title="Importar arquivos locais JSON da API CAD ou planilhas CSV"
-          >
-            <Upload className="w-3.5 h-3.5 text-amber-400" />
-            <span>Importar Dados</span>
-          </button>
-
-          {/* Streamlit Bridge & Architecture Button */}
-          <button
-            onClick={onOpenStreamlitBridge}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-lg border border-slate-800 transition shadow-sm font-medium"
-            title="Solução de Contingência e Bridge para o Streamlit Cloud"
-          >
-            <Server className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Streamlit & Arquitetura</span>
+            <RotateCcw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Atualizando...' : 'Atualizar'}</span>
           </button>
 
           {/* Settings Button */}
           <button
             onClick={onOpenSettings}
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg border border-slate-800 transition"
-            title="Configurações da API e Token CAD"
+            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg border border-slate-800 transition cursor-pointer"
+            title="Configurações e Tabelas Auxiliares do CAD"
           >
             <Settings className="w-4 h-4" />
           </button>

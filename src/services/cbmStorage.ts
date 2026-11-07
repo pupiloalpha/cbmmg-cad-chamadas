@@ -96,6 +96,11 @@ export function obterTotalNaturezasOficiaisCarregadas(): number {
   return mapaNaturezasPorId.size;
 }
 
+export function obterTodasNaturezasOficiais(): NaturezaCadOficial[] {
+  const unicos = Array.from(new Set(mapaNaturezasPorId.values()));
+  return unicos.sort((a, b) => a.codigo.localeCompare(b.codigo));
+}
+
 // ==========================================
 // CONFIGURAÇÃO DO PROXY REVERSO & STORAGE
 // ==========================================
@@ -265,18 +270,16 @@ export function obterUltimaSync(): string {
 }
 
 // ==========================================
-// REGRA 2: CATÁLOGOS AUXILIARES (RENOVAÇÃO A CADA 6H)
+// TABELAS AUXILIARES DO CAD (NATUREZAS E CÓDIGOS OPERACIONAIS)
 // ==========================================
 
 export async function sincronizarCatalogosAuxiliares(forcar = false): Promise<{ sucesso: boolean; renovado: boolean; dados: any }> {
   try {
     const agora = Date.now();
-    const tsStr = localStorage.getItem(STORAGE_KEY_CATALOGOS_TS);
-    const ts = tsStr ? parseInt(tsStr, 10) : 0;
     const catSalvoStr = localStorage.getItem(STORAGE_KEY_CATALOGOS);
 
-    // Se já foi carregado nas últimas 6 horas e não for forçado, usa o cache local
-    if (!forcar && catSalvoStr && ts > 0 && agora - ts < INTERVALO_RENOVACAO_CATALOGO_MS) {
+    // Se já carregado e não forçar, usa o cache local
+    if (!forcar && catSalvoStr) {
       const dados = JSON.parse(catSalvoStr);
       return { sucesso: true, renovado: false, dados };
     }
@@ -305,7 +308,7 @@ export async function sincronizarCatalogosAuxiliares(forcar = false): Promise<{ 
 }
 
 // ==========================================
-// REGRA 2: TABELA OFICIAL DE NATUREZAS CAD (GET /dados-auxiliares/naturezas - RENOVAÇÃO A CADA 6H)
+// TABELA OFICIAL DE NATUREZAS CAD (GET /dados-auxiliares/naturezas)
 // ==========================================
 
 export async function sincronizarTabelaNaturezas(
@@ -313,22 +316,16 @@ export async function sincronizarTabelaNaturezas(
 ): Promise<{ sucesso: boolean; renovado: boolean; total: number; fonte: string }> {
   const agora = Date.now();
 
-  // 1. Se já populado em memória e cache válido nas últimas 6h
+  // 1. Se já populado em memória e não forçado
   if (!forcar && tabelaNaturezasCarregada && mapaNaturezasPorId.size > 0) {
-    const tsStr = localStorage.getItem(STORAGE_KEY_NATUREZAS_TS);
-    const ts = tsStr ? parseInt(tsStr, 10) : 0;
-    if (ts > 0 && agora - ts < INTERVALO_RENOVACAO_CATALOGO_MS) {
-      return { sucesso: true, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Memória' };
-    }
+    return { sucesso: true, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Memória' };
   }
 
-  // 2. Se não estiver em memória mas estiver em localStorage dentro de 6h
+  // 2. Se não estiver em memória mas estiver em localStorage e não forçado
   if (!forcar && !tabelaNaturezasCarregada) {
     try {
-      const tsStr = localStorage.getItem(STORAGE_KEY_NATUREZAS_TS);
-      const ts = tsStr ? parseInt(tsStr, 10) : 0;
       const salvo = localStorage.getItem(STORAGE_KEY_NATUREZAS);
-      if (salvo && ts > 0 && agora - ts < INTERVALO_RENOVACAO_CATALOGO_MS) {
+      if (salvo) {
         const lista: NaturezaCadOficial[] = JSON.parse(salvo);
         if (Array.isArray(lista) && lista.length > 0) {
           popularMapasNaturezas(lista);
@@ -419,8 +416,29 @@ export async function sincronizarTabelaNaturezas(
   return { sucesso: false, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Nenhuma' };
 }
 
+export async function carregarTodasTabelasAuxiliares(forcar = true): Promise<{
+  sucesso: boolean;
+  totalNaturezas: number;
+  codigos: any;
+  fonte: string;
+  mensagem: string;
+}> {
+  const [resNat, resCod] = await Promise.all([
+    sincronizarTabelaNaturezas(forcar),
+    sincronizarCatalogosAuxiliares(forcar),
+  ]);
+  const sucesso = resNat.sucesso || resCod.sucesso;
+  return {
+    sucesso,
+    totalNaturezas: resNat.total || mapaNaturezasPorId.size,
+    codigos: resCod.dados,
+    fonte: resNat.fonte || 'Proxy CAD',
+    mensagem: `Tabelas auxiliares sincronizadas com sucesso! ${resNat.total || mapaNaturezasPorId.size} naturezas oficiais e tabelas de códigos operacionais carregadas.`,
+  };
+}
+
 // ==========================================
-// REGRA 3: CONSUMO DE /ativos COM CADÊNCIA DE 10 MINUTOS (≥ 30S)
+// CONSUMO DE /ativos COM CADÊNCIA DE 10 MINUTOS (≥ 30S)
 // ==========================================
 
 export async function sincronizarProxyReverso(
@@ -1189,8 +1207,44 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
       }
     }
 
-    // 4. Filtro Grupo de Natureza / Categoria SIDS
-    if (filtros.naturezaGrupo !== 'TODOS') {
+    // 4. Filtro Multi-seleção de Naturezas Oficiais e Grupos SIDS
+    const naturezasFiltro = (filtros.naturezas || []).filter((n) => n && n !== 'TODOS');
+    if (naturezasFiltro.length > 0) {
+      const letraChamada = (
+        c.letraGrupoNatureza ||
+        c.codigoNatureza?.charAt(0) ||
+        ''
+      ).toUpperCase();
+      const codChamadaNorm = (c.codigoNatureza || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const idChamadaStr = c.idNatureza ? String(c.idNatureza) : '';
+
+      const matchAlgumaNatureza = naturezasFiltro.some((val) => {
+        const valUpper = val.toUpperCase();
+        const valNorm = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+        // 1. Categoria macro
+        if (valUpper === 'CAT_II') return ['O', 'P', 'R', 'S', 'V'].includes(letraChamada);
+        if (valUpper === 'CAT_III') return ['A', 'Q', 'W', 'Y', 'X', 'U'].includes(letraChamada);
+
+        // 2. Grupo por letra única (O, P, R, S, V, A, Q, W, Y, X, U)
+        if (valUpper.length === 1 && valUpper === letraChamada) return true;
+        if (valUpper.startsWith('GRP_') && valUpper.endsWith(letraChamada)) return true;
+
+        // 3. Código alfanumérico exato ou normalizado (ex: S06001 ou S06.001)
+        if (c.codigoNatureza && c.codigoNatureza.toUpperCase() === valUpper) return true;
+        if (codChamadaNorm && codChamadaNorm === valNorm) return true;
+
+        // 4. ID CAD numérico
+        if (idChamadaStr && (idChamadaStr === val || idChamadaStr === valUpper)) return true;
+
+        // 5. Comparação por grupo completo
+        if (c.grupoNatureza && c.grupoNatureza.toUpperCase() === valUpper) return true;
+
+        return false;
+      });
+
+      if (!matchAlgumaNatureza) return false;
+    } else if (filtros.naturezaGrupo && filtros.naturezaGrupo !== 'TODOS') {
       const letraChamada = (
         c.letraGrupoNatureza ||
         c.codigoNatureza?.charAt(0) ||

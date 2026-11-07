@@ -52,6 +52,14 @@ export const DICIONARIO_SIGLAS = {
     AC: 'a caminho',
     SU: 'suspenso',
   } as Record<string, string>,
+
+  // Chave oficial do CAD: situacao_recurso
+  // Campo correspondente na API CAD: codigoSituacaoRecurso
+  situacao_recurso: {
+    D: 'disponível',
+    E: 'empenhado',
+    I: 'indisponível',
+  } as Record<string, string>,
 };
 
 export const CORES_SITUACAO_ATENDIMENTO: Record<string, { bg: string; text: string; hex: string }> = {
