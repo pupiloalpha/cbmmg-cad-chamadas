@@ -13,7 +13,17 @@ import {
   CORES_SITUACAO_EMPENHO,
   DICIONARIO_SIGLAS,
 } from '../data/catalogoAuxiliares';
-import { BarChart3, TrendingUp, AlertCircle, PhoneCall, PieChart, Truck } from 'lucide-react';
+import {
+  BarChart3,
+  TrendingUp,
+  AlertCircle,
+  PhoneCall,
+  PieChart,
+  Truck,
+  Send,
+  Check,
+  ExternalLink,
+} from 'lucide-react';
 
 interface ChartsSectionProps {
   chamadas: ChamadaAtiva[];
@@ -22,6 +32,7 @@ interface ChartsSectionProps {
 export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
   const [modoHoras, setModoHoras] = React.useState<'24h' | '12h'>('24h');
   const [abaSituacao, setAbaSituacao] = React.useState<'chamadas' | 'empenhos'>('chamadas');
+  const [copiadoWhatsApp, setCopiadoWhatsApp] = React.useState(false);
 
   const distribuicaoNatureza = calcularDistribuicaoPorNatureza(chamadas);
   const distribuicaoSituacao = calcularDistribuicaoPorSituacao(chamadas);
@@ -34,6 +45,76 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
   const maxNatureza = Math.max(...distribuicaoNatureza.map((n) => n.total), 1);
   const totalChamadas = chamadas.length || 1;
   const totalRecursos = chamadas.reduce((acc, c) => acc + c.recursos.length, 0) || 1;
+
+  // Formatação do texto do card para envio via WhatsApp
+  const gerarTextoWhatsApp = () => {
+    const agora = new Date();
+    const dataHora = agora.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const linhas: string[] = [
+      `*🚨 CBMMG - OCORRÊNCIAS POR NATUREZA (MAIS FREQUENTES)*`,
+      `📅 _Posição em: ${dataHora}_`,
+      `📊 _Total de chamadas ativas analisadas: ${totalChamadas}_`,
+      ``,
+      `*Ranking das Naturezas:*`,
+    ];
+
+    if (distribuicaoNatureza.length === 0) {
+      linhas.push(`_Nenhuma ocorrência registrada no momento._`);
+    } else {
+      distribuicaoNatureza.forEach((item, index) => {
+        const pct = Math.round((item.total / totalChamadas) * 100);
+        linhas.push(`${index + 1}. *${item.nome}*: ${item.total} (${pct}%)`);
+      });
+    }
+
+    linhas.push(``);
+    linhas.push(`🚒 _Fonte: Sistema CAD CBMMG • Painel Operacional PWA_`);
+
+    return linhas.join('\n');
+  };
+
+  const handleCopiarWhatsApp = async () => {
+    const texto = gerarTextoWhatsApp();
+    let copiado = false;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(texto);
+        copiado = true;
+      }
+    } catch {
+      // Fallback abaixo
+    }
+
+    if (!copiado) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = texto;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copiado = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (e) {
+        console.error('Falha ao copiar texto para WhatsApp:', e);
+      }
+    }
+
+    setCopiadoWhatsApp(true);
+    setTimeout(() => {
+      setCopiadoWhatsApp(false);
+    }, 4000);
+  };
 
   // Identificar hora de pico
   const horaPico = evolucaoHoras.reduce(
@@ -150,15 +231,59 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
 
       {/* 2. Ocorrências por Natureza de Atendimento */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md flex flex-col justify-between">
-        <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-amber-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+        <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <BarChart3 className="w-4 h-4 text-amber-500 shrink-0" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 truncate">
               Ocorrências por Natureza (Mais Frequentes)
             </h3>
           </div>
-          <span className="text-[11px] text-slate-400 font-mono">Ranking Top 7</span>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">Ranking Top 7</span>
+            <button
+              onClick={handleCopiarWhatsApp}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer shadow-sm active:scale-95 ${
+                copiadoWhatsApp
+                  ? 'bg-emerald-900/90 text-emerald-200 border-emerald-500 ring-1 ring-emerald-500/40'
+                  : 'bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-400 border-emerald-700/60'
+              }`}
+              title="Copiar texto formatado deste card para envio no WhatsApp"
+            >
+              {copiadoWhatsApp ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-300" />
+                  <span className="text-[11px] font-bold">Copiado p/ WhatsApp!</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-[11px]">Enviar WhatsApp</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Feedback com confirmação e atalho direto para o WhatsApp */}
+        {copiadoWhatsApp && (
+          <div className="mb-2 bg-emerald-950/60 border border-emerald-800/80 text-emerald-200 px-3 py-1.5 rounded-lg text-[11px] flex items-center justify-between animate-in fade-in">
+            <span className="flex items-center gap-1.5 truncate">
+              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Texto copiado com formatação! Cole no WhatsApp (Ctrl+V).</span>
+            </span>
+            <a
+              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(gerarTextoWhatsApp())}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-300 hover:text-white underline font-semibold flex items-center gap-1 ml-2 shrink-0"
+              title="Abrir no aplicativo ou web do WhatsApp"
+            >
+              <span>Abrir WhatsApp</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
 
         <div className="space-y-2.5 my-auto">
           {distribuicaoNatureza.length === 0 ? (
