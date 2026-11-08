@@ -75,7 +75,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
     }
 
     linhas.push(``);
-    linhas.push(`🚒 _Fonte: Sistema CAD CBMMG • Painel Operacional PWA_`);
+    linhas.push(`🚒 _Fonte: Sistema CAD • COBOM_`);
 
     return linhas.join('\n');
   };
