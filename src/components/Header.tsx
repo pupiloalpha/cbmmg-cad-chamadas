@@ -121,14 +121,24 @@ export const Header: React.FC<HeaderProps> = ({
               {showIOSGuide && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
                   <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl text-slate-200">
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      <Smartphone className="w-5 h-5 text-red-500" />
-                      Instalar no iPhone / iPad
-                    </h3>
-                    <p className="mt-3 text-xs text-slate-300 leading-relaxed">
+                    <div className="flex items-center gap-3 mb-3 border-b border-slate-800 pb-3">
+                      <img
+                        src="/icon.svg"
+                        alt="Novo Ícone PWA CBMMG CAD"
+                        className="w-12 h-12 rounded-2xl shadow-lg border border-red-500/40 object-contain bg-slate-950 p-1"
+                      />
+                      <div>
+                        <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                          <Smartphone className="w-4 h-4 text-red-500" />
+                          Instalar no iPhone / iPad
+                        </h3>
+                        <p className="text-[11px] text-slate-400">CBMMG CAD • Dados & Estatística</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
                       1. Toque no botão <strong>Compartilhar</strong> (ícone de quadrado com seta para cima) na barra inferior do Safari.<br />
                       2. Role a lista para baixo e toque em <strong>Adicionar à Tela de Início</strong>.<br />
-                      3. O ícone oficial do CBMMG CAD aparecerá na sua tela de aplicativos.
+                      3. O novo ícone de dados e estatísticas do CBMMG CAD aparecerá na sua tela de aplicativos.
                     </p>
                     <button
                       onClick={() => setShowIOSGuide(false)}

@@ -24,6 +24,12 @@ export default defineConfig(() => {
           scope: '/',
           icons: [
             {
+              src: '/icon.svg',
+              sizes: 'any',
+              type: 'image/svg+xml',
+              purpose: 'any',
+            },
+            {
               src: '/pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
