@@ -65,7 +65,7 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700/80 p-0.5 flex items-center justify-center shrink-0">
               <img
-                src="/assets/aistudio/LogoCorpoDeBombeiros_57dfdd49.png"
+                src={`${import.meta.env.BASE_URL}assets/aistudio/LogoCorpoDeBombeiros_57dfdd49.png`}
                 alt="CBMMG"
                 className="w-full h-full object-contain"
               />

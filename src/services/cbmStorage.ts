@@ -388,7 +388,7 @@ export async function sincronizarTabelaNaturezas(
   // 5. Fallback: snapshot estático local public/cad_naturezas.json
   if (!listaExtraida) {
     try {
-      const res = await fetch('/cad_naturezas.json');
+      const res = await fetch(`${import.meta.env.BASE_URL}cad_naturezas.json`);
       if (res.ok) {
         const data = await res.json();
         const itens = data?.dados?.value || data?.dados || data;
@@ -515,7 +515,7 @@ export async function sincronizarProxyReverso(
     // 3. Fallback snapshot estático
     if (!jsonResposta) {
       try {
-        const snap = await fetch('/cbmmg_cad_dados.json');
+        const snap = await fetch(`${import.meta.env.BASE_URL}cbmmg_cad_dados.json`);
         if (snap.ok) {
           jsonResposta = await snap.json();
           fonteUtilizada = 'Snapshot Local Contingência';

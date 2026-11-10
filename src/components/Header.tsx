@@ -38,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-3">
             <div className="relative">
               <img
-                src="/assets/aistudio/LogoCorpoDeBombeiros_57dfdd49.png"
+                src={`${import.meta.env.BASE_URL}assets/aistudio/LogoCorpoDeBombeiros_57dfdd49.png`}
                 alt="Brasão Oficial do Corpo de Bombeiros Militar de Minas Gerais"
                 className="w-12 h-12 object-contain drop-shadow-[0_0_12px_rgba(239,68,68,0.4)] transition hover:scale-105"
               />
@@ -123,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl text-slate-200">
                     <div className="flex items-center gap-3 mb-3 border-b border-slate-800 pb-3">
                       <img
-                        src="/icon.svg"
+                        src={`${import.meta.env.BASE_URL}icon.svg`}
                         alt="Novo Ícone PWA CBMMG CAD"
                         className="w-12 h-12 rounded-2xl shadow-lg border border-red-500/40 object-contain bg-slate-950 p-1"
                       />

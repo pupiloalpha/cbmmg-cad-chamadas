@@ -88,7 +88,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
         <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <img
-              src="/assets/aistudio/LogoCorpoDeBombeiros_57dfdd49.png"
+              src={`${import.meta.env.BASE_URL}assets/aistudio/LogoCorpoDeBombeiros_57dfdd49.png`}
               alt="CBMMG"
               className="w-8 h-8 object-contain shrink-0"
             />
