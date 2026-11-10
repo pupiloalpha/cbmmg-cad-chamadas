@@ -7,15 +7,13 @@ on:
       - master
   workflow_dispatch:
 
-# Permissões necessárias para publicar no GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Permite apenas um deploy concorrente por vez
 concurrency:
-  group: 'pages'
+  group: "pages"
   cancel-in-progress: true
 
 jobs:
@@ -25,19 +23,18 @@ jobs:
       - name: Clonar repositório
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
+      - name: Configurar Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: 'npm'
+          bun-version: latest
 
       - name: Instalar dependências
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Compilar PWA para produção
-        run: npm run build
+        run: bun run build
 
-      - name: Upload do artefato de produção (dist)
+      - name: Upload do artefato de produção
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
