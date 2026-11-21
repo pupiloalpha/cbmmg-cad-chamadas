@@ -175,8 +175,11 @@ export const MOCK_CHAMADAS_INICIAIS: ChamadaAtiva[] = [
     },
     latitude: -20.0381,
     longitude: -44.0205,
-    cob: '1º COB',
+    cob: 'CEB',
     bbm: 'BEMAD',
+    semAreaDefinida: true,
+    areaCob: '1º COB',
+    areaBbm: '1º BBM',
     idUnidadeServico: 199,
     nomeUnidade: 'BEMAD - Emergências Ambientais',
     recursos: [

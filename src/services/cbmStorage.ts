@@ -398,6 +398,7 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
     cobAtual: c.cob,
     bbmAtual: c.bbm,
     ciaIndAtual: c.ciaInd,
+    subunidadeAtual: c.subunidade,
     nomeUnidadeAtual: c.nomeUnidade,
   });
 
@@ -415,6 +416,12 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
       cob: unidadeResolvida.cob,
       bbm: unidadeResolvida.bbm,
       ciaInd: unidadeResolvida.ciaInd,
+      subunidade: unidadeResolvida.subunidade,
+      semAreaDefinida: unidadeResolvida.semAreaDefinida,
+      areaCob: unidadeResolvida.areaCob,
+      areaBbm: unidadeResolvida.areaBbm,
+      areaCiaInd: unidadeResolvida.areaCiaInd,
+      unidadesApoio: unidadeResolvida.unidadesApoio,
       nomeUnidade: unidadeResolvida.nomeUnidade,
       codigoSituacaoAtendimentoChamada: sitAtend,
       codigoSituacaoChamada: sitChamada,
@@ -434,6 +441,12 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
     cob: unidadeResolvida.cob,
     bbm: unidadeResolvida.bbm,
     ciaInd: unidadeResolvida.ciaInd,
+    subunidade: unidadeResolvida.subunidade,
+    semAreaDefinida: unidadeResolvida.semAreaDefinida,
+    areaCob: unidadeResolvida.areaCob,
+    areaBbm: unidadeResolvida.areaBbm,
+    areaCiaInd: unidadeResolvida.areaCiaInd,
+    unidadesApoio: unidadeResolvida.unidadesApoio,
     nomeUnidade: unidadeResolvida.nomeUnidade,
     codigoSituacaoAtendimentoChamada: sitAtend,
     codigoSituacaoChamada: sitChamada,
@@ -1182,8 +1195,9 @@ const BBM_PARA_COB: Record<string, string> = {
   '2º BBM': '1º COB',
   '3º BBM': '1º COB',
   '10º BBM': '1º COB',
-  'BEMAD': '1º COB',
-  'BOA': '1º COB',
+  'BEMAD': 'CEB',
+  'BOA': 'CEB',
+  'CEB': 'CEB',
   '5º BBM': '2º COB',
   '8º BBM': '2º COB',
   '12º BBM': '2º COB',
@@ -1206,13 +1220,22 @@ function interpretarDescricaoUnidadeCad(descricao: string): {
   cob?: string;
   bbm?: string;
   ciaInd?: string;
+  subunidade?: string;
+  semAreaDefinida?: boolean;
   hintBbm?: string;
   nomeUnidade: string;
 } {
   const desc = (descricao || '').trim();
-  const up = desc.toUpperCase();
+  const up = normalizarTexto(desc);
 
-  const bbmMatch = up.match(/^(\d{1,2})\s*BBM\b/);
+  // 1. Comando Operacional regional explícito (deve vir antes de BOA para não confundir "SERRA BOA ESPERANCA")
+  const cobMatch = up.match(/^(\d)\s*COB\b/);
+  if (cobMatch) {
+    return { cob: `${cobMatch[1]}º COB`, nomeUnidade: desc };
+  }
+
+  // 2. Batalhões territoriais (1BBM..12BBM)
+  const bbmMatch = up.match(/^(\d{1,2})\s*(?:º\s*)?BBM\b/);
   if (bbmMatch) {
     const num = bbmMatch[1];
     const bbm = `${num}º BBM`;
@@ -1220,23 +1243,41 @@ function interpretarDescricaoUnidadeCad(descricao: string): {
     return { cob, bbm, nomeUnidade: desc };
   }
 
-  const ciaMatch = up.match(/^(\d{1,2})\s*CIA\s*IND\b/);
+  // 3. Companhias Independentes territoriais (1CIA IND..7CIA IND)
+  const ciaMatch = up.match(/^(\d{1,2})\s*(?:ª\s*)?CIA\s*IND\b/);
   if (ciaMatch && CIA_IND_INFO[ciaMatch[1]]) {
     const info = CIA_IND_INFO[ciaMatch[1]];
     return { cob: info.cob, bbm: info.bbm, ciaInd: info.ciaInd, nomeUnidade: desc };
   }
 
+  // 4. CEB - Comando Especializado de Bombeiros e suas Unidades/Subunidades (sem área territorial fixa)
   if (up.startsWith('BEMAD')) {
-    return { cob: '1º COB', bbm: 'BEMAD', nomeUnidade: desc };
+    return { cob: 'CEB', bbm: 'BEMAD', semAreaDefinida: true, nomeUnidade: desc };
   }
 
   if (up.startsWith('BOA')) {
-    return { cob: '1º COB', bbm: 'BOA', nomeUnidade: desc };
+    // Identifica subunidades CEOA do BOA (ex: BOA/1CIA OPERACOES AEREAS, BOA/6CIA ESP OPE AE, BOA/2CIA E O A, BOA/3CEOA)
+    const ceoaSubMatch = up.match(/^BOA\/\s*(\d)\s*(?:ª\s*)?(?:CIA|CEOA|E\s*O\s*A)\b/);
+    const subunidade = ceoaSubMatch ? `${ceoaSubMatch[1]}ª CEOA` : undefined;
+    return { cob: 'CEB', bbm: 'BOA', subunidade, semAreaDefinida: true, nomeUnidade: desc };
   }
 
-  const cobMatch = up.match(/^(\d)\s*COB\b/);
-  if (cobMatch) {
-    return { cob: `${cobMatch[1]}º COB`, nomeUnidade: desc };
+  const ceoaDiretoMatch = up.match(/^(\d)\s*(?:ª\s*)?CEOA\b/);
+  if (ceoaDiretoMatch) {
+    return {
+      cob: 'CEB',
+      bbm: 'BOA',
+      subunidade: `${ceoaDiretoMatch[1]}ª CEOA`,
+      semAreaDefinida: true,
+      nomeUnidade: desc,
+    };
+  }
+  if (up.startsWith('CEOA')) {
+    return { cob: 'CEB', bbm: 'BOA', subunidade: 'CEOA', semAreaDefinida: true, nomeUnidade: desc };
+  }
+
+  if (up.startsWith('CEB')) {
+    return { cob: 'CEB', bbm: 'CEB', semAreaDefinida: true, nomeUnidade: desc };
   }
 
   const catSubsec = up.match(/^CAT\/.*SUBSEC VISTORIA\s*(\d)\b/);
@@ -1247,85 +1288,37 @@ function interpretarDescricaoUnidadeCad(descricao: string): {
   return { nomeUnidade: desc };
 }
 
-function resolverUnidadeCbmmg(params: {
-  idUnidadeServico?: string | number;
-  recursos?: RecursoEmpenhado[];
+function resolverAreaTerritorial(params: {
   municipio?: string;
   latitude?: number | null;
   longitude?: number | null;
-  cobAtual?: string;
-  bbmAtual?: string;
-  ciaIndAtual?: string;
-  nomeUnidadeAtual?: string;
-}): { cob: string; bbm: string; ciaInd?: string; nomeUnidade: string } {
-  let cob = '';
-  let bbm = '';
-  let ciaInd: string | undefined = undefined;
-  let nomeUnidade = '';
-  let hintBbm = '';
-
-  // Camada 1: Tabela oficial CAD /dados-auxiliares/unidades-servico via idUnidadeServico
-  const cadUnidade = obterUnidadeCadPorId(params.idUnidadeServico);
-  if (cadUnidade) {
-    const parsed = interpretarDescricaoUnidadeCad(cadUnidade.descricao);
-    nomeUnidade = parsed.nomeUnidade;
-    if (parsed.cob) cob = parsed.cob;
-    if (parsed.bbm) bbm = parsed.bbm;
-    if (parsed.ciaInd) ciaInd = parsed.ciaInd;
-    if (parsed.hintBbm) hintBbm = parsed.hintBbm;
-  }
-
-  // Camada 1b: Se a unidade responsável da chamada for genérica (xCOB, CAT, ABM, COBOM), tenta o idUnidadeServico dos recursos empenhados
-  if (!bbm && Array.isArray(params.recursos)) {
-    for (const rec of params.recursos) {
-      const uRec = obterUnidadeCadPorId(rec.idUnidadeServico);
-      if (uRec) {
-        const parsedRec = interpretarDescricaoUnidadeCad(uRec.descricao);
-        if (parsedRec.bbm) {
-          bbm = parsedRec.bbm;
-          cob = cob || parsedRec.cob || BBM_PARA_COB[bbm] || '';
-          ciaInd = ciaInd || parsedRec.ciaInd;
-          if (!nomeUnidade) nomeUnidade = parsedRec.nomeUnidade;
-          break;
-        }
-      }
-    }
-  }
-
-  // Camada 2: Tabela territorial por município (quando não há BBM específico no idUnidadeServico, ou para complementar Cia Ind / COB)
+  cobRestrito?: string;
+}): { areaCob?: string; areaBbm?: string; areaCiaInd?: string } {
   const munNorm = normalizarTexto(params.municipio || '');
+  const unidadesTerritoriais = UNIDADES_SERVICO_CBMMG.filter((u) => !u.semAreaDefinida && u.cob !== 'CEB');
+
   const munMatch =
     MUNICIPIOS_MG_COB_BBM[munNorm] ||
     (() => {
-      const u = UNIDADES_SERVICO_CBMMG.find((item) => normalizarTexto(item.municipioSede) === munNorm);
+      const u = unidadesTerritoriais.find((item) => normalizarTexto(item.municipioSede) === munNorm);
       return u ? { cob: u.cob, bbm: u.bbm, ciaInd: u.ciaInd } : undefined;
     })();
 
-  if (!bbm && munMatch) {
-    // Se a unidade CAD já identificou o COB (ex: 6COB), respeita o COB da unidade e aproveita BBM/CiaInd se compatível ou do município
-    if (!cob || cob === munMatch.cob) {
-      cob = cob || munMatch.cob;
-      bbm = munMatch.bbm;
-      ciaInd = ciaInd || munMatch.ciaInd;
-    } else {
-      cob = cob || munMatch.cob;
-      bbm = munMatch.bbm;
-      ciaInd = ciaInd || munMatch.ciaInd;
-    }
+  if (munMatch && (!params.cobRestrito || params.cobRestrito === munMatch.cob)) {
+    return {
+      areaCob: munMatch.cob,
+      areaBbm: munMatch.bbm,
+      areaCiaInd: munMatch.ciaInd,
+    };
   }
 
-  // Se ainda não resolveu BBM mas existe dica de Subseção de Vistoria CAT (1/2/3 BBM)
-  if (!bbm && hintBbm) {
-    bbm = hintBbm;
-    cob = cob || BBM_PARA_COB[hintBbm] || '1º COB';
-  }
-
-  // Se já tínhamos COB (ex: 6COB em município ainda não listado) ou se nem município bateu, usa proximidade geográfica
-  if (!bbm && params.latitude != null && params.longitude != null) {
-    const candidatas = cob
-      ? UNIDADES_SERVICO_CBMMG.filter((u) => u.cob === cob && u.latitudeSede != null && u.longitudeSede != null)
-      : UNIDADES_SERVICO_CBMMG.filter((u) => u.latitudeSede != null && u.longitudeSede != null);
-    const pool = candidatas.length > 0 ? candidatas : UNIDADES_SERVICO_CBMMG;
+  if (params.latitude != null && params.longitude != null) {
+    const candidatas = params.cobRestrito
+      ? unidadesTerritoriais.filter(
+          (u) => u.cob === params.cobRestrito && u.latitudeSede != null && u.longitudeSede != null
+        )
+      : unidadesTerritoriais.filter((u) => u.latitudeSede != null && u.longitudeSede != null);
+    const pool = candidatas.length > 0 ? candidatas : unidadesTerritoriais;
     let melhor = pool[0];
     let menorDist = Infinity;
     for (const u of pool) {
@@ -1339,10 +1332,159 @@ function resolverUnidadeCbmmg(params: {
       }
     }
     if (melhor) {
-      cob = cob || melhor.cob;
-      bbm = melhor.bbm;
-      ciaInd = ciaInd || melhor.ciaInd;
+      return {
+        areaCob: params.cobRestrito || melhor.cob,
+        areaBbm: melhor.bbm,
+        areaCiaInd: melhor.ciaInd,
+      };
     }
+  }
+
+  if (munMatch) {
+    return {
+      areaCob: munMatch.cob,
+      areaBbm: munMatch.bbm,
+      areaCiaInd: munMatch.ciaInd,
+    };
+  }
+
+  return {};
+}
+
+function resolverUnidadeCbmmg(params: {
+  idUnidadeServico?: string | number;
+  recursos?: RecursoEmpenhado[];
+  municipio?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  cobAtual?: string;
+  bbmAtual?: string;
+  ciaIndAtual?: string;
+  subunidadeAtual?: string;
+  nomeUnidadeAtual?: string;
+}): {
+  cob: string;
+  bbm: string;
+  ciaInd?: string;
+  subunidade?: string;
+  semAreaDefinida?: boolean;
+  areaCob?: string;
+  areaBbm?: string;
+  areaCiaInd?: string;
+  unidadesApoio?: { cob: string; bbm: string; ciaInd?: string; subunidade?: string }[];
+  nomeUnidade: string;
+} {
+  let cob = '';
+  let bbm = '';
+  let ciaInd: string | undefined = undefined;
+  let subunidade: string | undefined = undefined;
+  let semAreaDefinida = false;
+  let nomeUnidade = '';
+  let hintBbm = '';
+
+  // Área territorial real onde o fato aconteceu (exclusiva dos COBs/BBMs/Cias Ind regionais)
+  const areaTerritorial = resolverAreaTerritorial({
+    municipio: params.municipio,
+    latitude: params.latitude,
+    longitude: params.longitude,
+  });
+
+  // Camada 1: Tabela oficial CAD /dados-auxiliares/unidades-servico via idUnidadeServico
+  const cadUnidade = obterUnidadeCadPorId(params.idUnidadeServico);
+  if (cadUnidade) {
+    const parsed = interpretarDescricaoUnidadeCad(cadUnidade.descricao);
+    nomeUnidade = parsed.nomeUnidade;
+    if (parsed.cob) cob = parsed.cob;
+    if (parsed.bbm) bbm = parsed.bbm;
+    if (parsed.ciaInd) ciaInd = parsed.ciaInd;
+    if (parsed.subunidade) subunidade = parsed.subunidade;
+    if (parsed.semAreaDefinida) semAreaDefinida = true;
+    if (parsed.hintBbm) hintBbm = parsed.hintBbm;
+  } else if (
+    params.cobAtual === 'CEB' ||
+    ['BEMAD', 'BOA', 'CEB'].includes((params.bbmAtual || '').toUpperCase())
+  ) {
+    // Preserva classificação especializada (ex: dados mockados ou já identificados como CEB/BEMAD/BOA)
+    const parsedAtual = interpretarDescricaoUnidadeCad(params.nomeUnidadeAtual || params.bbmAtual || '');
+    cob = 'CEB';
+    bbm = parsedAtual.bbm || params.bbmAtual || 'CEB';
+    subunidade = parsedAtual.subunidade || params.subunidadeAtual;
+    semAreaDefinida = true;
+    nomeUnidade = params.nomeUnidadeAtual || '';
+  }
+
+  // Se veio unidade genérica do CEB (ex: CEB/GABINETE), refina para BEMAD ou BOA/CEOA se houver recurso deles
+  if (bbm === 'CEB' && Array.isArray(params.recursos)) {
+    for (const rec of params.recursos) {
+      const uRec = obterUnidadeCadPorId(rec.idUnidadeServico);
+      const parsedRec = uRec
+        ? interpretarDescricaoUnidadeCad(uRec.descricao)
+        : rec.unidadeNome
+        ? interpretarDescricaoUnidadeCad(rec.unidadeNome)
+        : null;
+      if (parsedRec && (parsedRec.bbm === 'BEMAD' || parsedRec.bbm === 'BOA')) {
+        bbm = parsedRec.bbm;
+        subunidade = parsedRec.subunidade || subunidade;
+        if (!nomeUnidade) nomeUnidade = parsedRec.nomeUnidade;
+        break;
+      }
+    }
+  }
+
+  // Camada 1b: Se a unidade responsável for genérica (xCOB, CAT, ABM, COBOM), tenta o idUnidadeServico dos recursos empenhados
+  if (!bbm && Array.isArray(params.recursos)) {
+    let apoioEspecializadoFallback: ReturnType<typeof interpretarDescricaoUnidadeCad> | null = null;
+    for (const rec of params.recursos) {
+      const uRec = obterUnidadeCadPorId(rec.idUnidadeServico);
+      const parsedRec = uRec
+        ? interpretarDescricaoUnidadeCad(uRec.descricao)
+        : rec.unidadeNome
+        ? interpretarDescricaoUnidadeCad(rec.unidadeNome)
+        : null;
+      if (!parsedRec?.bbm) continue;
+
+      if (!parsedRec.semAreaDefinida) {
+        bbm = parsedRec.bbm;
+        cob = cob || parsedRec.cob || BBM_PARA_COB[bbm] || '';
+        ciaInd = ciaInd || parsedRec.ciaInd;
+        if (!nomeUnidade) nomeUnidade = parsedRec.nomeUnidade;
+        break;
+      } else if (!apoioEspecializadoFallback) {
+        apoioEspecializadoFallback = parsedRec;
+      }
+    }
+
+    if (!bbm && apoioEspecializadoFallback?.bbm) {
+      bbm = apoioEspecializadoFallback.bbm;
+      cob = 'CEB';
+      subunidade = apoioEspecializadoFallback.subunidade;
+      semAreaDefinida = true;
+      if (!nomeUnidade) nomeUnidade = apoioEspecializadoFallback.nomeUnidade;
+    }
+  }
+
+  // Camada 2 & 3: Área territorial por município e coordenadas (para unidades genéricas/não resolvidas)
+  if (!bbm) {
+    const terr = cob && cob !== 'CEB'
+      ? resolverAreaTerritorial({
+          municipio: params.municipio,
+          latitude: params.latitude,
+          longitude: params.longitude,
+          cobRestrito: cob,
+        })
+      : areaTerritorial;
+
+    if (terr.areaBbm) {
+      cob = cob || terr.areaCob || '';
+      bbm = terr.areaBbm;
+      ciaInd = ciaInd || terr.areaCiaInd;
+    }
+  }
+
+  // Se ainda não resolveu BBM mas existe dica de Subseção de Vistoria CAT (1/2/3 BBM)
+  if (!bbm && hintBbm) {
+    bbm = hintBbm;
+    cob = cob || BBM_PARA_COB[hintBbm] || '1º COB';
   }
 
   // Fallback final (apenas se nada existir, preservando eventual unidade pré-existente válida)
@@ -1350,6 +1492,8 @@ function resolverUnidadeCbmmg(params: {
     bbm = params.bbmAtual;
     cob = cob || params.cobAtual || BBM_PARA_COB[bbm] || '1º COB';
     ciaInd = ciaInd || params.ciaIndAtual;
+    subunidade = subunidade || params.subunidadeAtual;
+    if (cob === 'CEB') semAreaDefinida = true;
   }
 
   if (!bbm) {
@@ -1359,12 +1503,63 @@ function resolverUnidadeCbmmg(params: {
   if (!cob) {
     cob = BBM_PARA_COB[bbm] || '1º COB';
   }
+  if (cob === 'CEB') {
+    semAreaDefinida = true;
+    ciaInd = undefined;
+  }
+
+  // Identifica unidades distintas atuando em apoio via recursos empenhados (ex: BEMAD/BOA apoiando BBM local)
+  const unidadesApoioMap = new Map<string, { cob: string; bbm: string; ciaInd?: string; subunidade?: string }>();
+  if (Array.isArray(params.recursos)) {
+    for (const rec of params.recursos) {
+      const uRec = obterUnidadeCadPorId(rec.idUnidadeServico);
+      const parsedRec = uRec
+        ? interpretarDescricaoUnidadeCad(uRec.descricao)
+        : rec.unidadeNome
+        ? interpretarDescricaoUnidadeCad(rec.unidadeNome)
+        : null;
+      if (!parsedRec?.bbm) continue;
+      const recCob = parsedRec.cob || BBM_PARA_COB[parsedRec.bbm] || '';
+      const recBbm = parsedRec.bbm;
+      const recCia = parsedRec.ciaInd;
+      const recSub = parsedRec.subunidade;
+      if (!recCob || !recBbm) continue;
+
+      const mesmaUnidade =
+        recCob === cob &&
+        recBbm === bbm &&
+        (recSub || '') === (subunidade || '') &&
+        (recCia || '') === (ciaInd || '');
+
+      if (!mesmaUnidade) {
+        const chave = `${recCob}|${recBbm}|${recCia || ''}|${recSub || ''}`;
+        if (!unidadesApoioMap.has(chave)) {
+          unidadesApoioMap.set(chave, {
+            cob: recCob,
+            bbm: recBbm,
+            ciaInd: recCia,
+            subunidade: recSub,
+          });
+        }
+      }
+    }
+  }
+  const unidadesApoio = unidadesApoioMap.size > 0 ? Array.from(unidadesApoioMap.values()) : undefined;
 
   return {
     cob,
     bbm,
     ciaInd,
-    nomeUnidade: nomeUnidade || params.nomeUnidadeAtual || `${ciaInd || bbm} - CBMMG`,
+    subunidade,
+    semAreaDefinida: semAreaDefinida || undefined,
+    areaCob: areaTerritorial.areaCob || (!semAreaDefinida ? cob : undefined),
+    areaBbm: areaTerritorial.areaBbm || (!semAreaDefinida ? bbm : undefined),
+    areaCiaInd: areaTerritorial.areaCiaInd || (!semAreaDefinida ? ciaInd : undefined),
+    unidadesApoio,
+    nomeUnidade:
+      nomeUnidade ||
+      params.nomeUnidadeAtual ||
+      `${[cob, bbm, subunidade || ciaInd].filter(Boolean).join(' • ')} - CBMMG`,
   };
 }
 
@@ -1668,7 +1863,18 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
   }
 
   // 8. Resolução Territorial do CBMMG (Unidade Oficial CAD -> Empenhos -> Município -> Coordenadas)
-  const { cob, bbm, ciaInd, nomeUnidade } = resolverUnidadeCbmmg({
+  const {
+    cob,
+    bbm,
+    ciaInd,
+    subunidade,
+    semAreaDefinida,
+    areaCob,
+    areaBbm,
+    areaCiaInd,
+    unidadesApoio,
+    nomeUnidade,
+  } = resolverUnidadeCbmmg({
     idUnidadeServico,
     recursos,
     municipio,
@@ -1679,9 +1885,12 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     ciaIndAtual: r.ciaInd,
   });
 
-  // Fallback de coordenadas para sede do município caso a API tenha retornado sem GPS
+  // Fallback de coordenadas para sede do município (usa areaBbm territorial caso seja unidade do CEB sem área fixa)
   if (latitude === null || longitude === null) {
-    const unSede = UNIDADES_SERVICO_CBMMG.find((u) => u.bbm === bbm && u.latitudeSede);
+    const bbmCoordRef = areaBbm || bbm;
+    const unSede = UNIDADES_SERVICO_CBMMG.find(
+      (u) => !u.semAreaDefinida && u.bbm === bbmCoordRef && u.latitudeSede
+    );
     if (unSede && unSede.latitudeSede && unSede.longitudeSede) {
       latitude = unSede.latitudeSede + (Math.random() - 0.5) * 0.03;
       longitude = unSede.longitudeSede + (Math.random() - 0.5) * 0.03;
@@ -1742,6 +1951,12 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     cob,
     bbm,
     ciaInd,
+    subunidade,
+    semAreaDefinida,
+    areaCob,
+    areaBbm,
+    areaCiaInd,
+    unidadesApoio,
     idUnidadeServico,
     nomeUnidade,
     recursos,
@@ -1760,28 +1975,49 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
   const agora = Date.now();
 
   return chamadas.filter((c) => {
-    // 1. Filtro COB (multi-select com suporte a retrocompatibilidade)
+    // 1-3. Filtro de Unidades (COB / BBM / CIA IND ou CEOA):
+    // Considera: (a) unidade orgânica responsável, (b) área territorial quando unidade sem área fixa (CEB/BEMAD/BOA/CEOA)
+    // atua na área de outro COB/BBM/Cia Ind, ou (c) viatura/recurso empenhado em apoio (ex: BEMAD/BOA apoiando BBM local)
     const cobsAtivos = filtros.cobs && filtros.cobs.length > 0
       ? filtros.cobs.filter((cob) => cob !== 'TODOS')
       : (filtros.cob && filtros.cob !== 'TODOS' ? [filtros.cob] : []);
-    if (cobsAtivos.length > 0 && !cobsAtivos.includes(c.cob)) {
-      return false;
-    }
-
-    // 2. Filtro BBM (multi-select com suporte a retrocompatibilidade)
     const bbmsAtivos = filtros.bbms && filtros.bbms.length > 0
       ? filtros.bbms.filter((bbm) => bbm !== 'TODOS')
       : (filtros.bbm && filtros.bbm !== 'TODOS' ? [filtros.bbm] : []);
-    if (bbmsAtivos.length > 0 && !bbmsAtivos.includes(c.bbm)) {
-      return false;
-    }
-
-    // 3. Filtro CIA IND (multi-select com suporte a retrocompatibilidade)
     const ciasAtivas = filtros.ciasInd && filtros.ciasInd.length > 0
       ? filtros.ciasInd.filter((cia) => cia !== 'TODOS')
       : (filtros.ciaInd && filtros.ciaInd !== 'TODOS' ? [filtros.ciaInd] : []);
-    if (ciasAtivas.length > 0) {
-      if (!c.ciaInd || !ciasAtivas.includes(c.ciaInd)) {
+
+    if (cobsAtivos.length > 0 || bbmsAtivos.length > 0 || ciasAtivas.length > 0) {
+      const matchUnidade = (
+        cobAlvo?: string,
+        bbmAlvo?: string,
+        ciaAlvo?: string,
+        subAlvo?: string
+      ) => {
+        if (cobsAtivos.length > 0 && (!cobAlvo || !cobsAtivos.includes(cobAlvo))) {
+          return false;
+        }
+        if (bbmsAtivos.length > 0 && (!bbmAlvo || !bbmsAtivos.includes(bbmAlvo))) {
+          return false;
+        }
+        if (ciasAtivas.length > 0) {
+          const bateCia = Boolean(ciaAlvo && ciasAtivas.includes(ciaAlvo));
+          const bateSub = Boolean(subAlvo && ciasAtivas.includes(subAlvo));
+          if (!bateCia && !bateSub) return false;
+        }
+        return true;
+      };
+
+      const matchOrganica = matchUnidade(c.cob, c.bbm, c.ciaInd, c.subunidade);
+      const matchAreaTerritorial =
+        Boolean(c.semAreaDefinida || c.cob === 'CEB') &&
+        matchUnidade(c.areaCob, c.areaBbm, c.areaCiaInd, undefined);
+      const matchApoio =
+        Array.isArray(c.unidadesApoio) &&
+        c.unidadesApoio.some((ap) => matchUnidade(ap.cob, ap.bbm, ap.ciaInd, ap.subunidade));
+
+      if (!matchOrganica && !matchAreaTerritorial && !matchApoio) {
         return false;
       }
     }
@@ -1931,11 +2167,17 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
         normalizarParaBusca(c.bbm).includes(q) ||
         normalizarParaBusca(c.cob).includes(q) ||
         (c.ciaInd && normalizarParaBusca(c.ciaInd).includes(q)) ||
+        (c.subunidade && normalizarParaBusca(c.subunidade).includes(q)) ||
+        (c.nomeUnidade && normalizarParaBusca(c.nomeUnidade).includes(q)) ||
+        (c.areaCob && normalizarParaBusca(c.areaCob).includes(q)) ||
+        (c.areaBbm && normalizarParaBusca(c.areaBbm).includes(q)) ||
+        (c.areaCiaInd && normalizarParaBusca(c.areaCiaInd).includes(q)) ||
         c.recursos.some((rec) => {
           const sitEmp = rec.codigoSituacaoEmpenhoRecurso || 'ED';
           const descEmp = DICIONARIO_SIGLAS.empenho_situacao[sitEmp] || '';
           return (
             normalizarParaBusca(rec.prefixo).includes(q) ||
+            (rec.unidadeNome && normalizarParaBusca(rec.unidadeNome).includes(q)) ||
             normalizarParaBusca(sitEmp).includes(q) ||
             normalizarParaBusca(descEmp).includes(q)
           );

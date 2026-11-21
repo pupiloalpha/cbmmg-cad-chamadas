@@ -48,7 +48,11 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({ chamada, onClo
 Natureza: ${chamada.descricaoNatureza}
 Status: ${sitTexto}
 Endereço: ${chamada.endereco.logradouro || ''}, ${chamada.endereco.bairro || ''} - ${chamada.endereco.municipio}/MG
-Unidade: ${chamada.cob} • ${chamada.bbm}
+Unidade: ${chamada.cob} • ${chamada.bbm}${chamada.ciaInd ? ` • ${chamada.ciaInd}` : ''}${chamada.subunidade ? ` • ${chamada.subunidade}` : ''}${
+      (chamada.semAreaDefinida || chamada.cob === 'CEB') && chamada.areaCob
+        ? `\nÁrea Territorial: ${chamada.areaCob} • ${chamada.areaBbm}${chamada.areaCiaInd ? ` • ${chamada.areaCiaInd}` : ''}`
+        : ''
+    }
 Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
     navigator.clipboard.writeText(texto);
     setCopiado(true);
@@ -232,9 +236,30 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
               Enquadramento Militar CBMMG
             </span>
             <div className="text-sm font-semibold text-slate-200">
-              {chamada.cob} • {chamada.bbm} {chamada.ciaInd ? `• ${chamada.ciaInd}` : ''}
+              {chamada.cob} • {chamada.bbm}
+              {chamada.ciaInd ? ` • ${chamada.ciaInd}` : ''}
+              {chamada.subunidade ? ` • ${chamada.subunidade}` : ''}
             </div>
             <div className="text-slate-400 text-[11px]">{chamada.nomeUnidade}</div>
+            {(chamada.semAreaDefinida || chamada.cob === 'CEB') && chamada.areaCob && (
+              <div className="text-[11px] text-cyan-300 pt-1 border-t border-slate-800/80">
+                Unidade especializada sem área fixa • Atuação na área territorial:{' '}
+                <strong>
+                  {chamada.areaCob} • {chamada.areaBbm}
+                  {chamada.areaCiaInd ? ` • ${chamada.areaCiaInd}` : ''}
+                </strong>
+              </div>
+            )}
+            {chamada.unidadesApoio && chamada.unidadesApoio.length > 0 && (
+              <div className="text-[11px] text-amber-300 pt-1">
+                Apoio empenhado:{' '}
+                <strong>
+                  {chamada.unidadesApoio
+                    .map((ap) => `${ap.cob} • ${ap.bbm}${ap.subunidade ? ` (${ap.subunidade})` : ap.ciaInd ? ` (${ap.ciaInd})` : ''}`)
+                    .join(' | ')}
+                </strong>
+              </div>
+            )}
           </div>
 
           {/* Recursos Empenhados */}

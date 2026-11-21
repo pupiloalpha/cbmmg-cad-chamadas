@@ -51,6 +51,8 @@ export interface UnidadeServicoAuxiliar {
   cob: string;
   bbm: string;
   ciaInd?: string;
+  subunidade?: string;
+  semAreaDefinida?: boolean;
   municipioSede: string;
   latitudeSede?: number;
   longitudeSede?: number;
@@ -115,6 +117,12 @@ export interface ChamadaAtiva {
   cob: string;
   bbm: string;
   ciaInd?: string;
+  subunidade?: string; // ex: 1ª CEOA .. 6ª CEOA (subordinadas ao BOA / CEB)
+  semAreaDefinida?: boolean; // true para unidades do CEB (BEMAD, BOA, CEOA)
+  areaCob?: string; // COB territorial do local da ocorrência
+  areaBbm?: string; // BBM territorial do local da ocorrência
+  areaCiaInd?: string; // Cia Ind territorial do local da ocorrência
+  unidadesApoio?: { cob: string; bbm: string; ciaInd?: string; subunidade?: string }[];
   idUnidadeServico?: number;
   nomeUnidade?: string;
   

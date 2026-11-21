@@ -189,7 +189,12 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
           </div>
           <div class="bg-slate-100 p-1.5 rounded text-xs mb-2">
             <div class="text-[10px] text-slate-500 uppercase font-semibold">Unidade Responsável:</div>
-            <div class="font-medium text-slate-700">${c.cob} • ${c.bbm} ${c.ciaInd ? '• ' + c.ciaInd : ''}</div>
+            <div class="font-medium text-slate-700">${c.cob} • ${c.bbm}${c.ciaInd ? ' • ' + c.ciaInd : ''}${c.subunidade ? ' • ' + c.subunidade : ''}</div>
+            ${
+              (c.semAreaDefinida || c.cob === 'CEB') && c.areaCob
+                ? `<div class="text-[10px] text-sky-700 mt-0.5">Atuação na área: ${c.areaCob} • ${c.areaBbm}${c.areaCiaInd ? ' • ' + c.areaCiaInd : ''}</div>`
+                : ''
+            }
           </div>
           <div class="mb-2">
             <div class="text-[10px] text-slate-500 uppercase font-semibold mb-1">Viaturas & Empenhos (codigoSituacaoEmpenhoRecurso):</div>

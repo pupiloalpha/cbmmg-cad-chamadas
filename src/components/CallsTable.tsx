@@ -239,9 +239,9 @@ export const CallsTable: React.FC<CallsTableProps> = ({
                     </td>
 
                     {/* 6. Unidade CBMMG */}
-                    <td className="py-3 px-4 max-w-[210px]">
+                    <td className="py-3 px-4 max-w-[225px]">
                       <div className="font-semibold text-slate-300 whitespace-nowrap">
-                        {c.cob} • {c.ciaInd || c.bbm}
+                        {c.cob} • {c.subunidade ? `${c.bbm} • ${c.subunidade}` : c.ciaInd || c.bbm}
                       </div>
                       <div
                         className="text-[10px] text-slate-400 truncate"
@@ -249,6 +249,25 @@ export const CallsTable: React.FC<CallsTableProps> = ({
                       >
                         {c.nomeUnidade || `${c.bbm}${c.ciaInd ? ` • ${c.ciaInd}` : ''}`}
                       </div>
+                      {(c.semAreaDefinida || c.cob === 'CEB') && c.areaCob && (
+                        <div
+                          className="text-[10px] text-cyan-400/90 truncate"
+                          title={`Unidade especializada sem área fixa atuando na área territorial de ${c.areaCob} • ${c.areaBbm}${c.areaCiaInd ? ` • ${c.areaCiaInd}` : ''}`}
+                        >
+                          Área: {c.areaCob} • {c.areaCiaInd || c.areaBbm}
+                        </div>
+                      )}
+                      {!c.semAreaDefinida && c.unidadesApoio && c.unidadesApoio.length > 0 && (
+                        <div
+                          className="text-[10px] text-amber-400/90 truncate"
+                          title="Unidades empenhadas em apoio operacional"
+                        >
+                          Apoio:{' '}
+                          {c.unidadesApoio
+                            .map((ap) => (ap.subunidade ? `${ap.bbm} (${ap.subunidade})` : ap.ciaInd || ap.bbm))
+                            .join(', ')}
+                        </div>
+                      )}
                     </td>
 
                     {/* 7. Viaturas (empenho_situacao / codigoSituacaoEmpenhoRecurso) */}

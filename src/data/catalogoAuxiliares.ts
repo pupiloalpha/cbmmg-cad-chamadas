@@ -114,8 +114,6 @@ export const UNIDADES_SERVICO_CBMMG: UnidadeServicoAuxiliar[] = [
   { id: 103, nome: '3º BBM - Belo Horizonte Norte / Pampulha', sigla: '3º BBM', cob: '1º COB', bbm: '3º BBM', municipioSede: 'Belo Horizonte', latitudeSede: -19.8519, longitudeSede: -43.9559 },
   { id: 110, nome: '10º BBM - Divinópolis', sigla: '10º BBM', cob: '1º COB', bbm: '10º BBM', municipioSede: 'Divinópolis', latitudeSede: -20.1444, longitudeSede: -44.8912 },
   { id: 105, nome: '5ª Cia Ind - Sete Lagoas', sigla: '5ª Cia Ind', cob: '1º COB', bbm: '3º BBM', ciaInd: '5ª Cia Ind', municipioSede: 'Sete Lagoas', latitudeSede: -19.4608, longitudeSede: -44.2469 },
-  { id: 199, nome: 'BEMAD - Batalhão de Emergências Ambientais e Desastres', sigla: 'BEMAD', cob: '1º COB', bbm: 'BEMAD', municipioSede: 'Belo Horizonte', latitudeSede: -19.9555, longitudeSede: -43.9621 },
-  { id: 198, nome: 'BOA - Batalhão de Operações Aéreas (Arcanjo)', sigla: 'BOA', cob: '1º COB', bbm: 'BOA', municipioSede: 'Belo Horizonte', latitudeSede: -19.8514, longitudeSede: -43.9506 },
 
   // 2º COB - Triângulo Mineiro e Alto Paranaíba
   { id: 205, nome: '5º BBM - Uberlândia', sigla: '5º BBM', cob: '2º COB', bbm: '5º BBM', municipioSede: 'Uberlândia', latitudeSede: -18.9186, longitudeSede: -48.2772 },
@@ -138,6 +136,16 @@ export const UNIDADES_SERVICO_CBMMG: UnidadeServicoAuxiliar[] = [
   { id: 609, nome: '9º BBM - Varginha', sigla: '9º BBM', cob: '6º COB', bbm: '9º BBM', municipioSede: 'Varginha', latitudeSede: -21.5558, longitudeSede: -45.4308 },
   { id: 601, nome: '1ª Cia Ind - Poços de Caldas', sigla: '1ª Cia Ind', cob: '6º COB', bbm: '9º BBM', ciaInd: '1ª Cia Ind', municipioSede: 'Poços de Caldas', latitudeSede: -21.7895, longitudeSede: -46.5642 },
   { id: 607, nome: '7ª Cia Ind - Pouso Alegre', sigla: '7ª Cia Ind', cob: '6º COB', bbm: '9º BBM', ciaInd: '7ª Cia Ind', municipioSede: 'Pouso Alegre', latitudeSede: -22.2300, longitudeSede: -45.9367 },
+
+  // CEB - Comando Especializado de Bombeiros (Sem área territorial definida — atuação em todo o Estado)
+  { id: 199, nome: 'BEMAD - Batalhão de Emergências Ambientais e Desastres', sigla: 'BEMAD', cob: 'CEB', bbm: 'BEMAD', semAreaDefinida: true, municipioSede: 'Atuação Estadual (Sede BH)' },
+  { id: 198, nome: 'BOA - Batalhão de Operações Aéreas (Arcanjo)', sigla: 'BOA', cob: 'CEB', bbm: 'BOA', semAreaDefinida: true, municipioSede: 'Atuação Estadual (Sede BH)' },
+  { id: 1981, nome: '1ª CEOA / BOA - Base Pampulha (Belo Horizonte)', sigla: '1ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '1ª CEOA', semAreaDefinida: true, municipioSede: 'Base Belo Horizonte (Atuação Estadual)' },
+  { id: 1982, nome: '2ª CEOA / BOA - Base Varginha', sigla: '2ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '2ª CEOA', semAreaDefinida: true, municipioSede: 'Base Varginha (Atuação Estadual)' },
+  { id: 1983, nome: '3ª CEOA / BOA - Base Montes Claros', sigla: '3ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '3ª CEOA', semAreaDefinida: true, municipioSede: 'Base Montes Claros (Atuação Estadual)' },
+  { id: 1984, nome: '4ª CEOA / BOA - Base Uberaba', sigla: '4ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '4ª CEOA', semAreaDefinida: true, municipioSede: 'Base Uberaba (Atuação Estadual)' },
+  { id: 1985, nome: '5ª CEOA / BOA - Base Governador Valadares', sigla: '5ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '5ª CEOA', semAreaDefinida: true, municipioSede: 'Base Gov. Valadares (Atuação Estadual)' },
+  { id: 1986, nome: '6ª CEOA / BOA - Base Juiz de Fora', sigla: '6ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '6ª CEOA', semAreaDefinida: true, municipioSede: 'Base Juiz de Fora (Atuação Estadual)' },
 ];
 
 export interface GrupoNaturezaDef {

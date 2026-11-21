@@ -314,7 +314,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
   chamadas,
   naturezasVersion = 0,
 }) => {
-  // 1. Lista única e oficial de COBs disponíveis
+  // 1. Lista única e oficial de COBs + Comando Especializado (CEB)
   const listaCobs = useMemo(() => {
     const cobsMap: Record<string, string> = {
       '1º COB': 'RMBH e Região Central / Divinópolis',
@@ -323,11 +323,16 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       '4º COB': 'Norte de Minas e Noroeste',
       '5º COB': 'Leste de Minas e Vale do Aço',
       '6º COB': 'Sul de Minas',
+      'CEB': 'Comando Especializado (BEMAD, BOA e CEOAs)',
     };
     const set = new Set<string>();
     UNIDADES_SERVICO_CBMMG.forEach((u) => set.add(u.cob));
     return Array.from(set)
-      .sort()
+      .sort((a, b) => {
+        if (a === 'CEB') return 1;
+        if (b === 'CEB') return -1;
+        return a.localeCompare(b, undefined, { numeric: true });
+      })
       .map((cob) => ({
         value: cob,
         label: cob,
@@ -346,7 +351,10 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     const map = new Map<string, string>();
     unidades.forEach((u) => {
       if (!map.has(u.bbm)) {
-        map.set(u.bbm, `${u.municipioSede} (${u.cob})`);
+        map.set(
+          u.bbm,
+          u.semAreaDefinida ? `Atuação Estadual (${u.cob})` : `${u.municipioSede} (${u.cob})`
+        );
       }
     });
 
@@ -359,9 +367,9 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
   }, [filtros.cobs, filtros.cob]);
 
-  // 3. Lista de Cias Ind autênticas dependente dos COBs / BBMs selecionados
+  // 3. Lista de Cias Ind e Subunidades CEOA dependente dos COBs / BBMs selecionados
   const listaCiasInd = useMemo(() => {
-    let unidades = UNIDADES_SERVICO_CBMMG.filter((u) => !!u.ciaInd);
+    let unidades = UNIDADES_SERVICO_CBMMG.filter((u) => !!u.ciaInd || !!u.subunidade);
     if (filtros.cobs && filtros.cobs.length > 0) {
       unidades = unidades.filter((u) => filtros.cobs.includes(u.cob));
     } else if (filtros.cob && filtros.cob !== 'TODOS') {
@@ -375,8 +383,14 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
 
     const map = new Map<string, string>();
     unidades.forEach((u) => {
-      if (u.ciaInd && !map.has(u.ciaInd)) {
-        map.set(u.ciaInd, `${u.municipioSede} • ${u.cob}`);
+      const chave = u.subunidade || u.ciaInd;
+      if (chave && !map.has(chave)) {
+        map.set(
+          chave,
+          u.subunidade
+            ? `${u.municipioSede} • ${u.bbm} / ${u.cob}`
+            : `${u.municipioSede} • ${u.cob}`
+        );
       }
     });
 
@@ -402,11 +416,13 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       novosBbms = novosBbms.filter((b) => bbmsPermitidos.has(b));
     }
 
-    // Podar Cias Ind selecionadas que não pertençam aos novos COBs
+    // Podar Cias Ind / CEOAs selecionadas que não pertençam aos novos COBs
     let novasCiasInd = filtros.ciasInd || [];
     if (cobsValidos.length > 0) {
       const ciasPermitidas = new Set(
-        UNIDADES_SERVICO_CBMMG.filter((u) => cobsValidos.includes(u.cob) && u.ciaInd).map((u) => u.ciaInd!)
+        UNIDADES_SERVICO_CBMMG.filter((u) => cobsValidos.includes(u.cob) && (u.ciaInd || u.subunidade)).map(
+          (u) => (u.subunidade || u.ciaInd)!
+        )
       );
       novasCiasInd = novasCiasInd.filter((c) => ciasPermitidas.has(c));
     }
@@ -426,11 +442,13 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
   const handleBbmsChange = (novosBbms: string[]) => {
     const bbmsValidos = novosBbms.filter((b) => b !== 'TODOS');
 
-    // Podar Cias Ind que não pertençam aos BBMs selecionados
+    // Podar Cias Ind / CEOAs que não pertençam aos BBMs selecionados
     let novasCiasInd = filtros.ciasInd || [];
     if (bbmsValidos.length > 0) {
       const ciasPermitidas = new Set(
-        UNIDADES_SERVICO_CBMMG.filter((u) => bbmsValidos.includes(u.bbm) && u.ciaInd).map((u) => u.ciaInd!)
+        UNIDADES_SERVICO_CBMMG.filter((u) => bbmsValidos.includes(u.bbm) && (u.ciaInd || u.subunidade)).map(
+          (u) => (u.subunidade || u.ciaInd)!
+        )
       );
       novasCiasInd = novasCiasInd.filter((c) => ciasPermitidas.has(c));
     }
@@ -639,37 +657,37 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
 
       {/* Operational Dropdown Filters */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
-        {/* 1. COB (Multi-select com Checkbox) */}
+        {/* 1. COB / CEB (Multi-select com Checkbox) */}
         <MultiSelectCheckboxDropdown
-          label="COB (Comando)"
+          label="COB / Comando"
           icon={<Shield className="w-3 h-3 text-red-500" />}
           options={listaCobs}
           selectedValues={filtros.cobs || []}
           onChange={handleCobsChange}
           placeholder="Todos os Comandos"
-          allLabel="Todos os Comandos (6 COBs)"
+          allLabel="Todos os Comandos (COBs + CEB)"
         />
 
         {/* 2. BBM (Multi-select com Checkbox) */}
         <MultiSelectCheckboxDropdown
-          label="BBM (Batalhão)"
+          label="BBM / Unidade"
           icon={<Building className="w-3 h-3 text-blue-400" />}
           options={listaBbms}
           selectedValues={filtros.bbms || []}
           onChange={handleBbmsChange}
-          placeholder="Todos os Batalhões"
-          allLabel="Todos os Batalhões"
+          placeholder="Todas as Unidades"
+          allLabel="Todos os BBMs / BEMAD / BOA"
         />
 
-        {/* 3. CIA IND (Multi-select com Checkbox - Apenas Cias Autênticas CBMMG) */}
+        {/* 3. CIA IND / CEOA (Multi-select com Checkbox) */}
         <MultiSelectCheckboxDropdown
-          label="CIA IND (Companhia)"
+          label="CIA IND / CEOA"
           icon={<Flag className="w-3 h-3 text-amber-400" />}
           options={listaCiasInd}
           selectedValues={filtros.ciasInd || []}
           onChange={handleCiasIndChange}
-          placeholder="Todas Cias Ind"
-          allLabel="Todas Cias Ind (5 Oficiais)"
+          placeholder="Todas Cias Ind / CEOAs"
+          allLabel="Todas Cias Ind e CEOAs"
           alignRight={true}
         />
 

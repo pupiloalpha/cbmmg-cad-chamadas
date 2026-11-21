@@ -13,9 +13,10 @@ export function exportarChamadasParaCSV(chamadas: ChamadaAtiva[], nomeArquivo = 
     'Situação Atendimento',
     'Prioridade',
     'Origem Acionamento',
-    'COB',
-    'BBM',
-    'Cia Ind',
+    'COB / Comando',
+    'BBM / Unidade',
+    'Cia Ind / CEOA',
+    'Área Territorial',
     'Município',
     'Bairro',
     'Logradouro',
@@ -51,7 +52,12 @@ export function exportarChamadasParaCSV(chamadas: ChamadaAtiva[], nomeArquivo = 
       escapeCSV(origem),
       escapeCSV(c.cob),
       escapeCSV(c.bbm),
-      escapeCSV(c.ciaInd || '-'),
+      escapeCSV(c.ciaInd || c.subunidade || '-'),
+      escapeCSV(
+        c.areaCob
+          ? `${c.areaCob} • ${c.areaBbm || ''}${c.areaCiaInd ? ` • ${c.areaCiaInd}` : ''}`
+          : '-'
+      ),
       escapeCSV(c.endereco.municipio),
       escapeCSV(c.endereco.bairro || '-'),
       escapeCSV(c.endereco.logradouro || '-'),
