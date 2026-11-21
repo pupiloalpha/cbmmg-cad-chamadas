@@ -234,25 +234,44 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
   // Efeito crítico: recalcula o tamanho do container Leaflet ao alternar tela cheia ou redimensionar janela
   useEffect(() => {
     const map = mapInstanceRef.current;
+    const container = mapContainerRef.current;
     if (!map) return;
 
-    // Dispara invalidação imediata e em múltiplos intervalos para garantir renderização após transição de layout
-    map.invalidateSize();
-    const t1 = setTimeout(() => map.invalidateSize(), 50);
-    const t2 = setTimeout(() => map.invalidateSize(), 200);
-    const t3 = setTimeout(() => map.invalidateSize(), 400);
+    const recalcular = () => {
+      map.invalidateSize({ animate: false });
+    };
+
+    const raf = requestAnimationFrame(recalcular);
+    const t1 = setTimeout(recalcular, 50);
+    const t2 = setTimeout(recalcular, 200);
+
+    let observer: ResizeObserver | null = null;
+    if (container && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        recalcular();
+      });
+      observer.observe(container);
+    }
+
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
 
     return () => {
+      cancelAnimationFrame(raf);
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
+      observer?.disconnect();
+      document.body.style.overflow = '';
     };
   }, [isFullscreen]);
 
   // Listener para redimensionamento de janela e tecla Esc
   useEffect(() => {
     const handleResize = () => {
-      mapInstanceRef.current?.invalidateSize();
+      mapInstanceRef.current?.invalidateSize({ animate: false });
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -286,13 +305,22 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
   };
 
   return (
-    <div
-      className={`relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl transition-all ${
-        isFullscreen
-          ? 'fixed inset-2 sm:inset-4 md:inset-6 z-[9999] rounded-2xl border-2 border-red-500/80 shadow-[0_0_60px_rgba(0,0,0,0.95)] flex flex-col'
-          : 'h-[500px] w-full z-10'
-      }`}
-    >
+    <>
+      {isFullscreen ? (
+        <div
+          key="operational-map-backdrop"
+          className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-[9998]"
+          onClick={() => setIsFullscreen(false)}
+        />
+      ) : null}
+      <div
+        key="operational-map-container"
+        className={
+          isFullscreen
+            ? 'fixed inset-2 sm:inset-4 md:inset-6 z-[9999] rounded-2xl overflow-hidden border-2 border-red-500/80 bg-slate-900 shadow-[0_0_60px_rgba(0,0,0,0.95)]'
+            : 'relative h-[500px] w-full z-10 rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl'
+        }
+      >
       {/* Top Map Control Bar */}
       <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-2 bg-slate-900/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700 shadow-xl text-xs">
         <div className="flex items-center gap-1.5 font-semibold text-slate-200 pr-2 border-r border-slate-700">
@@ -538,6 +566,7 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
 
       {/* Map DOM Element */}
       <div ref={mapContainerRef} className="w-full h-full" />
-    </div>
+      </div>
+    </>
   );
 };
