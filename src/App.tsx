@@ -177,7 +177,6 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onTriggerSync={handleTriggerSync}
         isSyncing={isSyncing}
-        ultimaSync={ultimaSync}
       />
 
       {/* Main Container */}
@@ -192,18 +191,21 @@ export default function App() {
                 <span className="font-semibold text-slate-200">
                   COBOM 193 CBMMG
                 </span>
-                <span className="bg-emerald-950/90 text-emerald-300 text-[10px] px-2 py-0.5 rounded border border-emerald-800/80 font-mono font-bold flex items-center gap-1">
-                  <Server className="w-3 h-3 text-emerald-400" />
-                  Proxy Nginx Ativo: cobom-cad.duckdns.org
+                <span
+                  className="inline-flex items-center justify-center p-1 rounded-md bg-emerald-950/90 border border-emerald-800/80 text-emerald-400"
+                  title="Proxy Nginx Ativo: https://cobom-cad.duckdns.org"
+                  aria-label="Proxy Nginx Ativo"
+                >
+                  <Server className="w-3.5 h-3.5" />
                 </span>
               </div>
               <div className="text-slate-400 text-[11px] mt-0.5">
                 {chamadas.length > 0 ? (
                   <span>
-                    <strong>{chamadas.length}</strong> chamadas ativas sincronizadas em Minas Gerais • 6 COBs integrados
+                    <strong>{chamadas.length}</strong> chamadas ativas sincronizadas em Minas Gerais • 6 COBs + CEB
                   </span>
                 ) : (
-                  <span>Conectando ao proxy reverso Nginx...</span>
+                  <span>Conectando ao servidor CAD...</span>
                 )}
               </div>
             </div>
