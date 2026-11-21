@@ -5,6 +5,7 @@ import {
   PROXY_REVERSO_PADRAO,
   carregarTodasTabelasAuxiliares,
   obterTotalNaturezasOficiaisCarregadas,
+  obterTotalUnidadesOficiaisCarregadas,
   restaurarDadosPadrao,
 } from '../services/cbmStorage';
 import { ChamadaAtiva } from '../types/cbm';
@@ -25,6 +26,7 @@ interface ApiSettingsModalProps {
   onClose: () => void;
   onResetData: (chamadas: ChamadaAtiva[]) => void;
   ultimaSync: string;
+  onAuxiliaresUpdated?: () => void;
 }
 
 export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
@@ -32,12 +34,14 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   onClose,
   onResetData,
   ultimaSync,
+  onAuxiliaresUpdated,
 }) => {
   const [proxyUrlInput, setProxyUrlInput] = useState(() => obterProxyUrl());
   const [salvoMsg, setSalvoMsg] = useState(false);
   const [carregandoAuxiliares, setCarregandoAuxiliares] = useState(false);
   const [statusAuxiliares, setStatusAuxiliares] = useState<string | null>(null);
   const [totalNaturezas, setTotalNaturezas] = useState(() => obterTotalNaturezasOficiaisCarregadas());
+  const [totalUnidades, setTotalUnidades] = useState(() => obterTotalUnidadesOficiaisCarregadas());
   const [confirmandoReset, setConfirmandoReset] = useState(false);
 
   if (!isOpen) return null;
@@ -62,8 +66,10 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
       const res = await carregarTodasTabelasAuxiliares(true);
       if (res.sucesso) {
         setTotalNaturezas(res.totalNaturezas);
+        setTotalUnidades(res.totalUnidades);
+        onAuxiliaresUpdated?.();
         setStatusAuxiliares(
-          `✅ Tabelas auxiliares carregadas com sucesso! ${res.totalNaturezas} naturezas CAD registradas e dicionários de situações operacionais atualizados.`
+          `✅ Tabelas auxiliares carregadas! ${res.totalNaturezas} naturezas CAD, ${res.totalUnidades} unidades CBMMG e dicionários operacionais atualizados.`
         );
       } else {
         setStatusAuxiliares(`⚠️ Não foi possível obter as tabelas via proxy. O catálogo local continua em uso.`);
@@ -185,16 +191,16 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
             </div>
 
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              Carrega diretamente da API CAD a tabela oficial de naturezas (<code>/dados-auxiliares/naturezas</code> com mais de 2.200 tipos de atendimento cadastrados) e as tabelas de códigos de situação de chamadas e empenho de viaturas/recursos (<code>/codigos</code>).
+              Carrega diretamente da API CAD as tabelas oficiais de naturezas (<code>/dados-auxiliares/naturezas</code>), unidades de serviço (<code>/dados-auxiliares/unidades-servico</code>) e códigos operacionais (<code>/codigos</code>).
             </p>
 
             <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs">
                 <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
                 <div>
-                  <div className="font-semibold text-slate-200">Naturezas Oficiais em Memória</div>
+                  <div className="font-semibold text-slate-200">Tabelas Oficiais em Memória</div>
                   <div className="text-[11px] text-slate-400">
-                    Total ativo: <strong className="text-emerald-400 font-mono">{totalNaturezas || 2245}</strong> naturezas mapeadas
+                    Naturezas: <strong className="text-emerald-400 font-mono">{totalNaturezas || 2245}</strong> • Unidades CBMMG: <strong className="text-emerald-400 font-mono">{totalUnidades || 588}</strong>
                   </div>
                 </div>
               </div>

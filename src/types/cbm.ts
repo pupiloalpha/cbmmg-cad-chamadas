@@ -83,6 +83,8 @@ export interface EnderecoOcorrencia {
   referencia?: string;
 }
 
+export type FiltroChuvaModo = 'TODOS' | 'ESTRITO' | 'AMPLO';
+
 export interface ChamadaAtiva {
   idChamada: string | number;
   numeroOcorrencia: string;
@@ -99,6 +101,10 @@ export interface ChamadaAtiva {
   grupoNatureza: string;
   letraGrupoNatureza?: string;
   categoriaNatureza?: string;
+  
+  // Classificação Operacional (Período Chuvoso)
+  relacaoChuva?: 'direta' | 'consequencia';
+  motivoChuva?: string;
   
   // Localização
   endereco: EnderecoOcorrencia;
@@ -151,6 +157,7 @@ export interface FiltrosOperacionais {
   
   naturezas?: string[]; // Multi-seleção de naturezas ou grupos oficiais (vazio = todas)
   naturezaGrupo: string; // 'TODOS' ou grupo (retrocompatibilidade)
+  filtroChuva?: FiltroChuvaModo; // Filtro híbrido de período chuvoso
   situacaoChamada: string; // 'TODOS' | 'E' | 'A'
   situacaoAtendimento: string; // 'TODOS' | código
   origem: string; // 'TODOS' | 'L' | 'I' | 'B' | 'A'
@@ -175,4 +182,9 @@ export interface KpiOperacional {
   tempoMedioEsperaMin: number;
   taxaAtendimentoPct: number;
   prioridadeAltaQtd: number;
+  chuvasQtd: number;
+  chuvasDiretasQtd: number;
+  incendiosQtd: number;
+  salvamentosQtd: number;
+  aphQtd: number;
 }

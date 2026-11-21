@@ -118,8 +118,8 @@ export const UNIDADES_SERVICO_CBMMG: UnidadeServicoAuxiliar[] = [
   { id: 198, nome: 'BOA - Batalhão de Operações Aéreas (Arcanjo)', sigla: 'BOA', cob: '1º COB', bbm: 'BOA', municipioSede: 'Belo Horizonte', latitudeSede: -19.8514, longitudeSede: -43.9506 },
 
   // 2º COB - Triângulo Mineiro e Alto Paranaíba
-  { id: 205, nome: '5º BBM - Uberaba', sigla: '5º BBM', cob: '2º COB', bbm: '5º BBM', municipioSede: 'Uberaba', latitudeSede: -19.7472, longitudeSede: -47.9392 },
-  { id: 208, nome: '8º BBM - Uberlândia', sigla: '8º BBM', cob: '2º COB', bbm: '8º BBM', municipioSede: 'Uberlândia', latitudeSede: -18.9186, longitudeSede: -48.2772 },
+  { id: 205, nome: '5º BBM - Uberlândia', sigla: '5º BBM', cob: '2º COB', bbm: '5º BBM', municipioSede: 'Uberlândia', latitudeSede: -18.9186, longitudeSede: -48.2772 },
+  { id: 208, nome: '8º BBM - Uberaba', sigla: '8º BBM', cob: '2º COB', bbm: '8º BBM', municipioSede: 'Uberaba', latitudeSede: -19.7472, longitudeSede: -47.9392 },
   { id: 212, nome: '12º BBM - Patos de Minas', sigla: '12º BBM', cob: '2º COB', bbm: '12º BBM', municipioSede: 'Patos de Minas', latitudeSede: -18.5789, longitudeSede: -46.5181 },
 
   // 3º COB - Zona da Mata e Campo das Vertentes

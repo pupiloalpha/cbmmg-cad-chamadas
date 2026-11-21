@@ -18,6 +18,7 @@ let ultimoAcessoRemoto = 0;
 let cacheAtivos: any = null;
 let cacheCatalogos: any = null;
 let cacheNaturezas: any = null;
+let cacheUnidadesServico: any = null;
 let ultimaAtualizacao = new Date().toISOString();
 
 // Carregar snapshot inicial em cache caso disponível
@@ -37,6 +38,15 @@ try {
   }
 } catch (e) {
   console.warn('Snapshot de naturezas não carregado:', e);
+}
+
+try {
+  const unPath = path.resolve(__dirname, 'public/cad_unidades_servico.json');
+  if (fs.existsSync(unPath)) {
+    cacheUnidadesServico = JSON.parse(fs.readFileSync(unPath, 'utf-8'));
+  }
+} catch (e) {
+  console.warn('Snapshot de unidades de serviço não carregado:', e);
 }
 
 // Rota de status do backend intermediário
@@ -142,6 +152,50 @@ app.all('/api/cbm/naturezas', async (req, res) => {
   return res.status(500).json({
     sucesso: false,
     mensagem: 'Não foi possível carregar o catálogo de naturezas.',
+  });
+});
+
+// Catálogo Oficial de Unidades de Serviço (GET /dados-auxiliares/unidades-servico)
+app.all('/api/cbm/unidades-servico', async (req, res) => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const resp = await fetch(`${PROXY_REVERSO_URL}/dados-auxiliares/unidades-servico`, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'CBMMG-Proxy-App/1.0',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      cacheUnidadesServico = data;
+      return res.json({
+        sucesso: true,
+        fonte: `${PROXY_REVERSO_URL}/dados-auxiliares/unidades-servico`,
+        total: data.total || (data.dados?.value ? data.dados.value.length : 0),
+        dados: data,
+      });
+    }
+  } catch (err: any) {
+    console.warn(`Falha ao buscar unidades de serviço remotas (${err.message}). Servindo do cache local...`);
+  }
+
+  if (cacheUnidadesServico) {
+    return res.json({
+      sucesso: true,
+      fonte: 'Cache Local / Snapshot Contingência',
+      total: cacheUnidadesServico.total || (cacheUnidadesServico.dados?.value ? cacheUnidadesServico.dados.value.length : 0),
+      dados: cacheUnidadesServico,
+    });
+  }
+
+  return res.status(500).json({
+    sucesso: false,
+    mensagem: 'Não foi possível carregar o catálogo de unidades de serviço.',
   });
 });
 

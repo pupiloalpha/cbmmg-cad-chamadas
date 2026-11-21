@@ -1,12 +1,13 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { FiltrosOperacionais } from '../types/cbm';
+import { ChamadaAtiva, FiltrosOperacionais } from '../types/cbm';
 import {
   UNIDADES_SERVICO_CBMMG,
   DICIONARIO_SIGLAS,
 } from '../data/catalogoAuxiliares';
 import {
-  obterTodasNaturezasOficiais,
+  obterNaturezasBombeiroAtivas,
   formatarCodigoNatureza,
+  normalizarParaBusca,
 } from '../services/cbmStorage';
 import {
   Filter,
@@ -21,6 +22,7 @@ import {
   Building,
   Flag,
   Flame,
+  CloudRain,
 } from 'lucide-react';
 
 interface MultiSelectCheckboxDropdownProps {
@@ -74,10 +76,18 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
 
   const filteredOptions = useMemo(() => {
     if (!search.trim()) return options;
-    const q = search.toLowerCase();
-    return options.filter(
-      (opt) => opt.label.toLowerCase().includes(q) || (opt.subLabel && opt.subLabel.toLowerCase().includes(q))
-    );
+    const q = normalizarParaBusca(search);
+    const qAlnum = q.replace(/[^a-z0-9]/g, '');
+    return options.filter((opt) => {
+      const lbl = normalizarParaBusca(opt.label);
+      const sub = opt.subLabel ? normalizarParaBusca(opt.subLabel) : '';
+      const val = normalizarParaBusca(opt.value);
+      return (
+        lbl.includes(q) ||
+        sub.includes(q) ||
+        (qAlnum.length >= 2 && (lbl.replace(/[^a-z0-9]/g, '').includes(qAlnum) || val.includes(qAlnum)))
+      );
+    });
   }, [options, search]);
 
   const isAllSelected = selectedValues.length === 0;
@@ -291,6 +301,8 @@ interface FiltersBarProps {
   onResetFiltros: () => void;
   totalFiltrado: number;
   totalGeral: number;
+  chamadas: ChamadaAtiva[];
+  naturezasVersion?: number;
 }
 
 export const FiltersBar: React.FC<FiltersBarProps> = ({
@@ -299,6 +311,8 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
   onResetFiltros,
   totalFiltrado,
   totalGeral,
+  chamadas,
+  naturezasVersion = 0,
 }) => {
   // 1. Lista única e oficial de COBs disponíveis
   const listaCobs = useMemo(() => {
@@ -440,13 +454,49 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     });
   };
 
-  // 4. Lista de Naturezas da Tabela Auxiliar CAD (2.245 registros) + Categorias Macro e Grupos
+  // 4. Lista de Naturezas reativa: ativas no momento (com contagem) + Grupos + Catálogo CBMMG
   const listaNaturezas = useMemo(() => {
-    const itens: { value: string; label: string; subLabel?: string }[] = [
-      // Macros
+    const itens: { value: string; label: string; subLabel?: string }[] = [];
+    const jaAdicionados = new Set<string>();
+
+    // Contabiliza naturezas presentes nas chamadas atuais para exibir no topo com prioridade operacional
+    const contagemPorCodigo = new Map<
+      string,
+      { value: string; codFormatado: string; descricao: string; letra: string; total: number }
+    >();
+
+    for (const c of chamadas) {
+      const codBruto = c.codigoNatureza || (c.idNatureza ? String(c.idNatureza) : '');
+      const codNorm = codBruto.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (!codNorm) continue;
+      const existente = contagemPorCodigo.get(codNorm);
+      if (existente) {
+        existente.total += 1;
+      } else {
+        contagemPorCodigo.set(codNorm, {
+          value: codNorm,
+          codFormatado: formatarCodigoNatureza(codNorm),
+          descricao: c.descricaoNatureza || 'Sem descrição',
+          letra: (c.letraGrupoNatureza || codNorm.charAt(0) || 'S').toUpperCase(),
+          total: 1,
+        });
+      }
+    }
+
+    const ativasOrdenadas = Array.from(contagemPorCodigo.values()).sort((a, b) => b.total - a.total);
+    for (const natAtiva of ativasOrdenadas) {
+      jaAdicionados.add(natAtiva.value);
+      itens.push({
+        value: natAtiva.value,
+        label: `${natAtiva.codFormatado} - ${natAtiva.descricao}`,
+        subLabel: `${natAtiva.total} ativa(s) agora • Grupo ${natAtiva.letra}`,
+      });
+    }
+
+    // Macros e Grupos SIDS
+    const gruposFixos: { value: string; label: string; subLabel?: string }[] = [
       { value: 'CAT_II', label: '★ Categoria II (Típicas Bombeiro Militar)', subLabel: 'Grupos O, P, R, S, V' },
       { value: 'CAT_III', label: '★ Categoria III (Ações e Operações SIDS)', subLabel: 'Grupos A, Q, W, Y, X, U' },
-      // Grupos
       { value: 'O', label: 'Grupo O - Explosão e Incêndio', subLabel: 'Categoria II BM' },
       { value: 'P', label: 'Grupo P - Prevenção e Vistoria', subLabel: 'Categoria II BM' },
       { value: 'R', label: 'Grupo R - Atividades de Defesa Civil', subLabel: 'Categoria II BM' },
@@ -459,24 +509,31 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       { value: 'X', label: 'Grupo X - Coordenação e Controle Operacional', subLabel: 'Categoria III SIDS' },
       { value: 'U', label: 'Grupo U - Comunicações e Solicitações', subLabel: 'Categoria III SIDS' },
     ];
+    for (const grp of gruposFixos) {
+      if (!jaAdicionados.has(grp.value)) {
+        jaAdicionados.add(grp.value);
+        itens.push(grp);
+      }
+    }
 
-    const cadNaturezas = obterTodasNaturezasOficiais();
-    const jaAdicionados = new Set<string>();
-
+    // Demais naturezas oficiais do CBMMG (tabela /dados-auxiliares/naturezas filtrada para Bombeiros ativas)
+    const cadNaturezas = obterNaturezasBombeiroAtivas();
     for (const nat of cadNaturezas) {
-      if (!nat.codigo || jaAdicionados.has(nat.codigo)) continue;
-      jaAdicionados.add(nat.codigo);
-      const codFormatado = formatarCodigoNatureza(nat.codigo);
-      const letra = nat.codigo.charAt(0).toUpperCase();
+      if (!nat.codigo) continue;
+      const codNorm = nat.codigo.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (jaAdicionados.has(codNorm)) continue;
+      jaAdicionados.add(codNorm);
+      const codFormatado = formatarCodigoNatureza(codNorm);
+      const letra = codNorm.charAt(0).toUpperCase();
       itens.push({
-        value: nat.codigo,
+        value: codNorm,
         label: `${codFormatado} - ${nat.descricao}`,
         subLabel: `Grupo ${letra} • CAD #${nat.id}`,
       });
     }
 
     return itens;
-  }, []);
+  }, [chamadas, naturezasVersion]);
 
   // Manipulação de seleção múltipla para Naturezas da Tabela Auxiliar
   const handleNaturezasChange = (novasNaturezas: string[]) => {
@@ -493,6 +550,8 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     });
   };
 
+  const filtroChuvaAtivo = Boolean(filtros.filtroChuva && filtros.filtroChuva !== 'TODOS');
+
   return (
     <div className="relative z-40 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3.5">
       {/* Top Filter Controls: Search & Temporal Buttons */}
@@ -504,7 +563,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
             type="text"
             value={filtros.termoBusca}
             onChange={(e) => onChangeFiltros({ ...filtros, termoBusca: e.target.value })}
-            placeholder="Buscar por ocorrência (ex: O-2026), natureza (código O01, V01, S04 ou texto), município, bairro, viatura..."
+            placeholder="Buscar por ocorrência, natureza, histórico/relato (ex: chuva, árvore, alagou), município, bairro, viatura..."
             className="w-full bg-slate-950 border border-slate-700 focus:border-red-500 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none transition shadow-inner font-sans"
           />
           {filtros.termoBusca && (
@@ -664,20 +723,36 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       </div>
 
       {/* Filter Status Badge */}
-      <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[11px] text-slate-400">
-        <div className="flex items-center gap-2">
-          <Filter className="w-3.5 h-3.5 text-red-400" />
-          <span>
-            Exibindo <strong>{totalFiltrado}</strong> de <strong>{totalGeral}</strong> chamadas ativas
-          </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-3.5 h-3.5 text-red-400" />
+            <span>
+              Exibindo <strong>{totalFiltrado}</strong> de <strong>{totalGeral}</strong> chamadas ativas
+            </span>
+          </div>
           {(totalFiltrado < totalGeral ||
             (filtros.cobs && filtros.cobs.length > 0) ||
             (filtros.bbms && filtros.bbms.length > 0) ||
             (filtros.ciasInd && filtros.ciasInd.length > 0) ||
-            (filtros.naturezas && filtros.naturezas.length > 0)) && (
+            (filtros.naturezas && filtros.naturezas.length > 0) ||
+            filtros.prioridade !== 'TODOS' ||
+            filtroChuvaAtivo) && (
             <span className="bg-red-500/10 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full font-medium">
               Filtro ativo
             </span>
+          )}
+          {filtroChuvaAtivo && (
+            <button
+              type="button"
+              onClick={() => onChangeFiltros({ ...filtros, filtroChuva: 'TODOS' })}
+              className="inline-flex items-center gap-1 bg-cyan-950/70 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-700/60 px-2 py-0.5 rounded-full font-medium transition cursor-pointer"
+              title="Remover filtro de ocorrências relacionadas com chuva"
+            >
+              <CloudRain className="w-3 h-3" />
+              <span>Chuva / Temporal</span>
+              <X className="w-3 h-3" />
+            </button>
           )}
         </div>
 

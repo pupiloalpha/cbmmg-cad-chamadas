@@ -17,6 +17,7 @@ import {
   Check,
   AlertTriangle,
   Users,
+  CloudRain,
 } from 'lucide-react';
 
 interface CallDetailModalProps {
@@ -141,6 +142,25 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
               <Radio className="w-3 h-3 text-amber-400" />
               {origemTexto}
             </span>
+
+            {chamada.relacaoChuva && (
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5 ${
+                  chamada.relacaoChuva === 'direta'
+                    ? 'bg-cyan-950/70 text-cyan-300 border-cyan-700/60'
+                    : 'bg-sky-950/60 text-sky-300 border-sky-800/60'
+                }`}
+                title="Classificação operacional de eventos hidrológicos, vendavais e riscos pós-chuva"
+              >
+                <CloudRain className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  {chamada.motivoChuva ||
+                    (chamada.relacaoChuva === 'direta'
+                      ? 'Chuva / Temporal (Direta)'
+                      : 'Consequência / Risco Pós-Chuva')}
+                </span>
+              </span>
+            )}
           </div>
 
           {/* Natureza Card */}

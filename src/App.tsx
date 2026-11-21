@@ -9,7 +9,8 @@ import {
   sincronizarProxyReverso,
   sincronizarSnapshotEstatico,
   sincronizarTabelaNaturezas,
-  enriquecerChamada,
+  sincronizarTabelaUnidadesServico,
+  normalizarChamadaSids,
 } from './services/cbmStorage';
 import { Header } from './components/Header';
 import { KPIGrid } from './components/KPIGrid';
@@ -46,6 +47,7 @@ const FILTROS_PADRAO: FiltrosOperacionais = {
   prioridade: 'TODOS',
   periodoTempo: 'todas',
   apenasComGeolocalizacao: false,
+  filtroChuva: 'TODOS',
   termoBusca: '',
 };
 
@@ -64,6 +66,7 @@ export default function App() {
   const [ultimaSync, setUltimaSync] = useState(obterUltimaSync());
   const [modoVisualizacao, setModoVisualizacao] = useState<'mapa' | 'graficos' | 'ambos'>('ambos');
   const [toastNotificacao, setToastNotificacao] = useState<string | null>(null);
+  const [naturezasVersion, setNaturezasVersion] = useState(0);
 
   // Ciclo Automático de 10 minutos (Regra #3)
   const [autoRefreshAtivo, setAutoRefreshAtivo] = useState(true);
@@ -81,6 +84,7 @@ export default function App() {
       const res = await sincronizarProxyReverso(forcar);
       if (res.sucesso && res.dados && res.dados.length > 0) {
         setChamadas(res.dados);
+        setNaturezasVersion((v) => v + 1);
         setUltimaSync(new Date().toISOString());
         exibirToast(`🔄 ${res.mensagem}`);
       } else {
@@ -101,16 +105,22 @@ export default function App() {
       setChamadas(dadosIniciais);
     }
 
-    // Carrega a tabela oficial de naturezas do CAD (GET /dados-auxiliares/naturezas com 2.245 registros)
-    sincronizarTabelaNaturezas(false).then((res) => {
-      if (res.sucesso && res.total > 0) {
-        setChamadas((prev) => {
-          const atualizadas = prev.map((c) => enriquecerChamada(c));
-          salvarChamadasArmazenadas(atualizadas);
-          return atualizadas;
-        });
-      }
-    }).catch(() => {});
+    // Carrega tabelas oficiais de naturezas e unidades de serviço do CAD
+    Promise.all([
+      sincronizarTabelaNaturezas(false),
+      sincronizarTabelaUnidadesServico(false),
+    ])
+      .then(([resNat, resUn]) => {
+        if ((resNat.sucesso && resNat.total > 0) || (resUn.sucesso && resUn.total > 0)) {
+          setNaturezasVersion((v) => v + 1);
+          setChamadas((prev) => {
+            const atualizadas = prev.map((c) => normalizarChamadaSids(c));
+            salvarChamadasArmazenadas(atualizadas);
+            return atualizadas;
+          });
+        }
+      })
+      .catch(() => {});
 
     // Dispara leitura das chamadas ativas via proxy reverso
     executarSincronizacaoProxy(false);
@@ -263,24 +273,54 @@ export default function App() {
         {/* 2. Tactical KPI Cards */}
         <KPIGrid
           kpis={kpis}
+          filtros={filtros}
           onFiltrarSituacao={(sit) => {
             if (sit === 'AO') {
+              const ativo = filtros.situacaoAtendimento === 'AO';
               setFiltros({
                 ...filtros,
-                situacaoAtendimento: 'AO',
+                situacaoAtendimento: ativo ? 'TODOS' : 'AO',
                 situacaoChamada: 'TODOS',
               });
             } else if (sit === 'EM_ATENDIMENTO') {
+              const ativo = filtros.situacaoChamada === 'E';
               setFiltros({
                 ...filtros,
                 situacaoAtendimento: 'TODOS',
-                situacaoChamada: 'E',
+                situacaoChamada: ativo ? 'TODOS' : 'E',
+              });
+            } else if (sit === 'PRIORIDADE_ALTA') {
+              const ativo = filtros.prioridade === 'Alta';
+              setFiltros({
+                ...filtros,
+                prioridade: ativo ? 'TODOS' : 'Alta',
+              });
+            } else if (sit === 'CHUVA') {
+              const ativo = filtros.filtroChuva && filtros.filtroChuva !== 'TODOS';
+              setFiltros({
+                ...filtros,
+                filtroChuva: ativo ? 'TODOS' : 'AMPLO',
+              });
+            } else if (sit === 'GRUPO_O' || sit === 'GRUPO_S' || sit === 'GRUPO_V') {
+              const letra = sit.replace('GRUPO_', '');
+              const jaAtivo =
+                filtros.naturezas &&
+                filtros.naturezas.length === 1 &&
+                filtros.naturezas[0].toUpperCase() === letra;
+              setFiltros({
+                ...filtros,
+                naturezas: jaAtivo ? [] : [letra],
+                naturezaGrupo: jaAtivo ? 'TODOS' : letra,
               });
             } else {
               setFiltros({
                 ...filtros,
-                situacaoChamada: sit,
+                situacaoChamada: 'TODOS',
                 situacaoAtendimento: 'TODOS',
+                prioridade: 'TODOS',
+                filtroChuva: 'TODOS',
+                naturezas: [],
+                naturezaGrupo: 'TODOS',
               });
             }
           }}
@@ -293,6 +333,8 @@ export default function App() {
           onResetFiltros={() => setFiltros(FILTROS_PADRAO)}
           totalFiltrado={chamadasFiltradas.length}
           totalGeral={chamadas.length}
+          chamadas={chamadas}
+          naturezasVersion={naturezasVersion}
         />
 
         {/* 4. Interactive Map & Indicators Section */}
@@ -360,6 +402,14 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         onResetData={handleResetData}
         ultimaSync={ultimaSync}
+        onAuxiliaresUpdated={() => {
+          setNaturezasVersion((v) => v + 1);
+          setChamadas((prev) => {
+            const atualizadas = prev.map((c) => normalizarChamadaSids(c));
+            salvarChamadasArmazenadas(atualizadas);
+            return atualizadas;
+          });
+        }}
       />
     </div>
   );

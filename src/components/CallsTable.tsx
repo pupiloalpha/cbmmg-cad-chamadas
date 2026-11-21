@@ -12,6 +12,7 @@ import {
   Shield,
   Truck,
   AlertTriangle,
+  CloudRain,
 } from 'lucide-react';
 
 interface CallsTableProps {
@@ -55,9 +56,10 @@ export const CallsTable: React.FC<CallsTableProps> = ({
   }, [chamadas, sortField, sortAsc]);
 
   const totalPages = Math.max(1, Math.ceil(chamadasOrdenadas.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedData = chamadasOrdenadas.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
+    (safeCurrentPage - 1) * pageSize,
+    safeCurrentPage * pageSize
   );
 
   const handleSort = (field: 'dataHoraAbertura' | 'prioridade' | 'municipio') => {
@@ -169,15 +171,30 @@ export const CallsTable: React.FC<CallsTableProps> = ({
                     </td>
 
                     {/* 2. Natureza */}
-                    <td className="py-3 px-4 max-w-[240px]">
+                    <td className="py-3 px-4 max-w-[260px]">
                       <div className="font-semibold text-slate-200 truncate" title={c.descricaoNatureza}>
                         {c.descricaoNatureza}
                       </div>
-                      <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                      <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-1.5 mt-0.5">
                         <span className="px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded font-mono">
                           {c.codigoNatureza || 'A00'}
                         </span>
                         <span className="text-slate-500">{c.grupoNatureza}</span>
+                        {c.relacaoChuva && (
+                          <span
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded border text-[9px] font-semibold ${
+                              c.relacaoChuva === 'direta'
+                                ? 'bg-cyan-950/70 text-cyan-300 border-cyan-700/60'
+                                : 'bg-sky-950/60 text-sky-300 border-sky-800/60'
+                            }`}
+                            title={c.motivoChuva || 'Relacionada a chuvas / temporal'}
+                          >
+                            <CloudRain className="w-2.5 h-2.5 shrink-0" />
+                            <span className="truncate max-w-[140px]">
+                              {c.motivoChuva || (c.relacaoChuva === 'direta' ? 'Chuva direta' : 'Possível efeito de chuva')}
+                            </span>
+                          </span>
+                        )}
                       </div>
                     </td>
 
@@ -222,9 +239,16 @@ export const CallsTable: React.FC<CallsTableProps> = ({
                     </td>
 
                     {/* 6. Unidade CBMMG */}
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <div className="font-semibold text-slate-300">{c.cob}</div>
-                      <div className="text-[10px] text-slate-400">{c.bbm} {c.ciaInd ? `• ${c.ciaInd}` : ''}</div>
+                    <td className="py-3 px-4 max-w-[210px]">
+                      <div className="font-semibold text-slate-300 whitespace-nowrap">
+                        {c.cob} • {c.ciaInd || c.bbm}
+                      </div>
+                      <div
+                        className="text-[10px] text-slate-400 truncate"
+                        title={c.nomeUnidade || `${c.bbm}${c.ciaInd ? ` • ${c.ciaInd}` : ''}`}
+                      >
+                        {c.nomeUnidade || `${c.bbm}${c.ciaInd ? ` • ${c.ciaInd}` : ''}`}
+                      </div>
                     </td>
 
                     {/* 7. Viaturas (empenho_situacao / codigoSituacaoEmpenhoRecurso) */}
@@ -310,25 +334,25 @@ export const CallsTable: React.FC<CallsTableProps> = ({
             <option value={50}>50</option>
           </select>
           <span className="text-slate-500 ml-2">
-            Mostrando {Math.min((currentPage - 1) * pageSize + 1, chamadasOrdenadas.length)} a{' '}
-            {Math.min(currentPage * pageSize, chamadasOrdenadas.length)} de {chamadasOrdenadas.length}
+            Mostrando {chamadasOrdenadas.length === 0 ? 0 : Math.min((safeCurrentPage - 1) * pageSize + 1, chamadasOrdenadas.length)} a{' '}
+            {Math.min(safeCurrentPage * pageSize, chamadasOrdenadas.length)} de {chamadasOrdenadas.length}
           </span>
         </div>
 
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+            disabled={safeCurrentPage === 1}
             className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="px-3 py-1 font-mono text-xs text-slate-300">
-            Página {currentPage} de {totalPages}
+            Página {safeCurrentPage} de {totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+            disabled={safeCurrentPage === totalPages}
             className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300"
           >
             <ChevronRight className="w-4 h-4" />
