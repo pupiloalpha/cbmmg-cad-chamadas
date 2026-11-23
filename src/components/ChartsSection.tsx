@@ -16,7 +16,6 @@ import {
 import {
   BarChart3,
   TrendingUp,
-  AlertCircle,
   PhoneCall,
   PieChart,
   Truck,
@@ -125,17 +124,17 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* 1. Evolução Temporal das Aberturas por Hora */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md flex flex-col justify-between overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800 pb-2">
+      <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/70 pb-2.5">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-red-500 shrink-0" />
+            <TrendingUp className="w-4 h-4 text-red-400 shrink-0" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              Distribuição Temporal das Aberturas por Hora
+              Ocorrências por Hora
             </h3>
           </div>
-          <div className="flex items-center gap-1.5 self-end sm:self-auto">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             {horaPico.total > 0 && (
-              <span className="text-[10px] bg-red-950/80 text-red-300 border border-red-800/60 px-2 py-0.5 rounded font-mono hidden md:inline">
+              <span className="text-[11px] text-amber-300/90 hidden md:inline tabular-nums">
                 Pico: <strong>{horaPico.hora}</strong> ({horaPico.total})
               </span>
             )}
@@ -144,7 +143,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
                 onClick={() => setModoHoras('24h')}
                 className={`px-2 py-0.5 rounded font-medium transition cursor-pointer ${
                   modoHoras === '24h'
-                    ? 'bg-red-600 text-white font-bold shadow'
+                    ? 'bg-slate-800 text-white font-semibold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Visualizar distribuição nas 24 horas do dia (00h às 23h)"
@@ -155,12 +154,12 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
                 onClick={() => setModoHoras('12h')}
                 className={`px-2 py-0.5 rounded font-medium transition cursor-pointer ${
                   modoHoras === '12h'
-                    ? 'bg-red-600 text-white font-bold shadow'
+                    ? 'bg-slate-800 text-white font-semibold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Visualizar apenas as últimas 12 horas"
               >
-                Últimas 12h
+                12h
               </button>
             </div>
           </div>
@@ -181,9 +180,9 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
                   <div className="relative w-full flex items-end justify-center h-28">
                     {item.total > 0 && (
                       <span
-                        className={`absolute -top-5 text-[9px] font-mono font-bold transition px-1 rounded ${
+                        className={`absolute -top-5 text-[9px] font-mono font-bold transition px-1 rounded tabular-nums ${
                           isPico
-                            ? 'text-amber-300 bg-amber-950/80 border border-amber-800/80'
+                            ? 'text-amber-300 bg-amber-950/70 border border-amber-800/60'
                             : 'text-slate-300 opacity-0 group-hover:opacity-100 bg-slate-950'
                         }`}
                       >
@@ -191,12 +190,12 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
                       </span>
                     )}
                     <div
-                      style={{ height: item.total > 0 ? `${Math.max(pct, 8)}%` : '4px' }}
+                      style={{ height: item.total > 0 ? `${Math.max(pct, 8)}%` : '3px' }}
                       className={`w-full rounded-t transition-all duration-300 ${
                         isPico
-                          ? 'bg-gradient-to-t from-red-600 via-amber-500 to-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+                          ? 'bg-amber-400'
                           : item.total > 0
-                          ? 'bg-gradient-to-t from-red-800 to-red-500 group-hover:from-red-600 group-hover:to-red-400 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                          ? 'bg-red-500/80 group-hover:bg-red-400'
                           : 'bg-slate-800/60'
                       }`}
                     />
@@ -219,28 +218,27 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
         </div>
 
         <div className="pt-2 border-t border-slate-800/60 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span>Pico: <strong className="text-amber-300 font-mono">{horaPico.hora}</strong> ({horaPico.total} chamadas)</span>
-          </div>
-          <span className="font-mono text-slate-300">
-            Total filtrado: <strong>{chamadas.length}</strong>
+          <span>
+            Pico: <strong className="text-amber-300 tabular-nums">{horaPico.hora}</strong> ({horaPico.total} chamadas)
+          </span>
+          <span className="text-slate-300 tabular-nums">
+            Total: <strong>{chamadas.length}</strong>
           </span>
         </div>
       </div>
 
       {/* 2. Ocorrências por Natureza de Atendimento */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md flex flex-col justify-between">
-        <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2 gap-2">
+      <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between">
+        <div className="flex items-center justify-between mb-3 border-b border-slate-800/70 pb-2.5 gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <BarChart3 className="w-4 h-4 text-amber-500 shrink-0" />
+            <BarChart3 className="w-4 h-4 text-amber-400 shrink-0" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 truncate">
-              Ocorrências por Natureza (Mais Frequentes)
+              Naturezas Mais Frequentes
             </h3>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">Ranking Top 7</span>
+            <span className="text-[11px] text-slate-500 hidden sm:inline">Top 7</span>
             <button
               onClick={handleCopiarWhatsApp}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer shadow-sm active:scale-95 ${
@@ -318,42 +316,35 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
         </div>
 
         <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
-          <span>Catálogo CAD CBMMG integrado</span>
-          <span className="font-mono text-amber-400">
+          <span>Principal ocorrência</span>
+          <span className="text-amber-300/90 font-medium truncate max-w-[240px] tabular-nums">
             {distribuicaoNatureza[0]?.nome || 'Sem dados'} ({distribuicaoNatureza[0]?.total || 0})
           </span>
         </div>
       </div>
 
       {/* 3. Situação Operacional de Atendimento & Empenho */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md flex flex-col justify-between">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800 pb-2">
+      <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/70 pb-2.5">
           <div className="flex items-center gap-2">
             {abaSituacao === 'chamadas' ? (
-              <PieChart className="w-4 h-4 text-blue-500" />
+              <PieChart className="w-4 h-4 text-blue-400" />
             ) : (
-              <Truck className="w-4 h-4 text-amber-500" />
+              <Truck className="w-4 h-4 text-amber-400" />
             )}
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                {abaSituacao === 'chamadas'
-                  ? 'Situação do Atendimento'
-                  : 'Situação do Empenho'}
-              </h3>
-              <p className="text-[10px] text-slate-500 font-mono">
-                {abaSituacao === 'chamadas'
-                  ? 'Chave: chamada_atendimento_situacao'
-                  : 'Chave: empenho_situacao'}
-              </p>
-            </div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              {abaSituacao === 'chamadas'
+                ? 'Situação do Atendimento'
+                : 'Situação dos Recursos'}
+            </h3>
           </div>
 
-          <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px] font-semibold">
+          <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px] font-medium">
             <button
               onClick={() => setAbaSituacao('chamadas')}
-              className={`px-2.5 py-1 rounded transition flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer ${
                 abaSituacao === 'chamadas'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-slate-800 text-white font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -362,9 +353,9 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
             </button>
             <button
               onClick={() => setAbaSituacao('empenhos')}
-              className={`px-2.5 py-1 rounded transition flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer ${
                 abaSituacao === 'empenhos'
-                  ? 'bg-amber-600 text-white shadow-sm'
+                  ? 'bg-slate-800 text-white font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -375,7 +366,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
         </div>
 
         {abaSituacao === 'chamadas' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
             {distribuicaoSituacao.map((item, idx) => {
               const pct = Math.round((item.total / totalChamadas) * 100);
               const siglaUpper = item.sigla?.toUpperCase();
@@ -388,7 +379,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
               return (
                 <div
                   key={idx}
-                  className="bg-slate-950/70 border border-slate-800 rounded-lg p-2.5 flex flex-col justify-between hover:border-slate-700 transition"
+                  className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5 flex flex-col justify-between hover:border-slate-700 transition"
                 >
                   <div className="flex items-center gap-1.5 mb-1">
                     <span
@@ -400,16 +391,16 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
                       {desc}
                     </span>
                   </div>
-                  <div className="flex items-baseline justify-between mt-1">
-                    <span className="text-lg font-mono font-bold text-slate-200">{item.total}</span>
-                    <span className="text-[10px] text-slate-500 font-mono">{pct}%</span>
+                  <div className="flex items-baseline justify-between mt-1 tabular-nums">
+                    <span className="text-lg font-bold text-slate-200">{item.total}</span>
+                    <span className="text-[11px] text-slate-500">{pct}%</span>
                   </div>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
             {distribuicaoEmpenho.length === 0 ? (
               <div className="col-span-3 text-center py-6 text-xs text-slate-500">
                 Nenhum recurso empenhado nas ocorrências filtradas.
@@ -427,7 +418,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
                 return (
                   <div
                     key={idx}
-                    className="bg-slate-950/70 border border-slate-800 rounded-lg p-2.5 flex flex-col justify-between hover:border-slate-700 transition"
+                    className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5 flex flex-col justify-between hover:border-slate-700 transition"
                   >
                     <div className="flex items-center gap-1.5 mb-1">
                       <span
@@ -439,9 +430,9 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
                         {desc}
                       </span>
                     </div>
-                    <div className="flex items-baseline justify-between mt-1">
-                      <span className="text-lg font-mono font-bold text-amber-300">{item.total}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">{pct}%</span>
+                    <div className="flex items-baseline justify-between mt-1 tabular-nums">
+                      <span className="text-lg font-bold text-amber-300">{item.total}</span>
+                      <span className="text-[11px] text-slate-500">{pct}%</span>
                     </div>
                   </div>
                 );
@@ -452,52 +443,43 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
 
         <div className="pt-2 border-t border-slate-800/60 mt-2 flex items-center justify-between text-[11px] text-slate-400">
           <span>
-            Campo:{' '}
-            <code className="text-amber-400 font-mono text-[10px]">
-              {abaSituacao === 'chamadas'
-                ? 'codigoSituacaoAtendimentoChamada'
-                : 'codigoSituacaoEmpenhoRecurso'}
-            </code>
+            {abaSituacao === 'chamadas' ? 'Chamadas analisadas' : 'Recursos empenhados'}
           </span>
-          <span className="font-mono text-slate-300">
-            Total:{' '}
-            <strong>
-              {abaSituacao === 'chamadas' ? totalChamadas : totalRecursos}
-            </strong>
+          <span className="text-slate-300 tabular-nums">
+            Total: <strong>{abaSituacao === 'chamadas' ? totalChamadas : totalRecursos}</strong>
           </span>
         </div>
       </div>
 
       {/* 4. Origem do Acionamento & Nível de Prioridade */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md flex flex-col justify-between">
-        <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+      <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between">
+        <div className="flex items-center justify-between mb-3 border-b border-slate-800/70 pb-2.5">
           <div className="flex items-center gap-2">
-            <PhoneCall className="w-4 h-4 text-emerald-500" />
+            <PhoneCall className="w-4 h-4 text-emerald-400" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              Origem do Acionamento & Prioridade
+              Origem & Prioridade
             </h3>
           </div>
-          <span className="text-[11px] text-slate-400 font-mono">Consolidação</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 my-auto">
           {/* Origem */}
-          <div className="space-y-2 bg-slate-950/70 p-3 rounded-lg border border-slate-800">
+          <div className="space-y-2 bg-slate-950/50 p-3 rounded-lg border border-slate-800/70">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
               Canal de Entrada
             </div>
             {distribuicaoOrigem.map((item, idx) => (
               <div key={idx} className="flex items-center justify-between text-xs">
                 <span className="text-slate-300 truncate">{item.origem}</span>
-                <span className="font-mono font-bold text-emerald-400">{item.total}</span>
+                <span className="font-bold text-emerald-400 tabular-nums">{item.total}</span>
               </div>
             ))}
           </div>
 
           {/* Prioridade */}
-          <div className="space-y-2 bg-slate-950/70 p-3 rounded-lg border border-slate-800">
+          <div className="space-y-2 bg-slate-950/50 p-3 rounded-lg border border-slate-800/70">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Classificação de Risco
+              Prioridade
             </div>
             {distribuicaoPrioridade.map((item, idx) => {
               const cor =
@@ -509,19 +491,11 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
               return (
                 <div key={idx} className="flex items-center justify-between text-xs">
                   <span className="text-slate-300">{item.prioridade}</span>
-                  <span className={`font-mono font-bold ${cor}`}>{item.total}</span>
+                  <span className={`font-bold tabular-nums ${cor}`}>{item.total}</span>
                 </div>
               );
             })}
           </div>
-        </div>
-
-        <div className="pt-2 mt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
-          <span className="flex items-center gap-1">
-            <AlertCircle className="w-3 h-3 text-red-400" />
-            Triagem conforme protocolo do CBMMG
-          </span>
-          <span className="font-mono text-slate-300">Central 193</span>
         </div>
       </div>
     </div>

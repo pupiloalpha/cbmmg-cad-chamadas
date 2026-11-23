@@ -126,7 +126,7 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
                 borderColor: `${corObj.hex}50`,
                 color: corObj.hex,
               }}
-              title="Chave: chamada_atendimento_situacao | Campo: codigoSituacaoAtendimentoChamada"
+              title="Situação atual do atendimento"
             >
               <span className="font-mono font-black">{chamada.codigoSituacaoAtendimentoChamada}</span>
               <span>•</span>
@@ -329,7 +329,7 @@ Recursos: ${chamada.recursos.map((r) => r.prefixo).join(', ') || 'Nenhum'}`;
                       return (
                         <div className="flex flex-col items-end">
                           <span
-                            title={`empenho_situacao: ${descEmp}`}
+                            title={`Situação do recurso: ${descEmp}`}
                             className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-full border border-current/20 flex items-center gap-1.5 shadow-sm ${corEmp.bg}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${corEmp.dot}`} />

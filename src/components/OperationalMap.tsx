@@ -6,7 +6,7 @@ import {
   CORES_SITUACAO_EMPENHO,
   DICIONARIO_SIGLAS,
 } from '../data/catalogoAuxiliares';
-import { Maximize2, Minimize2, Navigation, Layers, Flame, ShieldAlert, Truck } from 'lucide-react';
+import { Maximize2, Minimize2, Navigation, Layers, Flame, ShieldAlert, Truck, ChevronDown } from 'lucide-react';
 
 interface OperationalMapProps {
   chamadas: ChamadaAtiva[];
@@ -26,6 +26,9 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapStyle, setMapStyle] = useState<'dark' | 'streets' | 'satellite'>('dark');
   const [legendaAba, setLegendaAba] = useState<'atendimento' | 'empenho'>('atendimento');
+  const [showLegenda, setShowLegenda] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
 
   // Coordenadas centrais aproximadas de Minas Gerais (Curvelo / Cordisburgo)
   const MG_CENTER: [number, number] = [-18.5, -44.5];
@@ -136,8 +139,8 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
       // Ícone customizado baseado em HTML
       const htmlIcon = `
         <div class="relative group cursor-pointer">
-          <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform transform hover:scale-125"
-               style="background-color: ${corObj.hex}; border: 2.5px solid #ffffff; box-shadow: 0 0 12px ${corObj.hex};">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-transform transform hover:scale-110"
+               style="background-color: ${corObj.hex}; border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.45);">
             ${
               isWaiting
                 ? '<div class="w-2.5 h-2.5 rounded-full bg-white animate-ping"></div>'
@@ -197,7 +200,7 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
             }
           </div>
           <div class="mb-2">
-            <div class="text-[10px] text-slate-500 uppercase font-semibold mb-1">Viaturas & Empenhos (codigoSituacaoEmpenhoRecurso):</div>
+            <div class="text-[10px] text-slate-500 uppercase font-semibold mb-1">Viaturas e Recursos:</div>
             <div class="flex flex-wrap gap-1">${recursosTexto}</div>
           </div>
           <button id="btn-detalhes-${c.idChamada}" class="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-1.5 px-2 rounded transition text-center block mt-1 cursor-pointer">
@@ -318,137 +321,164 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
         className={
           isFullscreen
             ? 'fixed inset-2 sm:inset-4 md:inset-6 z-[9999] rounded-2xl overflow-hidden border-2 border-red-500/80 bg-slate-900 shadow-[0_0_60px_rgba(0,0,0,0.95)]'
-            : 'relative h-[500px] w-full z-10 rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl'
+            : 'relative h-[calc(100dvh-10rem)] min-h-[380px] md:h-[500px] w-full z-10 rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl'
         }
       >
-      {/* Top Map Control Bar */}
-      <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-2 bg-slate-900/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700 shadow-xl text-xs">
-        <div className="flex items-center gap-1.5 font-semibold text-slate-200 pr-2 border-r border-slate-700">
-          <Flame className="w-3.5 h-3.5 text-red-500 animate-pulse" />
-          <span>Mapa Operacional de Ocorrências</span>
-        </div>
-        <span className="text-slate-400">
-          <strong className="text-amber-400 font-mono font-bold">{chamadasComCoords.length}</strong> plotadas no mapa
-        </span>
-        {chamadas.length - chamadasComCoords.length > 0 && (
-          <span className="text-[11px] text-amber-500/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-            {chamadas.length - chamadasComCoords.length} sem GPS
+      {/* Clean Top Overlay Container (non-overlapping on mobile & desktop) */}
+      <div className="absolute top-2.5 inset-x-2.5 z-[1000] flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        {/* Top-Left: Map Counter Pill */}
+        <div className="pointer-events-auto flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-slate-700/80 shadow-lg text-xs">
+          <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+            <Flame className="w-3.5 h-3.5 text-red-500 shrink-0" />
+            <span className="hidden sm:inline">Mapa Operacional</span>
+          </div>
+          <span className="hidden sm:inline text-slate-700">|</span>
+          <span className="text-slate-300 tabular-nums">
+            <strong className="text-white font-bold">{chamadasComCoords.length}</strong> no mapa
           </span>
-        )}
-      </div>
-
-      {/* Floating Action Controls */}
-      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-md p-1 rounded-lg border border-slate-700 shadow-xl">
-        <button
-          onClick={ajustarAosPontos}
-          title="Ajustar visualização a todos os pontos filtrados"
-          className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition flex items-center gap-1 text-xs px-2 cursor-pointer"
-        >
-          <Navigation className="w-3.5 h-3.5 text-blue-400" />
-          <span className="hidden sm:inline">Enquadrar</span>
-        </button>
-
-        <button
-          onClick={centralizarMinasGerais}
-          title="Visão Geral de Minas Gerais"
-          className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition text-xs px-2 cursor-pointer"
-        >
-          Estado MG
-        </button>
-
-        {/* Seletor de estilo do mapa */}
-        <div className="flex items-center bg-slate-950/80 rounded-md p-0.5 border border-slate-700/60">
-          <button
-            onClick={() => setMapStyle('dark')}
-            title="Camada Tática Noturna (ESRI Gray)"
-            className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
-              mapStyle === 'dark' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Tático
-          </button>
-          <button
-            onClick={() => setMapStyle('streets')}
-            title="Camada Urbana de Vias (OpenStreetMap)"
-            className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
-              mapStyle === 'streets' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Vias
-          </button>
-          <button
-            onClick={() => setMapStyle('satellite')}
-            title="Camada Satélite Ortofoto (ESRI World Imagery)"
-            className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
-              mapStyle === 'satellite' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Satélite
-          </button>
+          {chamadas.length - chamadasComCoords.length > 0 && (
+            <span className="text-[11px] text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 tabular-nums">
+              +{chamadas.length - chamadasComCoords.length} sem GPS
+            </span>
+          )}
         </div>
 
-        {/* Botão de Ação Visível: Expandir / Recolher */}
-        <button
-          onClick={() => setIsFullscreen(!isFullscreen)}
-          title={isFullscreen ? 'Recolher mapa (ou pressione Esc)' : 'Expandir mapa em tela cheia'}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold shadow transition cursor-pointer ${
-            isFullscreen
-              ? 'bg-red-600 hover:bg-red-700 text-white ring-2 ring-red-400'
-              : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700'
-          }`}
-        >
-          {isFullscreen ? (
-            <>
-              <Minimize2 className="w-3.5 h-3.5" />
-              <span>Recolher</span>
-            </>
-          ) : (
-            <>
-              <Maximize2 className="w-3.5 h-3.5" />
-              <span>Expandir</span>
-            </>
-          )}
-        </button>
-      </div>
+        {/* Top-Right: Floating Action Controls */}
+        <div className="pointer-events-auto flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-lg border border-slate-700/80 shadow-lg">
+          <button
+            type="button"
+            onClick={ajustarAosPontos}
+            title="Enquadrar todos os pontos filtrados"
+            className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition flex items-center gap-1 text-xs px-2 cursor-pointer"
+          >
+            <Navigation className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden md:inline">Enquadrar</span>
+          </button>
 
-      {/* Map Legend: Situação de Atendimento & Empenho */}
-      <div className="absolute bottom-3 left-3 z-[1000] bg-slate-950/95 backdrop-blur-md p-2.5 rounded-lg border border-slate-800 shadow-xl text-[11px] text-slate-300 max-w-xl">
-        <div className="flex items-center justify-between mb-1.5 border-b border-slate-800 pb-1 gap-2">
-          <div className="flex items-center bg-slate-900 p-0.5 rounded border border-slate-800 text-[10px]">
+          <button
+            type="button"
+            onClick={centralizarMinasGerais}
+            title="Visão geral de Minas Gerais"
+            className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition text-xs px-2 cursor-pointer"
+          >
+            MG
+          </button>
+
+          {/* Seletor de estilo do mapa */}
+          <div className="flex items-center bg-slate-950/80 rounded-md p-0.5 border border-slate-800">
             <button
-              onClick={() => setLegendaAba('atendimento')}
-              className={`px-2 py-0.5 rounded transition flex items-center gap-1 cursor-pointer ${
-                legendaAba === 'atendimento'
-                  ? 'bg-red-600 text-white font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+              type="button"
+              onClick={() => setMapStyle('dark')}
+              title="Camada Tática Noturna"
+              className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
+                mapStyle === 'dark' ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <ShieldAlert className="w-3 h-3" />
-              Atendimento ({Object.keys(DICIONARIO_SIGLAS.chamada_atendimento_situacao).length})
+              Tático
             </button>
             <button
-              onClick={() => setLegendaAba('empenho')}
-              className={`px-2 py-0.5 rounded transition flex items-center gap-1 cursor-pointer ${
-                legendaAba === 'empenho'
-                  ? 'bg-amber-600 text-white font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+              type="button"
+              onClick={() => setMapStyle('streets')}
+              title="Camada Urbana de Vias"
+              className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
+                mapStyle === 'streets' ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Truck className="w-3 h-3" />
-              Empenho Recurso ({Object.keys(DICIONARIO_SIGLAS.empenho_situacao).length})
+              Vias
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapStyle('satellite')}
+              title="Camada Satélite"
+              className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
+                mapStyle === 'satellite' ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Satélite
             </button>
           </div>
-          <span className="text-[9px] text-slate-500 font-mono hidden sm:inline">
-            {legendaAba === 'atendimento'
-              ? 'chamada_atendimento_situacao'
-              : 'empenho_situacao'}
-          </span>
+
+          {/* Botão Expandir / Recolher */}
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            title={isFullscreen ? 'Recolher mapa (Esc)' : 'Expandir mapa em tela cheia'}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+              isFullscreen
+                ? 'bg-red-600 hover:bg-red-500 text-white'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white'
+            }`}
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Recolher</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Expandir</span>
+              </>
+            )}
+          </button>
         </div>
+      </div>
+
+      {/* Collapsible Map Legend: Situação de Atendimento & Empenho */}
+      <div className="absolute bottom-2.5 left-2.5 z-[1000] max-w-[calc(100%-4.5rem)] sm:max-w-xl">
+        {!showLegenda ? (
+          <button
+            type="button"
+            onClick={() => setShowLegenda(true)}
+            className="flex items-center gap-1.5 bg-slate-950/90 hover:bg-slate-900 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-lg text-[11px] font-medium text-slate-200 transition cursor-pointer"
+            title="Exibir legenda de situações"
+          >
+            <Layers className="w-3.5 h-3.5 text-slate-400" />
+            <span>Legenda</span>
+          </button>
+        ) : (
+          <div className="bg-slate-950/92 backdrop-blur-md p-2.5 rounded-lg border border-slate-800 shadow-xl text-[11px] text-slate-300">
+            <div className="flex items-center justify-between mb-1.5 border-b border-slate-800 pb-1.5 gap-2">
+              <div className="flex items-center bg-slate-900 p-0.5 rounded border border-slate-800 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setLegendaAba('atendimento')}
+                  className={`px-2 py-0.5 rounded transition flex items-center gap-1 cursor-pointer ${
+                    legendaAba === 'atendimento'
+                      ? 'bg-slate-800 text-white font-semibold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <ShieldAlert className="w-3 h-3 text-red-400" />
+                  Atendimento
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLegendaAba('empenho')}
+                  className={`px-2 py-0.5 rounded transition flex items-center gap-1 cursor-pointer ${
+                    legendaAba === 'empenho'
+                      ? 'bg-slate-800 text-white font-semibold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Truck className="w-3 h-3 text-amber-400" />
+                  Recursos
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLegenda(false)}
+                className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition cursor-pointer"
+                title="Ocultar legenda"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
         {legendaAba === 'atendimento' ? (
           <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[10px]">
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
+              <span className="w-2 h-2 rounded-full bg-red-500" />
               <span className="font-mono font-bold text-red-300">NL</span>
               <span className="text-slate-400">no local</span>
             </div>
@@ -560,6 +590,8 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
               <span className="font-mono font-bold text-purple-300">SU</span>
               <span className="text-slate-400">suspenso</span>
             </div>
+          </div>
+        )}
           </div>
         )}
       </div>

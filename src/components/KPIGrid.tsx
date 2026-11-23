@@ -63,20 +63,17 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, filtros, onFiltrarSituac
       return {
         acao: 'GRUPO_O',
         ativo: isGrupoOAtivo,
-        titulo: 'Incêndios (Grupo O)',
+        titulo: 'Incêndios',
         valor: kpis.incendiosQtd,
         pct: pct(kpis.incendiosQtd),
-        subtitulo: isGrupoOAtivo
-          ? 'Filtro ativo • Clique para limpar'
-          : 'Explosão e Incêndio • Clique p/ filtrar',
+        subtitulo: isGrupoOAtivo ? 'Filtro ativo • Limpar' : 'Explosão e incêndio',
         icon: <Flame className="w-4 h-4 text-orange-400" />,
         borderClass: isGrupoOAtivo
-          ? 'border-orange-400 ring-2 ring-orange-500/40 bg-orange-950/35'
-          : 'border-orange-900/50 hover:border-orange-500/70',
-        glowClass: 'bg-orange-600/10 group-hover:bg-orange-600/20',
-        titleColor: 'text-orange-400',
+          ? 'border-orange-400/80 ring-1 ring-orange-500/40 bg-orange-950/25'
+          : 'border-slate-800 hover:border-slate-700 bg-slate-900/80',
+        titleColor: isGrupoOAtivo ? 'text-orange-300' : 'text-slate-400',
         valueColor: 'text-orange-300',
-        pctColor: 'text-orange-400/80',
+        pctColor: 'text-slate-400',
       };
     }
 
@@ -84,20 +81,17 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, filtros, onFiltrarSituac
       return {
         acao: 'GRUPO_S',
         ativo: isGrupoSAtivo,
-        titulo: 'Salvamentos (Grupo S)',
+        titulo: 'Salvamentos',
         valor: kpis.salvamentosQtd,
         pct: pct(kpis.salvamentosQtd),
-        subtitulo: isGrupoSAtivo
-          ? 'Filtro ativo • Clique para limpar'
-          : 'Busca e Salvamento • Clique p/ filtrar',
+        subtitulo: isGrupoSAtivo ? 'Filtro ativo • Limpar' : 'Busca e salvamento',
         icon: <LifeBuoy className="w-4 h-4 text-emerald-400" />,
         borderClass: isGrupoSAtivo
-          ? 'border-emerald-400 ring-2 ring-emerald-500/40 bg-emerald-950/35'
-          : 'border-emerald-900/50 hover:border-emerald-500/70',
-        glowClass: 'bg-emerald-600/10 group-hover:bg-emerald-600/20',
-        titleColor: 'text-emerald-400',
+          ? 'border-emerald-400/80 ring-1 ring-emerald-500/40 bg-emerald-950/25'
+          : 'border-slate-800 hover:border-slate-700 bg-slate-900/80',
+        titleColor: isGrupoSAtivo ? 'text-emerald-300' : 'text-slate-400',
         valueColor: 'text-emerald-300',
-        pctColor: 'text-emerald-400/80',
+        pctColor: 'text-slate-400',
       };
     }
 
@@ -105,20 +99,17 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, filtros, onFiltrarSituac
       return {
         acao: 'GRUPO_V',
         ativo: isGrupoVAtivo,
-        titulo: 'APH / Resgate (Grupo V)',
+        titulo: 'APH / Resgate',
         valor: kpis.aphQtd,
         pct: pct(kpis.aphQtd),
-        subtitulo: isGrupoVAtivo
-          ? 'Filtro ativo • Clique para limpar'
-          : 'Atend. Pré-Hospitalar • Clique p/ filtrar',
+        subtitulo: isGrupoVAtivo ? 'Filtro ativo • Limpar' : 'Pré-hospitalar',
         icon: <HeartPulse className="w-4 h-4 text-rose-400" />,
         borderClass: isGrupoVAtivo
-          ? 'border-rose-400 ring-2 ring-rose-500/40 bg-rose-950/35'
-          : 'border-rose-900/50 hover:border-rose-500/70',
-        glowClass: 'bg-rose-600/10 group-hover:bg-rose-600/20',
-        titleColor: 'text-rose-400',
+          ? 'border-rose-400/80 ring-1 ring-rose-500/40 bg-rose-950/25'
+          : 'border-slate-800 hover:border-slate-700 bg-slate-900/80',
+        titleColor: isGrupoVAtivo ? 'text-rose-300' : 'text-slate-400',
         valueColor: 'text-rose-300',
-        pctColor: 'text-rose-400/80',
+        pctColor: 'text-slate-400',
       };
     }
 
@@ -129,190 +120,198 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, filtros, onFiltrarSituac
       valor: kpis.chuvasQtd,
       pct: pct(kpis.chuvasQtd),
       subtitulo: isChuvaAtivo
-        ? 'Filtro de chuvas ativo • Clique p/ limpar'
-        : `${kpis.chuvasDiretasQtd} diretas • Clique p/ filtrar`,
-      icon: <CloudRain className={`w-4 h-4 text-cyan-400 ${isChuvaAtivo ? 'animate-pulse' : ''}`} />,
+        ? 'Filtro ativo • Limpar'
+        : `${kpis.chuvasDiretasQtd} diretas`,
+      icon: <CloudRain className="w-4 h-4 text-cyan-400" />,
       borderClass: isChuvaAtivo
-        ? 'border-cyan-400 ring-2 ring-cyan-500/40 bg-cyan-950/35'
-        : 'border-cyan-900/50 hover:border-cyan-500/70',
-      glowClass: 'bg-cyan-600/10 group-hover:bg-cyan-600/20',
-      titleColor: 'text-cyan-400',
+        ? 'border-cyan-400/80 ring-1 ring-cyan-500/40 bg-cyan-950/25'
+        : 'border-slate-800 hover:border-slate-700 bg-slate-900/80',
+      titleColor: isChuvaAtivo ? 'text-cyan-300' : 'text-slate-400',
       valueColor: 'text-cyan-300',
-      pctColor: 'text-cyan-400/80',
+      pctColor: 'text-slate-400',
     };
   })();
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
       {/* 1. Total Ativas */}
-      <div
+      <button
+        type="button"
         onClick={() => onFiltrarSituacao && onFiltrarSituacao('TODOS')}
-        className="bg-slate-900/90 border border-slate-800 hover:border-slate-600 rounded-xl p-3.5 shadow-sm transition cursor-pointer relative overflow-hidden group"
-        title="Clique para exibir todas as chamadas ativas"
+        className="text-left bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl p-3.5 transition cursor-pointer"
+        title="Exibir todas as chamadas ativas"
       >
-        <div className="absolute top-0 right-0 w-16 h-16 bg-red-600/10 rounded-bl-full pointer-events-none group-hover:bg-red-600/20 transition" />
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             Chamadas Ativas
           </span>
-          <Radio className="w-4 h-4 text-red-500 animate-pulse" />
+          <Radio className="w-4 h-4 text-red-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-black text-white font-mono tracking-tight">
+          <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
             {kpis.totalAtivas}
           </span>
-          <span className="text-[11px] text-slate-400">CAD Geral</span>
+          <span className="text-[11px] text-slate-500">ativas</span>
         </div>
-        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">
-          <span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-ping" />
-          <span>Monitoramento em tempo real</span>
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+          <span>Em operação</span>
         </div>
-      </div>
+      </button>
 
       {/* 2. Em Atendimento */}
-      <div
+      <button
+        type="button"
         onClick={() => onFiltrarSituacao && onFiltrarSituacao('EM_ATENDIMENTO')}
-        className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-sm transition cursor-pointer relative overflow-hidden group ${
+        className={`text-left border rounded-xl p-3.5 transition cursor-pointer ${
           isEmAtendimentoAtivo
-            ? 'border-blue-400 ring-2 ring-blue-500/40 bg-blue-950/35'
-            : 'border-blue-900/50 hover:border-blue-500/70'
+            ? 'border-blue-400/80 ring-1 ring-blue-500/40 bg-blue-950/25'
+            : 'border-slate-800 hover:border-slate-700 bg-slate-900/80'
         }`}
-        title="Clique para filtrar ocorrências em atendimento"
+        title="Filtrar ocorrências em atendimento"
       >
-        <div className="absolute top-0 right-0 w-16 h-16 bg-blue-600/10 rounded-bl-full pointer-events-none group-hover:bg-blue-600/20 transition" />
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-400">
+          <span
+            className={`text-[11px] font-semibold uppercase tracking-wider ${
+              isEmAtendimentoAtivo ? 'text-blue-300' : 'text-slate-400'
+            }`}
+          >
             Em Atendimento
           </span>
           <CheckCircle2 className="w-4 h-4 text-blue-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-black text-blue-300 font-mono tracking-tight">
+          <span className="text-2xl font-bold text-blue-300 tabular-nums tracking-tight">
             {kpis.emAndamento}
           </span>
-          <span className="text-[11px] text-blue-400/80 font-mono font-medium">
-            ({kpis.taxaAtendimentoPct}%)
+          <span className="text-[11px] text-slate-400 tabular-nums">
+            {kpis.taxaAtendimentoPct}%
           </span>
         </div>
-        <div className="mt-2 text-[10px] text-slate-400 truncate">
-          {isEmAtendimentoAtivo ? 'Filtro ativo • Clique p/ limpar' : 'Ocorrências ativas (não AO)'}
+        <div className="mt-2 text-[11px] text-slate-400 truncate">
+          {isEmAtendimentoAtivo ? 'Filtro ativo • Limpar' : 'Com recurso empenhado'}
         </div>
-      </div>
+      </button>
 
       {/* 3. Aguardando (Situação AO) */}
-      <div
+      <button
+        type="button"
         onClick={() => onFiltrarSituacao && onFiltrarSituacao('AO')}
-        className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-sm transition cursor-pointer relative overflow-hidden group ${
+        className={`text-left border rounded-xl p-3.5 transition cursor-pointer ${
           isAguardandoAtivo
-            ? 'border-amber-400 ring-2 ring-amber-500/40 bg-amber-950/40'
+            ? 'border-amber-400/80 ring-1 ring-amber-500/40 bg-amber-950/25'
             : kpis.aguardando > 0
-            ? 'border-amber-600/50 hover:border-amber-500 bg-amber-950/20'
-            : 'border-slate-800 hover:border-slate-700'
+            ? 'border-amber-700/40 hover:border-amber-600/60 bg-amber-950/15'
+            : 'border-slate-800 hover:border-slate-700 bg-slate-900/80'
         }`}
-        title="Clique para filtrar ocorrências aguardando atendimento (AO)"
+        title="Filtrar ocorrências aguardando despacho"
       >
-        <div className="absolute top-0 right-0 w-16 h-16 bg-amber-600/10 rounded-bl-full pointer-events-none group-hover:bg-amber-600/20 transition" />
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">
-            Aguardando (AO)
+          <span
+            className={`text-[11px] font-semibold uppercase tracking-wider ${
+              kpis.aguardando > 0 || isAguardandoAtivo ? 'text-amber-400' : 'text-slate-400'
+            }`}
+          >
+            Aguardando
           </span>
           <Clock
-            className={`w-4 h-4 ${kpis.aguardando > 0 ? 'text-amber-400 animate-spin' : 'text-slate-500'}`}
-            style={{ animationDuration: '6s' }}
+            className={`w-4 h-4 ${kpis.aguardando > 0 ? 'text-amber-400' : 'text-slate-500'}`}
           />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-black text-amber-300 font-mono tracking-tight">
+          <span className="text-2xl font-bold text-amber-300 tabular-nums tracking-tight">
             {kpis.aguardando}
           </span>
-          <span className="text-[11px] text-amber-400/80">em fila (AO)</span>
+          <span className="text-[11px] text-slate-400">em fila</span>
         </div>
-        <div className="mt-2 text-[10px] text-amber-400/90 truncate">
+        <div className="mt-2 text-[11px] text-slate-400 truncate">
           {isAguardandoAtivo ? (
-            'Filtro ativo • Clique p/ limpar'
+            'Filtro ativo • Limpar'
           ) : (
             <>
-              Espera média: <strong>{kpis.tempoMedioEsperaMin} min</strong>
+              Espera média:{' '}
+              <strong className="text-amber-300/90 tabular-nums">
+                {kpis.tempoMedioEsperaMin} min
+              </strong>
             </>
           )}
         </div>
-      </div>
+      </button>
 
-      {/* 4. Viaturas Ativas (prefixo não-BM) & Recursos Empenhados (sem TR) */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-sm relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-16 h-16 bg-red-600/10 rounded-bl-full pointer-events-none group-hover:bg-red-600/20 transition" />
+      {/* 4. Viaturas & Recursos */}
+      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
         <div className="flex items-center justify-between mb-1.5">
           <span
             className="text-[11px] font-semibold uppercase tracking-wider text-slate-400"
-            title="Viaturas em campo com prefixo que não inicia em BM (e sem situação TR)"
+            title="Viaturas operacionais ativas em campo"
           >
-            Viaturas Ativas
+            Viaturas
           </span>
-          <Truck className="w-4 h-4 text-red-400" />
+          <Truck className="w-4 h-4 text-slate-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-black text-white font-mono tracking-tight">
+          <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
             {kpis.viaturasAtivas}
           </span>
-          <span className="text-[11px] text-slate-400">viaturas (não BM)</span>
+          <span className="text-[11px] text-slate-400">em campo</span>
         </div>
-        <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
-          <div className="flex items-center gap-1 truncate" title="Recursos empenhados sem a situação TR">
-            <Users className="w-3 h-3 text-amber-400 shrink-0" />
-            <span>
-              <strong>{kpis.recursosEmpenhados}</strong> recursos (sem TR)
+        <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="flex items-center gap-1 truncate" title="Total de recursos empenhados">
+            <Users className="w-3 h-3 text-slate-400 shrink-0" />
+            <span className="tabular-nums">
+              <strong className="text-slate-300">{kpis.recursosEmpenhados}</strong> recursos
             </span>
           </div>
           {kpis.bombeirosSemViatura > 0 && (
             <span
-              className="font-mono text-[9px] text-slate-500 shrink-0"
-              title="Bombeiros empenhados sem viatura com máscara BM0000000"
+              className="text-[10px] text-slate-500 shrink-0 tabular-nums"
+              title="Bombeiros empenhados sem viatura"
             >
-              +{kpis.bombeirosSemViatura} BM a pé
+              +{kpis.bombeirosSemViatura} BM
             </span>
           )}
         </div>
       </div>
 
-      {/* 5. Prioridade Alta / Emergências (Clicável para filtrar) */}
-      <div
+      {/* 5. Prioridade Alta */}
+      <button
+        type="button"
         onClick={() => onFiltrarSituacao && onFiltrarSituacao('PRIORIDADE_ALTA')}
-        className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-sm transition cursor-pointer relative overflow-hidden group ${
+        className={`text-left border rounded-xl p-3.5 transition cursor-pointer ${
           isPrioridadeAltaAtivo
-            ? 'border-red-400 ring-2 ring-red-500/40 bg-red-950/40'
-            : 'border-red-900/50 hover:border-red-500/70'
+            ? 'border-red-400/80 ring-1 ring-red-500/40 bg-red-950/25'
+            : 'border-slate-800 hover:border-slate-700 bg-slate-900/80'
         }`}
-        title="Clique para filtrar chamadas de Prioridade Alta"
+        title="Filtrar chamadas de prioridade alta"
       >
-        <div className="absolute top-0 right-0 w-16 h-16 bg-red-600/10 rounded-bl-full pointer-events-none group-hover:bg-red-600/20 transition" />
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-red-400">
+          <span
+            className={`text-[11px] font-semibold uppercase tracking-wider ${
+              isPrioridadeAltaAtivo ? 'text-red-300' : 'text-slate-400'
+            }`}
+          >
             Prioridade Alta
           </span>
-          <AlertTriangle className="w-4 h-4 text-red-400 animate-pulse" />
+          <AlertTriangle className="w-4 h-4 text-red-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-black text-red-400 font-mono tracking-tight">
+          <span className="text-2xl font-bold text-red-400 tabular-nums tracking-tight">
             {kpis.prioridadeAltaQtd}
           </span>
-          <span className="text-[11px] text-red-300/80">Código Vermelho</span>
+          <span className="text-[11px] text-slate-400">emergência</span>
         </div>
-        <div className="mt-2 text-[10px] text-red-300/80 truncate">
-          {isPrioridadeAltaAtivo
-            ? 'Filtro ativo • Clique p/ limpar'
-            : 'Risco à vida • Clique p/ filtrar'}
+        <div className="mt-2 text-[11px] text-slate-400 truncate">
+          {isPrioridadeAltaAtivo ? 'Filtro ativo • Limpar' : 'Risco à vida'}
         </div>
-      </div>
+      </button>
 
-      {/* 6. Chuva / Temporal (ou Grupo Operacional Dinâmico quando Chuvas = 0) */}
-      <div
+      {/* 6. Chuva / Temporal (ou Grupo Dinâmico quando Chuvas = 0) */}
+      <button
+        type="button"
         onClick={() => onFiltrarSituacao && onFiltrarSituacao(card6Config.acao)}
-        className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-sm transition cursor-pointer relative overflow-hidden group ${card6Config.borderClass}`}
-        title={`Clique para filtrar: ${card6Config.titulo}`}
+        className={`text-left border rounded-xl p-3.5 transition cursor-pointer ${card6Config.borderClass}`}
+        title={`Filtrar: ${card6Config.titulo}`}
       >
-        <div
-          className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full pointer-events-none transition ${card6Config.glowClass}`}
-        />
         <div className="flex items-center justify-between mb-1.5">
           <span className={`text-[11px] font-semibold uppercase tracking-wider ${card6Config.titleColor}`}>
             {card6Config.titulo}
@@ -320,17 +319,17 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, filtros, onFiltrarSituac
           {card6Config.icon}
         </div>
         <div className="flex items-baseline gap-2">
-          <span className={`text-2xl font-black font-mono tracking-tight ${card6Config.valueColor}`}>
+          <span className={`text-2xl font-bold tabular-nums tracking-tight ${card6Config.valueColor}`}>
             {card6Config.valor}
           </span>
-          <span className={`text-[11px] font-mono font-medium ${card6Config.pctColor}`}>
-            ({card6Config.pct}%)
+          <span className={`text-[11px] tabular-nums ${card6Config.pctColor}`}>
+            {card6Config.pct}%
           </span>
         </div>
-        <div className="mt-2 text-[10px] text-slate-400 truncate">
+        <div className="mt-2 text-[11px] text-slate-400 truncate">
           {card6Config.subtitulo}
         </div>
-      </div>
+      </button>
     </div>
   );
 };

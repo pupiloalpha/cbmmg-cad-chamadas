@@ -2125,10 +2125,8 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
     const timestampChamada = new Date(c.dataHoraAbertura).getTime();
     if (filtros.periodoTempo === '2h') {
       if (agora - timestampChamada > 2 * 3600 * 1000) return false;
-    } else if (filtros.periodoTempo === '6h') {
-      if (agora - timestampChamada > 6 * 3600 * 1000) return false;
-    } else if (filtros.periodoTempo === '12h') {
-      if (agora - timestampChamada > 12 * 3600 * 1000) return false;
+    } else if (filtros.periodoTempo === '8h') {
+      if (agora - timestampChamada > 8 * 3600 * 1000) return false;
     } else if (filtros.periodoTempo === '24h') {
       if (agora - timestampChamada > 24 * 3600 * 1000) return false;
     } else if (filtros.periodoTempo === 'personalizado') {

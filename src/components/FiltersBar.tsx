@@ -10,7 +10,6 @@ import {
   normalizarParaBusca,
 } from '../services/cbmStorage';
 import {
-  Filter,
   Search,
   RotateCcw,
   Calendar,
@@ -23,6 +22,7 @@ import {
   Flag,
   Flame,
   CloudRain,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface MultiSelectCheckboxDropdownProps {
@@ -31,7 +31,6 @@ interface MultiSelectCheckboxDropdownProps {
   options: { value: string; label: string; subLabel?: string }[];
   selectedValues: string[];
   onChange: (selected: string[]) => void;
-  placeholder: string;
   allLabel: string;
   alignRight?: boolean;
   widthClass?: string;
@@ -43,7 +42,6 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
   options,
   selectedValues,
   onChange,
-  placeholder,
   allLabel,
   alignRight = false,
   widthClass,
@@ -120,7 +118,7 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
 
   return (
     <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={containerRef}>
-      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
         {icon}
         {label}
       </label>
@@ -128,17 +126,17 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
       {/* Trigger Button */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-1.5 bg-slate-950 border rounded-lg px-2.5 py-1.5 text-xs text-left cursor-pointer transition select-none ${
+        className={`w-full flex items-center justify-between gap-1.5 bg-slate-950/90 border rounded-lg px-2.5 py-2 text-xs text-left cursor-pointer transition select-none ${
           isOpen
-            ? 'border-red-500 ring-1 ring-red-500/30'
+            ? 'border-red-500/80 ring-1 ring-red-500/30'
             : selectedValues.length > 0
-            ? 'border-red-500/60 bg-red-950/20 text-red-200'
-            : 'border-slate-700 hover:border-slate-600 text-slate-200'
+            ? 'border-red-500/50 bg-red-950/20 text-red-200'
+            : 'border-slate-800 hover:border-slate-700 text-slate-200'
         }`}
       >
         <div className="flex items-center gap-1.5 truncate flex-1 min-w-0">
           {selectedValues.length > 0 && (
-            <span className="flex-shrink-0 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+            <span className="flex-shrink-0 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center tabular-nums">
               {selectedValues.length}
             </span>
           )}
@@ -150,7 +148,7 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
             <button
               type="button"
               onClick={handleClear}
-              className="p-0.5 hover:text-white hover:bg-slate-800 rounded transition"
+              className="p-0.5 hover:text-white hover:bg-slate-800 rounded transition cursor-pointer"
               title="Limpar seleção"
             >
               <X className="w-3 h-3" />
@@ -166,7 +164,13 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className={`absolute ${alignRight ? 'right-0 sm:right-0 sm:left-auto' : 'left-0'} top-full mt-1.5 ${widthClass || 'w-72 sm:w-80'} max-w-[calc(100vw-2.5rem)] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden flex flex-col text-xs animate-in fade-in zoom-in-95 duration-100`}>
+        <div
+          className={`absolute ${
+            alignRight ? 'right-0 sm:right-0 sm:left-auto' : 'left-0'
+          } top-full mt-1.5 ${
+            widthClass || 'w-72 sm:w-80'
+          } max-w-[calc(100vw-2.5rem)] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden flex flex-col text-xs animate-in fade-in zoom-in-95 duration-100`}
+        >
           {/* Header Controls */}
           <div className="p-2.5 bg-slate-950/80 border-b border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
@@ -177,7 +181,7 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
                 <button
                   type="button"
                   onClick={handleSelectAll}
-                  className={`font-semibold hover:underline ${
+                  className={`font-semibold hover:underline cursor-pointer ${
                     isAllSelected ? 'text-red-400' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -187,14 +191,13 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
                 <button
                   type="button"
                   onClick={() => onChange([])}
-                  className="text-slate-400 hover:text-slate-200 hover:underline"
+                  className="text-slate-400 hover:text-slate-200 hover:underline cursor-pointer"
                 >
                   Limpar
                 </button>
               </div>
             </div>
 
-            {/* Internal Search if many options */}
             {options.length > 5 && (
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2 top-1/2 -translate-y-1/2" />
@@ -210,9 +213,8 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
             )}
           </div>
 
-          {/* Options List with Checkboxes */}
+          {/* Options List */}
           <div className="max-h-56 overflow-y-auto p-1.5 space-y-0.5 divide-y divide-slate-800/40">
-            {/* "Todos" Option */}
             <div
               onClick={handleSelectAll}
               className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition select-none ${
@@ -233,10 +235,9 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
               <span className="text-xs font-semibold">{allLabel}</span>
             </div>
 
-            {/* Individual Checkbox Items */}
             {filteredOptions.length === 0 ? (
               <div className="p-3 text-center text-slate-500 text-[11px]">
-                Nenhuma unidade encontrada.
+                Nenhum item encontrado.
               </div>
             ) : (
               filteredOptions.map((opt) => {
@@ -274,17 +275,16 @@ const MultiSelectCheckboxDropdown: React.FC<MultiSelectCheckboxDropdownProps> = 
             )}
           </div>
 
-          {/* Footer showing count */}
           <div className="p-2 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
             <span>
               {selectedValues.length === 0
-                ? 'Todas as unidades incluídas'
-                : `${selectedValues.length} selecionada(s)`}
+                ? 'Todos incluídos'
+                : `${selectedValues.length} selecionado(s)`}
             </span>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded font-medium transition"
+              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded font-medium transition cursor-pointer"
             >
               Fechar
             </button>
@@ -314,6 +314,8 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
   chamadas,
   naturezasVersion = 0,
 }) => {
+  const [mostrarAvancados, setMostrarAvancados] = useState(false);
+
   // 1. Lista única e oficial de COBs + Comando Especializado (CEB)
   const listaCobs = useMemo(() => {
     const cobsMap: Record<string, string> = {
@@ -407,7 +409,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
   const handleCobsChange = (novosCobs: string[]) => {
     const cobsValidos = novosCobs.filter((c) => c !== 'TODOS');
 
-    // Podar BBMs selecionados que não pertençam aos novos COBs
     let novosBbms = filtros.bbms || [];
     if (cobsValidos.length > 0) {
       const bbmsPermitidos = new Set(
@@ -416,7 +417,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       novosBbms = novosBbms.filter((b) => bbmsPermitidos.has(b));
     }
 
-    // Podar Cias Ind / CEOAs selecionadas que não pertençam aos novos COBs
     let novasCiasInd = filtros.ciasInd || [];
     if (cobsValidos.length > 0) {
       const ciasPermitidas = new Set(
@@ -430,11 +430,12 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     onChangeFiltros({
       ...filtros,
       cobs: cobsValidos,
-      cob: cobsValidos.length === 1 ? cobsValidos[0] : (cobsValidos.length === 0 ? 'TODOS' : cobsValidos.join(', ')),
+      cob: cobsValidos.length === 1 ? cobsValidos[0] : cobsValidos.length === 0 ? 'TODOS' : cobsValidos.join(', '),
       bbms: novosBbms,
-      bbm: novosBbms.length === 1 ? novosBbms[0] : (novosBbms.length === 0 ? 'TODOS' : novosBbms.join(', ')),
+      bbm: novosBbms.length === 1 ? novosBbms[0] : novosBbms.length === 0 ? 'TODOS' : novosBbms.join(', '),
       ciasInd: novasCiasInd,
-      ciaInd: novasCiasInd.length === 1 ? novasCiasInd[0] : (novasCiasInd.length === 0 ? 'TODOS' : novasCiasInd.join(', ')),
+      ciaInd:
+        novasCiasInd.length === 1 ? novasCiasInd[0] : novasCiasInd.length === 0 ? 'TODOS' : novasCiasInd.join(', '),
     });
   };
 
@@ -442,7 +443,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
   const handleBbmsChange = (novosBbms: string[]) => {
     const bbmsValidos = novosBbms.filter((b) => b !== 'TODOS');
 
-    // Podar Cias Ind / CEOAs que não pertençam aos BBMs selecionados
     let novasCiasInd = filtros.ciasInd || [];
     if (bbmsValidos.length > 0) {
       const ciasPermitidas = new Set(
@@ -456,9 +456,10 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     onChangeFiltros({
       ...filtros,
       bbms: bbmsValidos,
-      bbm: bbmsValidos.length === 1 ? bbmsValidos[0] : (bbmsValidos.length === 0 ? 'TODOS' : bbmsValidos.join(', ')),
+      bbm: bbmsValidos.length === 1 ? bbmsValidos[0] : bbmsValidos.length === 0 ? 'TODOS' : bbmsValidos.join(', '),
       ciasInd: novasCiasInd,
-      ciaInd: novasCiasInd.length === 1 ? novasCiasInd[0] : (novasCiasInd.length === 0 ? 'TODOS' : novasCiasInd.join(', ')),
+      ciaInd:
+        novasCiasInd.length === 1 ? novasCiasInd[0] : novasCiasInd.length === 0 ? 'TODOS' : novasCiasInd.join(', '),
     });
   };
 
@@ -468,7 +469,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     onChangeFiltros({
       ...filtros,
       ciasInd: ciasValidas,
-      ciaInd: ciasValidas.length === 1 ? ciasValidas[0] : (ciasValidas.length === 0 ? 'TODOS' : ciasValidas.join(', ')),
+      ciaInd: ciasValidas.length === 1 ? ciasValidas[0] : ciasValidas.length === 0 ? 'TODOS' : ciasValidas.join(', '),
     });
   };
 
@@ -477,7 +478,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     const itens: { value: string; label: string; subLabel?: string }[] = [];
     const jaAdicionados = new Set<string>();
 
-    // Contabiliza naturezas presentes nas chamadas atuais para exibir no topo com prioridade operacional
     const contagemPorCodigo = new Map<
       string,
       { value: string; codFormatado: string; descricao: string; letra: string; total: number }
@@ -511,7 +511,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       });
     }
 
-    // Macros e Grupos SIDS
     const gruposFixos: { value: string; label: string; subLabel?: string }[] = [
       { value: 'CAT_II', label: '★ Categoria II (Típicas Bombeiro Militar)', subLabel: 'Grupos O, P, R, S, V' },
       { value: 'CAT_III', label: '★ Categoria III (Ações e Operações SIDS)', subLabel: 'Grupos A, Q, W, Y, X, U' },
@@ -534,7 +533,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       }
     }
 
-    // Demais naturezas oficiais do CBMMG (tabela /dados-auxiliares/naturezas filtrada para Bombeiros ativas)
     const cadNaturezas = obterNaturezasBombeiroAtivas();
     for (const nat of cadNaturezas) {
       if (!nat.codigo) continue;
@@ -546,14 +544,13 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       itens.push({
         value: codNorm,
         label: `${codFormatado} - ${nat.descricao}`,
-        subLabel: `Grupo ${letra} • CAD #${nat.id}`,
+        subLabel: `Grupo ${letra}`,
       });
     }
 
     return itens;
   }, [chamadas, naturezasVersion]);
 
-  // Manipulação de seleção múltipla para Naturezas da Tabela Auxiliar
   const handleNaturezasChange = (novasNaturezas: string[]) => {
     const naturezasValidas = novasNaturezas.filter((n) => n !== 'TODOS');
     onChangeFiltros({
@@ -570,70 +567,109 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
 
   const filtroChuvaAtivo = Boolean(filtros.filtroChuva && filtros.filtroChuva !== 'TODOS');
 
+  // Contagem de filtros ativos dentro do painel "Mais filtros"
+  const qtdAvancadosAtivos =
+    (filtros.bbms?.length ? 1 : 0) +
+    (filtros.ciasInd?.length ? 1 : 0) +
+    (filtros.situacaoAtendimento !== 'TODOS' ? 1 : 0) +
+    (filtros.prioridade !== 'TODOS' ? 1 : 0) +
+    (filtros.apenasComGeolocalizacao ? 1 : 0) +
+    (filtros.periodoTempo === 'personalizado' ? 1 : 0);
+
+  const temAlgumFiltroAtivo =
+    Boolean(filtros.termoBusca?.trim()) ||
+    filtros.periodoTempo !== 'todas' ||
+    (filtros.cobs?.length ?? 0) > 0 ||
+    (filtros.bbms?.length ?? 0) > 0 ||
+    (filtros.ciasInd?.length ?? 0) > 0 ||
+    (filtros.naturezas?.length ?? 0) > 0 ||
+    filtros.situacaoChamada !== 'TODOS' ||
+    filtros.situacaoAtendimento !== 'TODOS' ||
+    filtros.prioridade !== 'TODOS' ||
+    filtros.apenasComGeolocalizacao ||
+    filtroChuvaAtivo;
+
   return (
-    <div className="relative z-40 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3.5">
-      {/* Top Filter Controls: Search & Temporal Buttons */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+    <div className="relative z-30 bg-slate-900/90 border border-slate-800/80 rounded-xl p-3.5 sm:p-4 space-y-3">
+      {/* Nível 1: Busca + Janela de Tempo (Todas, 2h, 8h, 24h) + Ações */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5">
         {/* Search Input */}
-        <div className="relative flex-1 min-w-[280px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <div className="relative flex-1 min-w-0">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={filtros.termoBusca}
             onChange={(e) => onChangeFiltros({ ...filtros, termoBusca: e.target.value })}
-            placeholder="Buscar por ocorrência, natureza, histórico/relato (ex: chuva, árvore, alagou), município, bairro, viatura..."
-            className="w-full bg-slate-950 border border-slate-700 focus:border-red-500 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none transition shadow-inner font-sans"
+            placeholder="Buscar ocorrência, natureza, relato, município, bairro ou viatura..."
+            className="w-full bg-slate-950/90 border border-slate-800 focus:border-red-500/80 rounded-lg pl-9 pr-8 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none transition"
           />
           {filtros.termoBusca && (
             <button
+              type="button"
               onClick={() => onChangeFiltros({ ...filtros, termoBusca: '' })}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs bg-slate-800 px-1.5 py-0.5 rounded"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded hover:bg-slate-800 transition cursor-pointer"
+              title="Limpar busca"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* Temporal Filters Quick Buttons */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
-          <span className="text-[10px] font-semibold uppercase text-slate-400 px-2 flex items-center gap-1">
-            <Clock className="w-3 h-3 text-red-400" />
-            Janela:
+        {/* Temporal Filters: Todas, 2h, 8h, 24h + Personalizado */}
+        <div className="flex items-center justify-between sm:justify-start gap-1 bg-slate-950/90 p-1 rounded-lg border border-slate-800 text-xs overflow-x-auto">
+          <span className="text-[10px] font-semibold uppercase text-slate-500 px-1.5 hidden sm:flex items-center gap-1 shrink-0">
+            <Clock className="w-3 h-3 text-slate-400" />
+            Tempo:
           </span>
-          {(['todas', '2h', '6h', '12h', '24h', 'personalizado'] as const).map((periodo) => (
+          {(
+            [
+              { id: 'todas', label: 'Todas' },
+              { id: '2h', label: '2h' },
+              { id: '8h', label: '8h' },
+              { id: '24h', label: '24h' },
+              { id: 'personalizado', label: 'Data' },
+            ] as const
+          ).map((item) => (
             <button
-              key={periodo}
-              onClick={() => onChangeFiltros({ ...filtros, periodoTempo: periodo })}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                filtros.periodoTempo === periodo
-                  ? 'bg-red-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              key={item.id}
+              type="button"
+              onClick={() => onChangeFiltros({ ...filtros, periodoTempo: item.id })}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition cursor-pointer whitespace-nowrap tabular-nums ${
+                filtros.periodoTempo === item.id
+                  ? 'bg-red-600 text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/70'
               }`}
+              title={
+                item.id === 'todas'
+                  ? 'Exibir todas as chamadas ativas'
+                  : item.id === 'personalizado'
+                  ? 'Definir intervalo de data e hora'
+                  : `Filtrar últimas ${item.label}`
+              }
             >
-              {periodo === 'todas'
-                ? 'Todas Ativas'
-                : periodo === 'personalizado'
-                ? 'Personalizado'
-                : `Últimas ${periodo}`}
+              {item.label}
             </button>
           ))}
         </div>
 
-        {/* Clear Filters Button */}
-        <button
-          onClick={onResetFiltros}
-          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold transition border border-slate-700"
-          title="Resetar todos os filtros"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Limpar</span>
-        </button>
+        {/* Clear Filters Button (desktop inline / compact) */}
+        {temAlgumFiltroAtivo && (
+          <button
+            type="button"
+            onClick={onResetFiltros}
+            className="hidden lg:flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition border border-slate-700/80 cursor-pointer shrink-0"
+            title="Limpar todos os filtros"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Limpar</span>
+          </button>
+        )}
       </div>
 
-      {/* Custom Date Interval (if 'personalizado' selected) */}
+      {/* Custom Date Interval (when 'personalizado' selected) */}
       {filtros.periodoTempo === 'personalizado' && (
-        <div className="flex flex-wrap items-center gap-3 p-2.5 bg-slate-950/80 rounded-lg border border-slate-800 text-xs">
-          <div className="flex items-center gap-1 text-slate-400">
+        <div className="flex flex-wrap items-center gap-3 p-2.5 bg-slate-950/70 rounded-lg border border-slate-800 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-400">
             <Calendar className="w-3.5 h-3.5 text-amber-400" />
             <span>Início:</span>
             <input
@@ -643,7 +679,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
               className="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs"
             />
           </div>
-          <div className="flex items-center gap-1 text-slate-400">
+          <div className="flex items-center gap-1.5 text-slate-400">
             <span>Fim:</span>
             <input
               type="datetime-local"
@@ -655,116 +691,169 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
         </div>
       )}
 
-      {/* Operational Dropdown Filters */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
-        {/* 1. COB / CEB (Multi-select com Checkbox) */}
+      {/* Nível 1B: Comando (COB/CEB) + Natureza + Botão "Mais filtros" */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end text-xs">
         <MultiSelectCheckboxDropdown
           label="COB / Comando"
-          icon={<Shield className="w-3 h-3 text-red-500" />}
+          icon={<Shield className="w-3 h-3 text-red-400" />}
           options={listaCobs}
           selectedValues={filtros.cobs || []}
           onChange={handleCobsChange}
-          placeholder="Todos os Comandos"
           allLabel="Todos os Comandos (COBs + CEB)"
         />
 
-        {/* 2. BBM (Multi-select com Checkbox) */}
         <MultiSelectCheckboxDropdown
-          label="BBM / Unidade"
-          icon={<Building className="w-3 h-3 text-blue-400" />}
-          options={listaBbms}
-          selectedValues={filtros.bbms || []}
-          onChange={handleBbmsChange}
-          placeholder="Todas as Unidades"
-          allLabel="Todos os BBMs / BEMAD / BOA"
-        />
-
-        {/* 3. CIA IND / CEOA (Multi-select com Checkbox) */}
-        <MultiSelectCheckboxDropdown
-          label="CIA IND / CEOA"
-          icon={<Flag className="w-3 h-3 text-amber-400" />}
-          options={listaCiasInd}
-          selectedValues={filtros.ciasInd || []}
-          onChange={handleCiasIndChange}
-          placeholder="Todas Cias Ind / CEOAs"
-          allLabel="Todas Cias Ind e CEOAs"
-          alignRight={true}
-        />
-
-        {/* 4. Natureza / Tabela Auxiliar CAD (Multi-select com Checkbox) */}
-        <MultiSelectCheckboxDropdown
-          label="Natureza da Ocorrência"
-          icon={<Flame className="w-3 h-3 text-red-500" />}
+          label="Natureza"
+          icon={<Flame className="w-3 h-3 text-amber-400" />}
           options={listaNaturezas}
           selectedValues={filtros.naturezas || []}
           onChange={handleNaturezasChange}
-          placeholder="Todas as Naturezas"
-          allLabel="Todas as Naturezas (CAD)"
+          allLabel="Todas as Naturezas"
           widthClass="w-80 sm:w-96"
         />
 
-        {/* 5. Situação Atendimento */}
-        <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Status Atendimento
-          </label>
-          <select
-            value={filtros.situacaoAtendimento}
-            onChange={(e) => onChangeFiltros({ ...filtros, situacaoAtendimento: e.target.value })}
-            className="w-full bg-slate-950 border border-slate-700 focus:border-red-500 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMostrarAvancados((prev) => !prev)}
+            className={`flex-1 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition cursor-pointer ${
+              mostrarAvancados || qtdAvancadosAtivos > 0
+                ? 'bg-slate-800/90 border-slate-700 text-white'
+                : 'bg-slate-950/90 border-slate-800 hover:border-slate-700 text-slate-300'
+            }`}
           >
-            <option value="TODOS">Todos os Status</option>
-            {Object.entries(DICIONARIO_SIGLAS.chamada_atendimento_situacao).map(([sigla, desc]) => (
-              <option key={sigla} value={sigla}>
-                {sigla} - {desc}
-              </option>
-            ))}
-          </select>
-        </div>
+            <span className="flex items-center gap-1.5">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              <span>Mais filtros</span>
+              {qtdAvancadosAtivos > 0 && (
+                <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full tabular-nums">
+                  {qtdAvancadosAtivos}
+                </span>
+              )}
+            </span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                mostrarAvancados ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
 
-        {/* 6. Prioridade */}
-        <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Prioridade
-          </label>
-          <select
-            value={filtros.prioridade}
-            onChange={(e) => onChangeFiltros({ ...filtros, prioridade: e.target.value })}
-            className="w-full bg-slate-950 border border-slate-700 focus:border-red-500 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
-          >
-            <option value="TODOS">Todas Prioridades</option>
-            <option value="Alta">Alta (Emergência)</option>
-            <option value="Média">Média (Urgência)</option>
-            <option value="Baixa">Baixa (Eletiva)</option>
-          </select>
+          {temAlgumFiltroAtivo && (
+            <button
+              type="button"
+              onClick={onResetFiltros}
+              className="lg:hidden flex items-center justify-center gap-1 px-3 py-2 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition border border-slate-700/80 cursor-pointer shrink-0"
+              title="Limpar todos os filtros"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Limpar</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filter Status Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-red-400" />
-            <span>
-              Exibindo <strong>{totalFiltrado}</strong> de <strong>{totalGeral}</strong> chamadas ativas
-            </span>
+      {/* Nível 2 (Expansível): Unidades específicas, Status, Prioridade, GPS */}
+      {mostrarAvancados && (
+        <div className="pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs animate-in fade-in duration-150">
+          <MultiSelectCheckboxDropdown
+            label="BBM / Unidade"
+            icon={<Building className="w-3 h-3 text-blue-400" />}
+            options={listaBbms}
+            selectedValues={filtros.bbms || []}
+            onChange={handleBbmsChange}
+            allLabel="Todos os BBMs / BEMAD / BOA"
+          />
+
+          <MultiSelectCheckboxDropdown
+            label="CIA IND / CEOA"
+            icon={<Flag className="w-3 h-3 text-amber-400" />}
+            options={listaCiasInd}
+            selectedValues={filtros.ciasInd || []}
+            onChange={handleCiasIndChange}
+            allLabel="Todas Cias Ind e CEOAs"
+            alignRight={true}
+          />
+
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              Status do Atendimento
+            </label>
+            <select
+              value={filtros.situacaoAtendimento}
+              onChange={(e) => onChangeFiltros({ ...filtros, situacaoAtendimento: e.target.value })}
+              className="w-full bg-slate-950/90 border border-slate-800 focus:border-red-500/80 rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none"
+            >
+              <option value="TODOS">Todos os Status</option>
+              {Object.entries(DICIONARIO_SIGLAS.chamada_atendimento_situacao).map(([sigla, desc]) => (
+                <option key={sigla} value={sigla}>
+                  {sigla} - {desc}
+                </option>
+              ))}
+            </select>
           </div>
-          {(totalFiltrado < totalGeral ||
-            (filtros.cobs && filtros.cobs.length > 0) ||
-            (filtros.bbms && filtros.bbms.length > 0) ||
-            (filtros.ciasInd && filtros.ciasInd.length > 0) ||
-            (filtros.naturezas && filtros.naturezas.length > 0) ||
-            filtros.prioridade !== 'TODOS' ||
-            filtroChuvaAtivo) && (
-            <span className="bg-red-500/10 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full font-medium">
-              Filtro ativo
-            </span>
+
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              Prioridade
+            </label>
+            <select
+              value={filtros.prioridade}
+              onChange={(e) => onChangeFiltros({ ...filtros, prioridade: e.target.value })}
+              className="w-full bg-slate-950/90 border border-slate-800 focus:border-red-500/80 rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none"
+            >
+              <option value="TODOS">Todas Prioridades</option>
+              <option value="Alta">Alta (Emergência)</option>
+              <option value="Média">Média (Urgência)</option>
+              <option value="Baixa">Baixa (Eletiva)</option>
+            </select>
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-4 pt-1 flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white select-none">
+              <input
+                type="checkbox"
+                checked={filtros.apenasComGeolocalizacao}
+                onChange={(e) =>
+                  onChangeFiltros({ ...filtros, apenasComGeolocalizacao: e.target.checked })
+                }
+                className="rounded bg-slate-950 border-slate-700 text-red-600 focus:ring-0 focus:ring-offset-0"
+              />
+              <span>Apenas ocorrências com coordenadas no mapa (GPS)</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Barra Resumo de Resultados & Chips Ativos */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/70 text-[11px] text-slate-400">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="tabular-nums">
+            Exibindo <strong className="text-slate-200">{totalFiltrado}</strong> de{' '}
+            <strong className="text-slate-200">{totalGeral}</strong> chamadas ativas
+          </span>
+
+          {filtros.periodoTempo !== 'todas' && (
+            <button
+              type="button"
+              onClick={() => onChangeFiltros({ ...filtros, periodoTempo: 'todas' })}
+              className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-0.5 rounded-md transition cursor-pointer"
+              title="Remover filtro de tempo"
+            >
+              <Clock className="w-3 h-3 text-slate-400" />
+              <span>
+                {filtros.periodoTempo === 'personalizado'
+                  ? 'Período personalizado'
+                  : `Últimas ${filtros.periodoTempo}`}
+              </span>
+              <X className="w-3 h-3 text-slate-400" />
+            </button>
           )}
+
           {filtroChuvaAtivo && (
             <button
               type="button"
               onClick={() => onChangeFiltros({ ...filtros, filtroChuva: 'TODOS' })}
-              className="inline-flex items-center gap-1 bg-cyan-950/70 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-700/60 px-2 py-0.5 rounded-full font-medium transition cursor-pointer"
+              className="inline-flex items-center gap-1 bg-cyan-950/70 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-800/60 px-2 py-0.5 rounded-md transition cursor-pointer"
               title="Remover filtro de ocorrências relacionadas com chuva"
             >
               <CloudRain className="w-3 h-3" />
@@ -772,19 +861,54 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
               <X className="w-3 h-3" />
             </button>
           )}
+
+          {filtros.prioridade !== 'TODOS' && (
+            <button
+              type="button"
+              onClick={() => onChangeFiltros({ ...filtros, prioridade: 'TODOS' })}
+              className="inline-flex items-center gap-1 bg-red-950/60 hover:bg-red-900/60 text-red-300 border border-red-800/60 px-2 py-0.5 rounded-md transition cursor-pointer"
+              title="Remover filtro de prioridade"
+            >
+              <span>Prioridade: {filtros.prioridade}</span>
+              <X className="w-3 h-3" />
+            </button>
+          )}
+
+          {filtros.situacaoAtendimento !== 'TODOS' && (
+            <button
+              type="button"
+              onClick={() => onChangeFiltros({ ...filtros, situacaoAtendimento: 'TODOS' })}
+              className="inline-flex items-center gap-1 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded-md transition cursor-pointer"
+              title="Remover filtro de status"
+            >
+              <span>Status: {filtros.situacaoAtendimento}</span>
+              <X className="w-3 h-3" />
+            </button>
+          )}
+
+          {filtros.situacaoChamada !== 'TODOS' && (
+            <button
+              type="button"
+              onClick={() => onChangeFiltros({ ...filtros, situacaoChamada: 'TODOS' })}
+              className="inline-flex items-center gap-1 bg-blue-950/60 hover:bg-blue-900/60 text-blue-300 border border-blue-800/60 px-2 py-0.5 rounded-md transition cursor-pointer"
+              title="Remover filtro de atendimento"
+            >
+              <span>{filtros.situacaoChamada === 'E' ? 'Em Atendimento' : 'Aguardando'}</span>
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
 
-        <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-200 select-none">
-          <input
-            type="checkbox"
-            checked={filtros.apenasComGeolocalizacao}
-            onChange={(e) =>
-              onChangeFiltros({ ...filtros, apenasComGeolocalizacao: e.target.checked })
-            }
-            className="rounded bg-slate-950 border-slate-700 text-red-600 focus:ring-0 focus:ring-offset-0"
-          />
-          <span>Apenas com coordenadas geográficas</span>
-        </label>
+        {!mostrarAvancados && filtros.apenasComGeolocalizacao && (
+          <button
+            type="button"
+            onClick={() => onChangeFiltros({ ...filtros, apenasComGeolocalizacao: false })}
+            className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md transition cursor-pointer"
+          >
+            <span>Apenas com GPS</span>
+            <X className="w-3 h-3" />
+          </button>
+        )}
       </div>
     </div>
   );

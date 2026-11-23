@@ -170,7 +170,7 @@ export interface FiltrosOperacionais {
   situacaoAtendimento: string; // 'TODOS' | código
   origem: string; // 'TODOS' | 'L' | 'I' | 'B' | 'A'
   prioridade: string; // 'TODOS' | 'Alta' | 'Média' | 'Baixa'
-  periodoTempo: 'todas' | '2h' | '6h' | '12h' | '24h' | 'personalizado';
+  periodoTempo: 'todas' | '2h' | '8h' | '24h' | 'personalizado';
   dataInicio?: string;
   dataFim?: string;
   apenasComGeolocalizacao: boolean;
