@@ -146,6 +146,12 @@ export const UNIDADES_SERVICO_CBMMG: UnidadeServicoAuxiliar[] = [
   { id: 1984, nome: '4ª CEOA / BOA - Base Uberaba', sigla: '4ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '4ª CEOA', semAreaDefinida: true, municipioSede: 'Base Uberaba (Atuação Estadual)' },
   { id: 1985, nome: '5ª CEOA / BOA - Base Governador Valadares', sigla: '5ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '5ª CEOA', semAreaDefinida: true, municipioSede: 'Base Gov. Valadares (Atuação Estadual)' },
   { id: 1986, nome: '6ª CEOA / BOA - Base Juiz de Fora', sigla: '6ª CEOA', cob: 'CEB', bbm: 'BOA', subunidade: '6ª CEOA', semAreaDefinida: true, municipioSede: 'Base Juiz de Fora (Atuação Estadual)' },
+
+  // ADM / APOIO - Órgãos de Direção, Apoio Técnico, Ensino e Despacho
+  { id: 901, nome: 'ABM - Academia de Bombeiros Militar', sigla: 'ABM', cob: 'ADM / APOIO', bbm: 'ABM', semAreaDefinida: true, municipioSede: 'Belo Horizonte (Ensino)' },
+  { id: 902, nome: 'CAT - Centro de Atividades Técnicas', sigla: 'CAT', cob: 'ADM / APOIO', bbm: 'CAT', semAreaDefinida: true, municipioSede: 'Belo Horizonte (Técnico)' },
+  { id: 903, nome: 'DAT - Diretoria de Assuntos Técnicos', sigla: 'DAT', cob: 'ADM / APOIO', bbm: 'DAT', semAreaDefinida: true, municipioSede: 'Belo Horizonte (Direção)' },
+  { id: 904, nome: 'Apoio / Direção (COBOM, CSM, EMBM, DRH)', sigla: 'Apoio / Direção', cob: 'ADM / APOIO', bbm: 'Apoio / Direção', semAreaDefinida: true, municipioSede: 'Belo Horizonte (Apoio)' },
 ];
 
 export interface GrupoNaturezaDef {

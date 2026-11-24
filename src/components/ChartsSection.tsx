@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChamadaAtiva } from '../types/cbm';
+import { ChamadaAtiva, ResumoRecursosBase } from '../types/cbm';
 import {
   calcularDistribuicaoPorNatureza,
   calcularDistribuicaoPorOrigem,
@@ -22,13 +22,15 @@ import {
   Send,
   Check,
   ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ChartsSectionProps {
   chamadas: ChamadaAtiva[];
+  resumoRecursos?: ResumoRecursosBase;
 }
 
-export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
+export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas, resumoRecursos }) => {
   const [modoHoras, setModoHoras] = React.useState<'24h' | '12h'>('24h');
   const [abaSituacao, setAbaSituacao] = React.useState<'chamadas' | 'empenhos'>('chamadas');
   const [copiadoWhatsApp, setCopiadoWhatsApp] = React.useState(false);
@@ -400,53 +402,216 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas }) => {
             })}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
-            {distribuicaoEmpenho.length === 0 ? (
-              <div className="col-span-3 text-center py-6 text-xs text-slate-500">
-                Nenhum recurso empenhado nas ocorrências filtradas.
-              </div>
-            ) : (
-              distribuicaoEmpenho.map((item, idx) => {
-                const pct = Math.round((item.total / totalRecursos) * 100);
-                const siglaUpper = item.sigla?.toUpperCase();
-                const cor = CORES_SITUACAO_EMPENHO[siglaUpper as any] || {
-                  bg: 'bg-slate-800 text-slate-300',
-                };
-                const desc =
-                  DICIONARIO_SIGLAS.empenho_situacao[siglaUpper as any] || item.descricao;
-
-                return (
-                  <div
-                    key={idx}
-                    className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5 flex flex-col justify-between hover:border-slate-700 transition"
-                  >
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span
-                        className={`font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border border-current/20 ${cor.bg}`}
+          <div className="space-y-3 pt-1">
+            {resumoRecursos && resumoRecursos.totalBase > 0 && (
+              <>
+                {/* Disponibilidade na Base CAD (D / E / I) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {[
+                    {
+                      sigla: 'D',
+                      titulo: 'Disponíveis',
+                      total: resumoRecursos.disponiveisTotal,
+                      vtr: resumoRecursos.viaturasDisponiveis,
+                      efetivo: resumoRecursos.efetivoDisponivel,
+                      badgeClass: 'bg-emerald-500/15 border-emerald-500/35 text-emerald-300',
+                      valorClass: 'text-emerald-300',
+                      extra:
+                        resumoRecursos.disponiveisComRestricao > 0
+                          ? `${resumoRecursos.disponiveisComRestricao} c/ restrição`
+                          : undefined,
+                    },
+                    {
+                      sigla: 'E',
+                      titulo: 'Empenhados',
+                      total: resumoRecursos.empenhadosTotal,
+                      vtr: resumoRecursos.viaturasEmCampo,
+                      efetivo: resumoRecursos.efetivoEmCampo,
+                      badgeClass: 'bg-amber-500/15 border-amber-500/35 text-amber-300',
+                      valorClass: 'text-amber-300',
+                      extra:
+                        resumoRecursos.empenhadosComRestricao > 0
+                          ? `${resumoRecursos.empenhadosComRestricao} c/ restrição`
+                          : undefined,
+                    },
+                    {
+                      sigla: 'I',
+                      titulo: 'Indisponíveis',
+                      total: resumoRecursos.indisponiveisTotal,
+                      vtr: resumoRecursos.viaturasIndisponiveis,
+                      efetivo: resumoRecursos.efetivoIndisponivel,
+                      badgeClass: 'bg-rose-500/15 border-rose-500/35 text-rose-300',
+                      valorClass: 'text-rose-300',
+                      extra:
+                        resumoRecursos.indisponiveisComRestricao > 0
+                          ? `${resumoRecursos.indisponiveisComRestricao} c/ restrição`
+                          : 'Baixados / inativos',
+                    },
+                  ].map((item) => {
+                    const pct = Math.round((item.total / resumoRecursos.totalBase) * 100);
+                    return (
+                      <div
+                        key={item.sigla}
+                        className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5 flex flex-col justify-between"
                       >
-                        {siglaUpper}
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span
+                              className={`font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border ${item.badgeClass}`}
+                            >
+                              {item.sigla}
+                            </span>
+                            <span className="text-[11px] text-slate-300 font-medium truncate">
+                              {item.titulo}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 tabular-nums shrink-0">
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-2 tabular-nums">
+                          <span className={`text-lg font-bold ${item.valorClass}`}>
+                            {item.total.toLocaleString('pt-BR')}
+                          </span>
+                          <span className="text-[10px] text-slate-400 truncate">
+                            {item.vtr} VTR · {item.efetivo} efet.
+                          </span>
+                        </div>
+                        {item.extra && (
+                          <div className="mt-1 text-[10px] text-slate-500 truncate tabular-nums">
+                            {item.extra}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desativados, Restrições e Expiração */}
+                {(resumoRecursos.comRestricaoTotal > 0 ||
+                  resumoRecursos.comExpiracaoTotal > 0 ||
+                  resumoRecursos.motivosIndisponibilidade.length > 0) && (
+                  <div className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-2.5 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                        Desativados & Restrições de Empenho
                       </span>
-                      <span className="text-[11px] text-slate-300 font-medium truncate capitalize">
-                        {desc}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 tabular-nums">
+                        {resumoRecursos.comRestricaoTotal > 0 && (
+                          <span className="bg-amber-950/50 border border-amber-800/60 text-amber-300 px-1.5 py-0.5 rounded">
+                            {resumoRecursos.comRestricaoTotal} c/ restrição
+                          </span>
+                        )}
+                        {resumoRecursos.comExpiracaoTotal > 0 && (
+                          <span className="bg-slate-900 border border-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
+                            {resumoRecursos.comExpiracaoTotal} c/ expiração
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-baseline justify-between mt-1 tabular-nums">
-                      <span className="text-lg font-bold text-amber-300">{item.total}</span>
-                      <span className="text-[11px] text-slate-500">{pct}%</span>
-                    </div>
+
+                    {resumoRecursos.motivosIndisponibilidade.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {resumoRecursos.motivosIndisponibilidade.slice(0, 5).map((m) => (
+                          <span
+                            key={m.codigo}
+                            className="inline-flex items-center gap-1 bg-slate-900 border border-slate-800 text-[10px] text-slate-300 px-2 py-0.5 rounded tabular-nums"
+                            title={`Motivo de indisponibilidade #${m.codigo}: ${m.viaturas} viaturas e ${m.efetivo} recursos de efetivo`}
+                          >
+                            <span className="text-rose-400 font-mono font-semibold">
+                              Motivo #{m.codigo}
+                            </span>
+                            <strong className="text-white">{m.total}</strong>
+                            <span className="text-slate-500">
+                              ({m.viaturas} VTR / {m.efetivo} BM)
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="text-[10px] text-slate-500 leading-tight">
+                      Os motivos de baixa e restrição são identificados na API CAD por códigos numéricos sem catálogo textual público.
+                    </p>
                   </div>
-                );
-              })
+                )}
+              </>
             )}
+
+            {/* Estágio dos Empenhos em Campo */}
+            <div className="space-y-1.5">
+              {resumoRecursos && resumoRecursos.totalBase > 0 && (
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Estágio dos Empenhos nas Chamadas
+                </div>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {distribuicaoEmpenho.length === 0 ? (
+                  <div className="col-span-3 text-center py-4 text-xs text-slate-500">
+                    Nenhum recurso empenhado nas ocorrências filtradas.
+                  </div>
+                ) : (
+                  distribuicaoEmpenho.map((item, idx) => {
+                    const pct = Math.round((item.total / totalRecursos) * 100);
+                    const siglaUpper = item.sigla?.toUpperCase();
+                    const cor = CORES_SITUACAO_EMPENHO[siglaUpper as any] || {
+                      bg: 'bg-slate-800 text-slate-300',
+                    };
+                    const desc =
+                      DICIONARIO_SIGLAS.empenho_situacao[siglaUpper as any] || item.descricao;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2 flex flex-col justify-between hover:border-slate-700 transition"
+                      >
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span
+                            className={`font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border border-current/20 ${cor.bg}`}
+                          >
+                            {siglaUpper}
+                          </span>
+                          <span className="text-[11px] text-slate-300 font-medium truncate capitalize">
+                            {desc}
+                          </span>
+                        </div>
+                        <div className="flex items-baseline justify-between mt-0.5 tabular-nums">
+                          <span className="text-base font-bold text-amber-300">{item.total}</span>
+                          <span className="text-[10px] text-slate-500">{pct}%</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
         )}
 
         <div className="pt-2 border-t border-slate-800/60 mt-2 flex items-center justify-between text-[11px] text-slate-400">
           <span>
-            {abaSituacao === 'chamadas' ? 'Chamadas analisadas' : 'Recursos empenhados'}
+            {abaSituacao === 'chamadas'
+              ? 'Chamadas analisadas'
+              : resumoRecursos && resumoRecursos.totalBase > 0
+              ? 'Base CAD / Empenhos em campo'
+              : 'Recursos empenhados'}
           </span>
           <span className="text-slate-300 tabular-nums">
-            Total: <strong>{abaSituacao === 'chamadas' ? totalChamadas : totalRecursos}</strong>
+            {abaSituacao === 'chamadas' ? (
+              <>
+                Total: <strong>{totalChamadas}</strong>
+              </>
+            ) : resumoRecursos && resumoRecursos.totalBase > 0 ? (
+              <>
+                Base: <strong>{resumoRecursos.totalBase.toLocaleString('pt-BR')}</strong> · Empenho:{' '}
+                <strong>{chamadas.reduce((acc, c) => acc + c.recursos.length, 0)}</strong>
+              </>
+            ) : (
+              <>
+                Total: <strong>{chamadas.reduce((acc, c) => acc + c.recursos.length, 0)}</strong>
+              </>
+            )}
           </span>
         </div>
       </div>

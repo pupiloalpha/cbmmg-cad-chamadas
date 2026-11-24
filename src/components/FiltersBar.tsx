@@ -326,13 +326,16 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
       '5º COB': 'Leste de Minas e Vale do Aço',
       '6º COB': 'Sul de Minas',
       'CEB': 'Comando Especializado (BEMAD, BOA e CEOAs)',
+      'ADM / APOIO': 'Ensino, Técnico e Direção (ABM, CAT, DAT)',
     };
     const set = new Set<string>();
     UNIDADES_SERVICO_CBMMG.forEach((u) => set.add(u.cob));
     return Array.from(set)
       .sort((a, b) => {
-        if (a === 'CEB') return 1;
-        if (b === 'CEB') return -1;
+        const order = (v: string) => (v === 'ADM / APOIO' ? 2 : v === 'CEB' ? 1 : 0);
+        const oa = order(a);
+        const ob = order(b);
+        if (oa !== ob) return oa - ob;
         return a.localeCompare(b, undefined, { numeric: true });
       })
       .map((cob) => ({

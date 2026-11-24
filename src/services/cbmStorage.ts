@@ -6,6 +6,7 @@ import {
 } from '../data/catalogoAuxiliares';
 import { MOCK_CHAMADAS_INICIAIS } from '../data/mockChamadas';
 import {
+  CategoriaRecursoBase,
   ChamadaAtiva,
   CodigoOrigemChamada,
   CodigoSituacaoAtendimento,
@@ -13,13 +14,18 @@ import {
   CodigoSituacaoEmpenho,
   FiltrosOperacionais,
   KpiOperacional,
+  MotivoRecursoResumo,
+  RecursoCadAtivo,
   RecursoEmpenhado,
+  ResumoRecursosBase,
+  SituacaoRecursoBase,
 } from '../types/cbm';
 
 // Endereço oficial do Proxy Reverso Nginx configurado pelo usuário
 export const PROXY_REVERSO_PADRAO = 'https://cobom-cad.duckdns.org';
 
 const STORAGE_KEY_CHAMADAS = 'cbmmg_cad_chamadas_v1';
+const STORAGE_KEY_RECURSOS = 'cbmmg_cad_recursos_v1';
 const STORAGE_KEY_ULTIMA_SYNC = 'cbmmg_cad_ultima_sync';
 const STORAGE_KEY_CATALOGOS = 'cbmmg_cad_catalogos_v1';
 const STORAGE_KEY_CATALOGOS_TS = 'cbmmg_cad_catalogos_ts';
@@ -454,6 +460,29 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
   };
 }
 
+export function carregarRecursosArmazenados(): RecursoCadAtivo[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_RECURSOS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return reconciliarUnidadesRecursos(parsed);
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao ler recursos do localStorage:', e);
+  }
+  return [];
+}
+
+export function salvarRecursosArmazenados(recursos: RecursoCadAtivo[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_RECURSOS, JSON.stringify(recursos));
+  } catch (e) {
+    console.error('Erro ao salvar recursos no localStorage:', e);
+  }
+}
+
 export function carregarChamadasArmazenadas(): ChamadaAtiva[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CHAMADAS);
@@ -773,7 +802,13 @@ export async function carregarTodasTabelasAuxiliares(forcar = true): Promise<{
 
 export async function sincronizarProxyReverso(
   forcar = false
-): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[]; total?: number }> {
+): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  dados?: ChamadaAtiva[];
+  recursos?: RecursoCadAtivo[];
+  total?: number;
+}> {
   const agora = Date.now();
   const tempoDesdeUltimo = agora - ultimoAcessoAtivosMs;
 
@@ -781,10 +816,12 @@ export async function sincronizarProxyReverso(
   if (!forcar && tempoDesdeUltimo < INTERVALO_MINIMO_LEITURA_MS) {
     const restante = Math.ceil((INTERVALO_MINIMO_LEITURA_MS - tempoDesdeUltimo) / 1000);
     const existentes = carregarChamadasArmazenadas();
+    const recursosExistentes = carregarRecursosArmazenados();
     return {
       sucesso: true,
       mensagem: `Aguarde ${restante}s para nova requisição direta (Regra do Manual: intervalo ≥30s). Exibindo dados locais.`,
       dados: existentes,
+      recursos: recursosExistentes,
       total: existentes.length,
     };
   }
@@ -889,11 +926,365 @@ export async function sincronizarProxyReverso(
   const enriquecidas = chamadasBrutas.map(enriquecerChamada);
   salvarChamadasArmazenadas(enriquecidas);
 
+  // Extrair e persistir base completa de recursos ativos (viaturas + BM + brigadistas)
+  const recursosBrutos = extrairRecursosDeJson(jsonResposta);
+  const recursosNormalizados =
+    recursosBrutos.length > 0
+      ? recursosBrutos.map(normalizarRecursoBase)
+      : carregarRecursosArmazenados();
+  if (recursosBrutos.length > 0) {
+    salvarRecursosArmazenados(recursosNormalizados);
+  }
+
   return {
     sucesso: true,
-    mensagem: `Conectado com sucesso via ${fonteUtilizada}! ${enriquecidas.length} chamadas ativas sincronizadas em tempo real.`,
+    mensagem: `Conectado com sucesso via ${fonteUtilizada}! ${enriquecidas.length} chamadas e ${recursosNormalizados.length} recursos sincronizados.`,
     dados: enriquecidas,
+    recursos: recursosNormalizados,
     total: enriquecidas.length,
+  };
+}
+
+// ==========================================
+// EXTRATOR E NORMALIZADOR DE RECURSOS (recursos_ativos)
+// ==========================================
+
+export function extrairRecursosDeJson(raw: any): any[] {
+  if (!raw || Array.isArray(raw)) return [];
+
+  if (raw.recursos_ativos) {
+    const ra = raw.recursos_ativos;
+    const resp = ra?.dados?.response || ra?.response || ra?.dados || ra;
+    const vigentes = resp?.dadosVigentesRecursos?.dadosVigentesRecursoV1 || resp?.recursos;
+    if (Array.isArray(vigentes)) return vigentes;
+    if (vigentes && typeof vigentes === 'object') return [vigentes];
+    if (Array.isArray(resp)) return resp;
+  }
+
+  if (raw.dados?.response?.dadosVigentesRecursos?.dadosVigentesRecursoV1) {
+    const lista = raw.dados.response.dadosVigentesRecursos.dadosVigentesRecursoV1;
+    return Array.isArray(lista) ? lista : [lista];
+  }
+
+  if (raw.response?.dadosVigentesRecursos?.dadosVigentesRecursoV1) {
+    const lista = raw.response.dadosVigentesRecursos.dadosVigentesRecursoV1;
+    return Array.isArray(lista) ? lista : [lista];
+  }
+
+  if (raw.dadosVigentesRecursos?.dadosVigentesRecursoV1) {
+    const lista = raw.dadosVigentesRecursos.dadosVigentesRecursoV1;
+    return Array.isArray(lista) ? lista : [lista];
+  }
+
+  return [];
+}
+
+function resolverUnidadeRecursoBase(
+  idUnidadeServico?: string | number,
+  complementoPrefixo?: string
+): {
+  cob?: string;
+  bbm?: string;
+  ciaInd?: string;
+  subunidade?: string;
+  nomeUnidade?: string;
+} {
+  const cadUnidade = obterUnidadeCadPorId(idUnidadeServico);
+  const compUpper = (complementoPrefixo || '').trim().toUpperCase();
+  const uidStr = idUnidadeServico !== undefined && idUnidadeServico !== null ? String(idUnidadeServico) : '';
+
+  if (!cadUnidade) {
+    // IDs históricos de unidades desativadas no catálogo CAD vigente
+    if (uidStr === '15165' || compUpper === 'PN') {
+      return {
+        cob: '5º COB',
+        bbm: '11º BBM',
+        nomeUnidade: '11º BBM - Ponte Nova (Registro Legado)',
+      };
+    }
+    if (uidStr === '15258' || compUpper === 'CIAPV') {
+      return {
+        cob: '1º COB',
+        bbm: '1º BBM',
+        nomeUnidade: 'Cia PV / 1º COB (Registro Legado)',
+      };
+    }
+    return {};
+  }
+
+  const parsed = interpretarDescricaoUnidadeCad(cadUnidade.descricao);
+  let bbm = parsed.bbm || parsed.hintBbm;
+  let cob = parsed.cob || (bbm ? BBM_PARA_COB[bbm] : undefined);
+
+  if (!cob) {
+    const up = normalizarTexto(cadUnidade.descricao);
+    if (up.startsWith('ABM')) {
+      cob = 'ADM / APOIO';
+      bbm = 'ABM';
+    } else if (up.startsWith('CAT')) {
+      cob = 'ADM / APOIO';
+      bbm = 'CAT';
+    } else if (up.startsWith('DAT')) {
+      cob = 'ADM / APOIO';
+      bbm = 'DAT';
+    } else if (/^(COBOM|CSM|DRH|EMBM)\b/.test(up)) {
+      cob = 'ADM / APOIO';
+      bbm = 'Apoio / Direção';
+    }
+  }
+
+  return {
+    cob,
+    bbm,
+    ciaInd: parsed.ciaInd,
+    subunidade: parsed.subunidade,
+    nomeUnidade: parsed.nomeUnidade || cadUnidade.descricao,
+  };
+}
+
+export function normalizarRecursoBase(raw: any): RecursoCadAtivo {
+  const r = raw || {};
+  const pref = String(r.prefixo || '').trim().toUpperCase();
+  const compRaw = r.dadosVigentesComponentesRecurso?.dadosVigentesComponenteRecursoV1;
+  const comps = Array.isArray(compRaw) ? compRaw : compRaw ? [compRaw] : [];
+  const hasBmComp = comps.some((c: any) =>
+    String(c?.codigoPessoa || '').trim().toUpperCase().startsWith('BM')
+  );
+
+  // Regra verificada na base CAD: algumas viaturas (ex: UR04341, ASL02161) possuem idTipoRecurso 1080,
+  // portanto a presença de meio material prevalece; e idTipoRecurso !== 1080 com dígitos no prefixo captura VTRs sem idMeioMaterial (ex: UR297, ASL2163).
+  const isVtr =
+    Boolean(r.idMeioMaterial || r.placaMeioMaterial || r.prefixoMeioMaterial) ||
+    (String(r.idTipoRecurso || '') !== '1080' &&
+      !pref.startsWith('BM') &&
+      (!hasBmComp || /\d/.test(pref)));
+
+  const categoriaRecurso: CategoriaRecursoBase = isVtr
+    ? 'VTR'
+    : pref.startsWith('BM') || hasBmComp
+    ? 'BM'
+    : 'BRIG';
+
+  const sitRaw = String(r.codigoSituacaoRecurso || 'D').trim().toUpperCase();
+  const codigoSituacaoRecurso: SituacaoRecursoBase =
+    sitRaw === 'E' || sitRaw === 'I' ? sitRaw : 'D';
+
+  const empRaw = r.dadosVigentesEmpenhosNaoEncerrados?.dadosVigentesEmpenhoRecursoChamadaV1;
+  const empLista = Array.isArray(empRaw) ? empRaw : empRaw ? [empRaw] : [];
+  const primeiroEmp = empLista.find(Boolean);
+
+  const parseDataIso = (val: any): string | undefined => {
+    if (!val) return undefined;
+    if (typeof val === 'number') return new Date(val).toISOString();
+    const s = String(val).trim();
+    if (/^\d{10,13}$/.test(s)) return new Date(parseInt(s, 10)).toISOString();
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+  };
+
+  const complementoPrefixo = r.complementoPrefixo ? String(r.complementoPrefixo).trim() : undefined;
+  const un = resolverUnidadeRecursoBase(r.idUnidadeServico, complementoPrefixo);
+
+  return {
+    id: String(r.id || r.prefixo || Math.random()),
+    prefixo: String(r.prefixo || '').trim() || `REC-${r.id || 'CAD'}`,
+    complementoPrefixo,
+    idTipoRecurso: r.idTipoRecurso ? String(r.idTipoRecurso) : undefined,
+    idMeioMaterial: r.idMeioMaterial ? String(r.idMeioMaterial) : undefined,
+    placaMeioMaterial: r.placaMeioMaterial ? String(r.placaMeioMaterial).trim() : undefined,
+    prefixoMeioMaterial: r.prefixoMeioMaterial ? String(r.prefixoMeioMaterial).trim() : undefined,
+    idUnidadeServico: r.idUnidadeServico ? String(r.idUnidadeServico) : undefined,
+    nomeUnidade: un.nomeUnidade,
+    cob: un.cob,
+    bbm: un.bbm,
+    ciaInd: un.ciaInd,
+    subunidade: un.subunidade,
+    categoriaRecurso,
+    codigoSituacaoRecurso,
+    idMotivoIndisponibilidadeRecurso: r.idMotivoIndisponibilidadeRecurso
+      ? String(r.idMotivoIndisponibilidadeRecurso)
+      : undefined,
+    idMotivoRestricaoEmpenho: r.idMotivoRestricaoEmpenho
+      ? String(r.idMotivoRestricaoEmpenho)
+      : undefined,
+    dataHoraAtivacao: parseDataIso(r.dataHoraAtivacao),
+    dataHoraExpiracao: parseDataIso(r.dataHoraExpiracao),
+    empenhoSituacao: primeiroEmp?.codigoSituacaoEmpenhoRecurso
+      ? String(primeiroEmp.codigoSituacaoEmpenhoRecurso).toUpperCase()
+      : undefined,
+    idChamadaEmpenho: primeiroEmp?.idChamada ? String(primeiroEmp.idChamada) : undefined,
+    componentesQtd: comps.length,
+    nomesComponentes: comps.map((c: any) => c?.nomePessoa).filter(Boolean),
+  };
+}
+
+export function reconciliarUnidadesRecursos(recursos: RecursoCadAtivo[]): RecursoCadAtivo[] {
+  if (!Array.isArray(recursos) || recursos.length === 0) return [];
+  return recursos.map((rec) => {
+    const un = resolverUnidadeRecursoBase(rec.idUnidadeServico, rec.complementoPrefixo);
+    if (!un.nomeUnidade && !un.cob && !un.bbm) return rec;
+    return {
+      ...rec,
+      cob: un.cob,
+      bbm: un.bbm,
+      ciaInd: un.ciaInd,
+      subunidade: un.subunidade,
+      nomeUnidade: un.nomeUnidade || rec.nomeUnidade,
+    };
+  });
+}
+
+export function filtrarRecursosBase(
+  recursos: RecursoCadAtivo[],
+  filtros: FiltrosOperacionais
+): RecursoCadAtivo[] {
+  const cobsAtivos =
+    filtros.cobs && filtros.cobs.length > 0
+      ? filtros.cobs.filter((c) => c !== 'TODOS')
+      : filtros.cob && filtros.cob !== 'TODOS'
+      ? [filtros.cob]
+      : [];
+  const bbmsAtivos =
+    filtros.bbms && filtros.bbms.length > 0
+      ? filtros.bbms.filter((b) => b !== 'TODOS')
+      : filtros.bbm && filtros.bbm !== 'TODOS'
+      ? [filtros.bbm]
+      : [];
+  const ciasAtivas =
+    filtros.ciasInd && filtros.ciasInd.length > 0
+      ? filtros.ciasInd.filter((c) => c !== 'TODOS')
+      : filtros.ciaInd && filtros.ciaInd !== 'TODOS'
+      ? [filtros.ciaInd]
+      : [];
+
+  if (cobsAtivos.length === 0 && bbmsAtivos.length === 0 && ciasAtivas.length === 0) {
+    return recursos;
+  }
+
+  return recursos.filter((r) => {
+    if (cobsAtivos.length > 0 && (!r.cob || !cobsAtivos.includes(r.cob))) {
+      return false;
+    }
+    if (bbmsAtivos.length > 0 && (!r.bbm || !bbmsAtivos.includes(r.bbm))) {
+      return false;
+    }
+    if (ciasAtivas.length > 0) {
+      const bateCia = Boolean(r.ciaInd && ciasAtivas.includes(r.ciaInd));
+      const bateSub = Boolean(r.subunidade && ciasAtivas.includes(r.subunidade));
+      if (!bateCia && !bateSub) return false;
+    }
+    return true;
+  });
+}
+
+export function calcularResumoRecursosBase(recursos: RecursoCadAtivo[]): ResumoRecursosBase {
+  let viaturasEmCampo = 0;
+  let viaturasDisponiveis = 0;
+  let viaturasIndisponiveis = 0;
+  let bmEmCampo = 0;
+  let bmDisponiveis = 0;
+  let bmIndisponiveis = 0;
+  let brigadistasEmCampo = 0;
+  let brigadistasDisponiveis = 0;
+  let brigadistasIndisponiveis = 0;
+
+  let disponiveisComRestricao = 0;
+  let indisponiveisComRestricao = 0;
+  let empenhadosComRestricao = 0;
+  let comExpiracaoTotal = 0;
+
+  const motivosIndispMap = new Map<string, MotivoRecursoResumo>();
+  const motivosRestrMap = new Map<string, number>();
+
+  for (const r of recursos) {
+    const sit = r.codigoSituacaoRecurso;
+    const cat = r.categoriaRecurso;
+
+    if (cat === 'VTR') {
+      if (sit === 'E') viaturasEmCampo++;
+      else if (sit === 'I') viaturasIndisponiveis++;
+      else viaturasDisponiveis++;
+    } else if (cat === 'BM') {
+      if (sit === 'E') bmEmCampo++;
+      else if (sit === 'I') bmIndisponiveis++;
+      else bmDisponiveis++;
+    } else {
+      if (sit === 'E') brigadistasEmCampo++;
+      else if (sit === 'I') brigadistasIndisponiveis++;
+      else brigadistasDisponiveis++;
+    }
+
+    if (r.idMotivoRestricaoEmpenho) {
+      if (sit === 'D') disponiveisComRestricao++;
+      else if (sit === 'I') indisponiveisComRestricao++;
+      else empenhadosComRestricao++;
+
+      motivosRestrMap.set(
+        r.idMotivoRestricaoEmpenho,
+        (motivosRestrMap.get(r.idMotivoRestricaoEmpenho) || 0) + 1
+      );
+    }
+
+    if (r.dataHoraExpiracao) {
+      comExpiracaoTotal++;
+    }
+
+    if (sit === 'I' && r.idMotivoIndisponibilidadeRecurso) {
+      const cod = r.idMotivoIndisponibilidadeRecurso;
+      const atual = motivosIndispMap.get(cod) || {
+        codigo: cod,
+        total: 0,
+        viaturas: 0,
+        efetivo: 0,
+      };
+      atual.total++;
+      if (cat === 'VTR') atual.viaturas++;
+      else atual.efetivo++;
+      motivosIndispMap.set(cod, atual);
+    }
+  }
+
+  const viaturasTotal = viaturasEmCampo + viaturasDisponiveis + viaturasIndisponiveis;
+  const bmTotal = bmEmCampo + bmDisponiveis + bmIndisponiveis;
+  const brigadistasTotal = brigadistasEmCampo + brigadistasDisponiveis + brigadistasIndisponiveis;
+  const efetivoTotal = bmTotal + brigadistasTotal;
+  const efetivoEmCampo = bmEmCampo + brigadistasEmCampo;
+  const efetivoDisponivel = bmDisponiveis + brigadistasDisponiveis;
+  const efetivoIndisponivel = bmIndisponiveis + brigadistasIndisponiveis;
+
+  return {
+    totalBase: recursos.length,
+    viaturasTotal,
+    viaturasEmCampo,
+    viaturasDisponiveis,
+    viaturasIndisponiveis,
+    bmTotal,
+    bmEmCampo,
+    bmDisponiveis,
+    bmIndisponiveis,
+    brigadistasTotal,
+    brigadistasEmCampo,
+    brigadistasDisponiveis,
+    brigadistasIndisponiveis,
+    efetivoTotal,
+    efetivoEmCampo,
+    efetivoDisponivel,
+    efetivoIndisponivel,
+    disponiveisTotal: viaturasDisponiveis + efetivoDisponivel,
+    empenhadosTotal: viaturasEmCampo + efetivoEmCampo,
+    indisponiveisTotal: viaturasIndisponiveis + efetivoIndisponivel,
+    comRestricaoTotal:
+      disponiveisComRestricao + indisponiveisComRestricao + empenhadosComRestricao,
+    disponiveisComRestricao,
+    indisponiveisComRestricao,
+    empenhadosComRestricao,
+    comExpiracaoTotal,
+    motivosIndisponibilidade: Array.from(motivosIndispMap.values()).sort(
+      (a, b) => b.total - a.total
+    ),
+    motivosRestricao: Array.from(motivosRestrMap.entries())
+      .map(([codigo, total]) => ({ codigo, total }))
+      .sort((a, b) => b.total - a.total),
   };
 }
 
@@ -2447,7 +2838,12 @@ export function restaurarDadosPadrao(): ChamadaAtiva[] {
 
 export async function sincronizarAgenteLocal(
   url = 'http://127.0.0.1:8080/dados'
-): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
+): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  dados?: ChamadaAtiva[];
+  recursos?: RecursoCadAtivo[];
+}> {
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 4000);
@@ -2456,6 +2852,10 @@ export async function sincronizarAgenteLocal(
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const itens = extrairChamadasDeJson(json);
+    const recsRaw = extrairRecursosDeJson(json);
+    const recursos = recsRaw.length > 0 ? recsRaw.map(normalizarRecursoBase) : undefined;
+    if (recursos) salvarRecursosArmazenados(recursos);
+
     if (itens.length === 0) {
       return {
         sucesso: false,
@@ -2468,6 +2868,7 @@ export async function sincronizarAgenteLocal(
       sucesso: true,
       mensagem: `Conectado ao Agente Local! ${enriquecidos.length} ocorrências sincronizadas.`,
       dados: enriquecidos,
+      recursos,
     };
   } catch (err: any) {
     return {
@@ -2477,9 +2878,34 @@ export async function sincronizarAgenteLocal(
   }
 }
 
+export async function carregarRecursosSnapshotEstatico(): Promise<RecursoCadAtivo[]> {
+  const urls = [`${import.meta.env.BASE_URL}cbmmg_cad_dados.json`, '/cbmmg_cad_dados.json'];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const recsRaw = extrairRecursosDeJson(json);
+      if (recsRaw.length > 0) {
+        const normalizados = recsRaw.map(normalizarRecursoBase);
+        salvarRecursosArmazenados(normalizados);
+        return normalizados;
+      }
+    } catch {
+      // continua
+    }
+  }
+  return [];
+}
+
 export async function sincronizarSnapshotEstatico(
   url = '/cbmmg_cad_dados.json'
-): Promise<{ sucesso: boolean; mensagem: string; dados?: ChamadaAtiva[] }> {
+): Promise<{
+  sucesso: boolean;
+  mensagem: string;
+  dados?: ChamadaAtiva[];
+  recursos?: RecursoCadAtivo[];
+}> {
   const urls = [url, '/dados_cad.json'];
   for (const tentativa of urls) {
     try {
@@ -2487,6 +2913,10 @@ export async function sincronizarSnapshotEstatico(
       if (!res.ok) continue;
       const json = await res.json();
       const itens = extrairChamadasDeJson(json);
+      const recsRaw = extrairRecursosDeJson(json);
+      const recursos = recsRaw.length > 0 ? recsRaw.map(normalizarRecursoBase) : undefined;
+      if (recursos) salvarRecursosArmazenados(recursos);
+
       if (itens.length > 0) {
         const enriquecidos = itens.map(enriquecerChamada);
         salvarChamadasArmazenadas(enriquecidos);
@@ -2494,6 +2924,7 @@ export async function sincronizarSnapshotEstatico(
           sucesso: true,
           mensagem: `${enriquecidos.length} ocorrências carregadas de '${tentativa}'.`,
           dados: enriquecidos,
+          recursos,
         };
       }
     } catch {

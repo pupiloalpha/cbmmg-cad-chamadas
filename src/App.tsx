@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChamadaAtiva, FiltrosOperacionais } from './types/cbm';
+import { ChamadaAtiva, FiltrosOperacionais, RecursoCadAtivo } from './types/cbm';
 import {
   carregarChamadasArmazenadas,
+  carregarRecursosArmazenados,
+  carregarRecursosSnapshotEstatico,
   salvarChamadasArmazenadas,
+  salvarRecursosArmazenados,
+  reconciliarUnidadesRecursos,
   filtrarChamadas,
+  filtrarRecursosBase,
   calcularKPIs,
+  calcularResumoRecursosBase,
   obterUltimaSync,
   sincronizarProxyReverso,
-  sincronizarSnapshotEstatico,
   sincronizarTabelaNaturezas,
   sincronizarTabelaUnidadesServico,
   normalizarChamadaSids,
@@ -53,6 +58,7 @@ const INTERVALO_REFRESH_SEGUNDOS = 600; // 10 minutos conforme Regra #3 do manua
 
 export default function App() {
   const [chamadas, setChamadas] = useState<ChamadaAtiva[]>([]);
+  const [recursosBase, setRecursosBase] = useState<RecursoCadAtivo[]>([]);
   const [filtros, setFiltros] = useState<FiltrosOperacionais>(FILTROS_PADRAO);
   const [chamadaSelecionada, setChamadaSelecionada] = useState<ChamadaAtiva | null>(null);
 
@@ -92,6 +98,9 @@ export default function App() {
     setIsSyncing(true);
     try {
       const res = await sincronizarProxyReverso(forcar);
+      if (res.recursos && res.recursos.length > 0) {
+        setRecursosBase(res.recursos);
+      }
       if (res.sucesso && res.dados && res.dados.length > 0) {
         setChamadas(res.dados);
         setNaturezasVersion((v) => v + 1);
@@ -115,6 +124,19 @@ export default function App() {
       setChamadas(dadosIniciais);
     }
 
+    const recursosIniciais = carregarRecursosArmazenados();
+    if (recursosIniciais.length > 0) {
+      setRecursosBase(recursosIniciais);
+    } else {
+      carregarRecursosSnapshotEstatico()
+        .then((snapRecs) => {
+          if (snapRecs.length > 0) {
+            setRecursosBase((prev) => (prev.length > 0 ? prev : reconciliarUnidadesRecursos(snapRecs)));
+          }
+        })
+        .catch(() => {});
+    }
+
     // Carrega tabelas oficiais de naturezas e unidades de serviço do CAD
     Promise.all([
       sincronizarTabelaNaturezas(false),
@@ -127,6 +149,12 @@ export default function App() {
             const atualizadas = prev.map((c) => normalizarChamadaSids(c));
             salvarChamadasArmazenadas(atualizadas);
             return atualizadas;
+          });
+          setRecursosBase((prev) => {
+            if (prev.length === 0) return prev;
+            const atualizados = reconciliarUnidadesRecursos(prev);
+            salvarRecursosArmazenados(atualizados);
+            return atualizados;
           });
         }
       })
@@ -158,10 +186,19 @@ export default function App() {
     return filtrarChamadas(chamadas, filtros);
   }, [chamadas, filtros]);
 
-  // Cálculo de KPIs
+  // Filtragem dos recursos cadastrados na base (escopo de comando/unidade)
+  const recursosFiltrados = useMemo(() => {
+    return filtrarRecursosBase(recursosBase, filtros);
+  }, [recursosBase, filtros]);
+
+  // Cálculo de KPIs e Resumo da Base de Recursos
   const kpis = useMemo(() => {
     return calcularKPIs(chamadasFiltradas);
   }, [chamadasFiltradas]);
+
+  const resumoRecursos = useMemo(() => {
+    return calcularResumoRecursosBase(recursosFiltrados);
+  }, [recursosFiltrados]);
 
   // Disparar sincronização manual
   const handleTriggerSync = async () => {
@@ -206,6 +243,7 @@ export default function App() {
         {(!isMobile || modoVisualizacao === 'ambos') && (
           <KPIGrid
             kpis={kpis}
+            resumoRecursos={resumoRecursos}
             filtros={filtros}
             onFiltrarSituacao={(sit) => {
               if (sit === 'AO') {
@@ -283,7 +321,9 @@ export default function App() {
                 unidadeSelecionada={filtros.cob}
               />
             )}
-            {modoVisualizacao === 'graficos' && <ChartsSection chamadas={chamadasFiltradas} />}
+            {modoVisualizacao === 'graficos' && (
+              <ChartsSection chamadas={chamadasFiltradas} resumoRecursos={resumoRecursos} />
+            )}
             {modoVisualizacao === 'lista' && (
               <CallsTable
                 chamadas={chamadasFiltradas}
@@ -301,7 +341,7 @@ export default function App() {
                   onSelectChamada={setChamadaSelecionada}
                   unidadeSelecionada={filtros.cob}
                 />
-                <ChartsSection chamadas={chamadasFiltradas} />
+                <ChartsSection chamadas={chamadasFiltradas} resumoRecursos={resumoRecursos} />
               </div>
             ) : modoVisualizacao === 'mapa' ? (
               <OperationalMap
@@ -310,7 +350,7 @@ export default function App() {
                 unidadeSelecionada={filtros.cob}
               />
             ) : (
-              <ChartsSection chamadas={chamadasFiltradas} />
+              <ChartsSection chamadas={chamadasFiltradas} resumoRecursos={resumoRecursos} />
             )}
 
             {/* 5. Detailed Calls Table with CSV Export (Desktop) */}
@@ -425,6 +465,12 @@ export default function App() {
             const atualizadas = prev.map((c) => normalizarChamadaSids(c));
             salvarChamadasArmazenadas(atualizadas);
             return atualizadas;
+          });
+          setRecursosBase((prev) => {
+            if (prev.length === 0) return prev;
+            const atualizados = reconciliarUnidadesRecursos(prev);
+            salvarRecursosArmazenados(atualizados);
+            return atualizados;
           });
         }}
       />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiltrosOperacionais, KpiOperacional } from '../types/cbm';
+import { FiltrosOperacionais, KpiOperacional, ResumoRecursosBase } from '../types/cbm';
 import {
   Radio,
   Truck,
@@ -15,11 +15,12 @@ import {
 
 interface KPIGridProps {
   kpis: KpiOperacional;
+  resumoRecursos?: ResumoRecursosBase;
   filtros?: FiltrosOperacionais;
   onFiltrarSituacao?: (situacao: string) => void;
 }
 
-export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, filtros, onFiltrarSituacao }) => {
+export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, resumoRecursos, filtros, onFiltrarSituacao }) => {
   const isEmAtendimentoAtivo = filtros?.situacaoChamada === 'E';
   const isAguardandoAtivo = filtros?.situacaoAtendimento === 'AO';
   const isPrioridadeAltaAtivo = filtros?.prioridade === 'Alta';
@@ -238,40 +239,92 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, filtros, onFiltrarSituac
         </div>
       </button>
 
-      {/* 4. Viaturas & Recursos */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
-        <div className="flex items-center justify-between mb-1.5">
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wider text-slate-400"
-            title="Viaturas operacionais ativas em campo"
-          >
-            Viaturas
-          </span>
-          <Truck className="w-4 h-4 text-slate-400" />
-        </div>
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
-            {kpis.viaturasAtivas}
-          </span>
-          <span className="text-[11px] text-slate-400">em campo</span>
-        </div>
-        <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-          <div className="flex items-center gap-1 truncate" title="Total de recursos empenhados">
-            <Users className="w-3 h-3 text-slate-400 shrink-0" />
-            <span className="tabular-nums">
-              <strong className="text-slate-300">{kpis.recursosEmpenhados}</strong> recursos
+      {/* 4. Viaturas & Recursos da Base CAD */}
+      {resumoRecursos && resumoRecursos.totalBase > 0 ? (
+        <div
+          className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between"
+          title={`Soma exata da base CAD (${resumoRecursos.totalBase.toLocaleString('pt-BR')}): ${resumoRecursos.viaturasEmCampo} VTR em campo + ${resumoRecursos.viaturasDisponiveis} VTR disponíveis + ${resumoRecursos.viaturasIndisponiveis} VTR indisponíveis + ${resumoRecursos.bmTotal} recursos BM${resumoRecursos.brigadistasTotal > 0 ? ` + ${resumoRecursos.brigadistasTotal} brigadistas` : ''}`}
+        >
+          <div className="flex items-center justify-between mb-1.5 gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Viaturas
             </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-medium text-slate-400 tabular-nums">
+                Base {resumoRecursos.totalBase.toLocaleString('pt-BR')}
+              </span>
+              <Truck className="w-4 h-4 text-slate-400 shrink-0" />
+            </div>
           </div>
-          {kpis.bombeirosSemViatura > 0 && (
-            <span
-              className="text-[10px] text-slate-500 shrink-0 tabular-nums"
-              title="Bombeiros empenhados sem viatura"
-            >
-              +{kpis.bombeirosSemViatura} BM
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
+              {resumoRecursos.viaturasEmCampo}
             </span>
-          )}
+            <span className="text-[11px] text-slate-400">em campo</span>
+          </div>
+          <div className="mt-2 space-y-0.5 text-[11px] text-slate-400 tabular-nums">
+            <div className="truncate">
+              <strong className="text-emerald-400 font-semibold">
+                {resumoRecursos.viaturasDisponiveis.toLocaleString('pt-BR')}
+              </strong>{' '}
+              disp. ·{' '}
+              <strong className="text-rose-400 font-semibold">
+                {resumoRecursos.viaturasIndisponiveis.toLocaleString('pt-BR')}
+              </strong>{' '}
+              indisp.
+            </div>
+            <div className="truncate text-slate-500">
+              <strong className="text-slate-200 font-semibold">
+                {resumoRecursos.bmTotal.toLocaleString('pt-BR')}
+              </strong>{' '}
+              BM
+              {resumoRecursos.brigadistasTotal > 0 && (
+                <>
+                  {' '}·{' '}
+                  <strong className="text-slate-300 font-semibold">
+                    {resumoRecursos.brigadistasTotal.toLocaleString('pt-BR')}
+                  </strong>{' '}
+                  brig.
+                </>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wider text-slate-400"
+              title="Viaturas operacionais ativas em campo"
+            >
+              Viaturas
+            </span>
+            <Truck className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
+              {kpis.viaturasAtivas}
+            </span>
+            <span className="text-[11px] text-slate-400">em campo</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+            <div className="flex items-center gap-1 truncate" title="Total de recursos empenhados">
+              <Users className="w-3 h-3 text-slate-400 shrink-0" />
+              <span className="tabular-nums">
+                <strong className="text-slate-300">{kpis.recursosEmpenhados}</strong> recursos
+              </span>
+            </div>
+            {kpis.bombeirosSemViatura > 0 && (
+              <span
+                className="text-[10px] text-slate-500 shrink-0 tabular-nums"
+                title="Bombeiros empenhados sem viatura"
+              >
+                +{kpis.bombeirosSemViatura} BM
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 5. Prioridade Alta */}
       <button

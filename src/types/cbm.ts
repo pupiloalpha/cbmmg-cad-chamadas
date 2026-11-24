@@ -196,3 +196,70 @@ export interface KpiOperacional {
   salvamentosQtd: number;
   aphQtd: number;
 }
+
+export type CategoriaRecursoBase = 'VTR' | 'BM' | 'BRIG';
+export type SituacaoRecursoBase = 'D' | 'E' | 'I';
+
+export interface RecursoCadAtivo {
+  id: string;
+  prefixo: string;
+  complementoPrefixo?: string;
+  idTipoRecurso?: string;
+  idMeioMaterial?: string;
+  placaMeioMaterial?: string;
+  prefixoMeioMaterial?: string;
+  idUnidadeServico?: string;
+  nomeUnidade?: string;
+  cob?: string;
+  bbm?: string;
+  ciaInd?: string;
+  subunidade?: string;
+  categoriaRecurso: CategoriaRecursoBase;
+  codigoSituacaoRecurso: SituacaoRecursoBase;
+  idMotivoIndisponibilidadeRecurso?: string;
+  idMotivoRestricaoEmpenho?: string;
+  dataHoraAtivacao?: string;
+  dataHoraExpiracao?: string;
+  empenhoSituacao?: string;
+  idChamadaEmpenho?: string;
+  componentesQtd: number;
+  nomesComponentes?: string[];
+}
+
+export interface MotivoRecursoResumo {
+  codigo: string;
+  total: number;
+  viaturas: number;
+  efetivo: number;
+}
+
+export interface ResumoRecursosBase {
+  totalBase: number;
+  viaturasTotal: number;
+  viaturasEmCampo: number;
+  viaturasDisponiveis: number;
+  viaturasIndisponiveis: number;
+  bmTotal: number;
+  bmEmCampo: number;
+  bmDisponiveis: number;
+  bmIndisponiveis: number;
+  brigadistasTotal: number;
+  brigadistasEmCampo: number;
+  brigadistasDisponiveis: number;
+  brigadistasIndisponiveis: number;
+  efetivoTotal: number;
+  efetivoEmCampo: number;
+  efetivoDisponivel: number;
+  efetivoIndisponivel: number;
+  disponiveisTotal: number;
+  empenhadosTotal: number;
+  indisponiveisTotal: number;
+  comRestricaoTotal: number;
+  disponiveisComRestricao: number;
+  indisponiveisComRestricao: number;
+  empenhadosComRestricao: number;
+  comExpiracaoTotal: number;
+  motivosIndisponibilidade: MotivoRecursoResumo[];
+  motivosRestricao: { codigo: string; total: number }[];
+}
+
