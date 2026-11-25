@@ -2,7 +2,7 @@
 
 Dashboard web progressivo (PWA) para acompanhar chamadas operacionais ativas do Corpo de Bombeiros Militar de Minas Gerais (CBMMG). A interface reúne indicadores, filtros, mapa, gráficos e uma tabela detalhada, com sincronização por meio de um proxy reverso e suporte a cache local.
 
-> **Acesso à aplicação:** [pupiloalpha.github.io/cbmmg-cad-chamadas](https://pupiloalpha.github.io/cbmmg-cad-chamadas/)
+> **Acesso à aplicação:**
 >
 > O painel integra dados do CAD por meio de serviços externos. O acesso e a disponibilidade dos dados dependem do proxy e das permissões correspondentes. Este repositório não inclui credenciais de acesso.
 
