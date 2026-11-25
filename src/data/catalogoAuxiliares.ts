@@ -62,6 +62,108 @@ export const DICIONARIO_SIGLAS = {
   } as Record<string, string>,
 };
 
+// Catálogo oficial de motivos de indisponibilidade de recursos (Indisponibilidade_68656573.csv)
+export const MOTIVOS_INDISPONIBILIDADE_RECURSO: Record<string, string> = {
+  '1': 'VIATURA DUPLICADA',
+  '2': 'EMPENHADO EM ATIVIDADE',
+  '3': 'DUPLICADO E SUSPENSO',
+  '4': 'SIRENE',
+  '5': 'TROCA DE OLEO',
+  '6': 'ACIDENTE',
+  '7': 'FALTA DE MOTORISTA',
+  '8': 'RADIO',
+  '9': 'TROCA DE PNEU',
+  '10': 'TROCA DE VTR',
+  '11': 'PANE ELETRICA',
+  '12': 'FALTA DE EFETIVO',
+  '13': 'PANE MECANICA',
+  '14': 'TROCA DE EQUIPE',
+  '15': 'LIMPEZA DE VTR',
+  '16': 'OUTROS',
+  '17': 'DESATIVADO E SUSPENSO',
+  '18': 'QCL',
+  '19': 'VIATURA DUPLICADA',
+  '20': 'EMPENHADO EM ATIVIDADE',
+  '34': 'OUTROS',
+  '35': 'DESATIVADO E SUSPENSO',
+  '37': 'VIATURA DUPLICADA',
+  '38': 'EMPENHADO EM ATIVIDADE',
+  '39': 'DUPLICADO E SUSPENSO',
+  '40': 'SIRENE',
+  '41': 'TROCA DE OLEO',
+  '42': 'ACIDENTE',
+  '43': 'FALTA DE MOTORISTA',
+  '44': 'RADIO',
+  '45': 'TROCA DE PNEU',
+  '46': 'TROCA DE VTR',
+  '47': 'PANE ELETRICA',
+  '48': 'FALTA DE EFETIVO',
+  '49': 'PANE MECANICA',
+  '50': 'TROCA DE EQUIPE',
+  '51': 'LIMPEZA DE VTR',
+  '52': 'OUTROS',
+  '53': 'DESATIVADO E SUSPENSO',
+  '54': 'QCL',
+  '56': 'EMPENHADO EM ATIVIDADE',
+  '59': 'TROCA DE OLEO',
+  '60': 'ACIDENTE',
+  '63': 'TROCA DE PNEU',
+  '64': 'TROCA DE VTR',
+  '65': 'PANE ELETRICA',
+  '67': 'PANE MECANICA',
+  '70': 'OUTROS',
+  '71': 'DESATIVADO E SUSPENSO',
+  '89': 'DESATIVADO E SUSPENSO',
+  '111': 'ABASTECIMENTO',
+  '112': 'NÃO ATENDIMENTO AO RÁDIO',
+  '113': 'AUDIÊNCIA / FÓRUM',
+  '131': 'FORUM',
+  '151': 'ASSEPSIA',
+  '171': 'FALTA DE MACA',
+};
+
+export function normalizarCodigoMotivoIndisponibilidade(
+  codigo?: string | number | null
+): string | undefined {
+  if (codigo === undefined || codigo === null) return undefined;
+  const limpo = String(codigo).trim().replace(/\.0+$/, '');
+  return limpo || undefined;
+}
+
+export function obterDescricaoMotivoIndisponibilidade(
+  codigo?: string | number | null
+): string | undefined {
+  const cod = normalizarCodigoMotivoIndisponibilidade(codigo);
+  if (!cod) return undefined;
+  return MOTIVOS_INDISPONIBILIDADE_RECURSO[cod];
+}
+
+const SIGLAS_MOTIVOS = new Set(['VTR', 'QCL']);
+const PREPOSICOES_MOTIVOS = new Set(['DE', 'DO', 'DA', 'EM', 'AO', 'E']);
+
+export function formatarDescricaoMotivoIndisponibilidade(
+  codigo?: string | number | null,
+  descricaoDireta?: string
+): string {
+  const desc = descricaoDireta || obterDescricaoMotivoIndisponibilidade(codigo);
+  if (!desc) {
+    const cod = normalizarCodigoMotivoIndisponibilidade(codigo);
+    return cod ? `Motivo #${cod}` : 'Indisponível';
+  }
+
+  return desc
+    .trim()
+    .split(/\s+/)
+    .map((palavra, idx) => {
+      const up = palavra.toUpperCase();
+      if (up === '/') return '/';
+      if (SIGLAS_MOTIVOS.has(up)) return up;
+      if (idx > 0 && PREPOSICOES_MOTIVOS.has(up)) return up.toLowerCase();
+      return up.charAt(0) + up.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
 export const CORES_SITUACAO_ATENDIMENTO: Record<string, { bg: string; text: string; hex: string }> = {
   NL: { bg: 'bg-red-500/20 border-red-500/40 text-red-300', text: 'text-red-400', hex: '#ef4444' }, // no local (crítico)
   ED: { bg: 'bg-amber-500/20 border-amber-500/40 text-amber-300', text: 'text-amber-400', hex: '#f59e0b' }, // em direção

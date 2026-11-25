@@ -12,6 +12,7 @@ import {
   CORES_SITUACAO_ATENDIMENTO,
   CORES_SITUACAO_EMPENHO,
   DICIONARIO_SIGLAS,
+  formatarDescricaoMotivoIndisponibilidade,
 } from '../data/catalogoAuxiliares';
 import {
   BarChart3,
@@ -513,27 +514,35 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas, resumoRe
 
                     {resumoRecursos.motivosIndisponibilidade.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
-                        {resumoRecursos.motivosIndisponibilidade.slice(0, 5).map((m) => (
-                          <span
-                            key={m.codigo}
-                            className="inline-flex items-center gap-1 bg-slate-900 border border-slate-800 text-[10px] text-slate-300 px-2 py-0.5 rounded tabular-nums"
-                            title={`Motivo de indisponibilidade #${m.codigo}: ${m.viaturas} viaturas e ${m.efetivo} recursos de efetivo`}
-                          >
-                            <span className="text-rose-400 font-mono font-semibold">
-                              Motivo #{m.codigo}
+                        {resumoRecursos.motivosIndisponibilidade.slice(0, 8).map((m) => {
+                          const label = formatarDescricaoMotivoIndisponibilidade(
+                            m.codigo,
+                            m.descricao
+                          );
+                          return (
+                            <span
+                              key={`${m.codigo}-${m.descricao}`}
+                              className="inline-flex items-center gap-1 bg-slate-900 border border-slate-800 text-[10px] text-slate-300 px-2 py-0.5 rounded tabular-nums"
+                              title={`Código #${m.codigo} (${m.descricao}): ${m.viaturas} viaturas e ${m.efetivo} recursos de efetivo`}
+                            >
+                              <span className="text-rose-300 font-medium">
+                                {label}
+                              </span>
+                              <strong className="text-white">{m.total}</strong>
+                              <span className="text-slate-500">
+                                ({m.viaturas} VTR / {m.efetivo} BM)
+                              </span>
                             </span>
-                            <strong className="text-white">{m.total}</strong>
-                            <span className="text-slate-500">
-                              ({m.viaturas} VTR / {m.efetivo} BM)
-                            </span>
-                          </span>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
 
-                    <p className="text-[10px] text-slate-500 leading-tight">
-                      Os motivos de baixa e restrição são identificados na API CAD por códigos numéricos sem catálogo textual público.
-                    </p>
+                    {resumoRecursos.comRestricaoTotal > 0 && (
+                      <p className="text-[10px] text-slate-500 leading-tight">
+                        Motivos de indisponibilidade convertidos pelo catálogo CAD; códigos de restrição de empenho seguem numéricos na API.
+                      </p>
+                    )}
                   </div>
                 )}
               </>

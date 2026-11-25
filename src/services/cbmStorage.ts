@@ -3,6 +3,8 @@ import {
   DICIONARIO_SIGLAS,
   UNIDADES_SERVICO_CBMMG,
   GRUPOS_NATUREZAS_CBMMG,
+  normalizarCodigoMotivoIndisponibilidade,
+  obterDescricaoMotivoIndisponibilidade,
 } from '../data/catalogoAuxiliares';
 import { MOCK_CHAMADAS_INICIAIS } from '../data/mockChamadas';
 import {
@@ -1155,6 +1157,11 @@ export function normalizarRecursoBase(raw: any): RecursoCadAtivo {
 
   const complementoPrefixo = r.complementoPrefixo ? String(r.complementoPrefixo).trim() : undefined;
   const un = resolverUnidadeRecursoBase(r.idUnidadeServico, complementoPrefixo);
+  const codIndisponibilidade = normalizarCodigoMotivoIndisponibilidade(
+    r.idMotivoIndisponibilidadeRecurso
+  );
+  const motivoIndisponibilidadeDescricao =
+    obterDescricaoMotivoIndisponibilidade(codIndisponibilidade);
 
   return {
     id: String(r.id || r.prefixo || Math.random()),
@@ -1172,9 +1179,8 @@ export function normalizarRecursoBase(raw: any): RecursoCadAtivo {
     subunidade: un.subunidade,
     categoriaRecurso,
     codigoSituacaoRecurso,
-    idMotivoIndisponibilidadeRecurso: r.idMotivoIndisponibilidadeRecurso
-      ? String(r.idMotivoIndisponibilidadeRecurso)
-      : undefined,
+    idMotivoIndisponibilidadeRecurso: codIndisponibilidade,
+    motivoIndisponibilidadeDescricao,
     idMotivoRestricaoEmpenho: r.idMotivoRestricaoEmpenho
       ? String(r.idMotivoRestricaoEmpenho)
       : undefined,
@@ -1193,7 +1199,21 @@ export function reconciliarUnidadesRecursos(recursos: RecursoCadAtivo[]): Recurs
   if (!Array.isArray(recursos) || recursos.length === 0) return [];
   return recursos.map((rec) => {
     const un = resolverUnidadeRecursoBase(rec.idUnidadeServico, rec.complementoPrefixo);
-    if (!un.nomeUnidade && !un.cob && !un.bbm) return rec;
+    const codIndisp = normalizarCodigoMotivoIndisponibilidade(rec.idMotivoIndisponibilidadeRecurso);
+    const descIndisp =
+      obterDescricaoMotivoIndisponibilidade(codIndisp) || rec.motivoIndisponibilidadeDescricao;
+
+    if (!un.nomeUnidade && !un.cob && !un.bbm) {
+      if (codIndisp === rec.idMotivoIndisponibilidadeRecurso && descIndisp === rec.motivoIndisponibilidadeDescricao) {
+        return rec;
+      }
+      return {
+        ...rec,
+        idMotivoIndisponibilidadeRecurso: codIndisp,
+        motivoIndisponibilidadeDescricao: descIndisp,
+      };
+    }
+
     return {
       ...rec,
       cob: un.cob,
@@ -1201,6 +1221,8 @@ export function reconciliarUnidadesRecursos(recursos: RecursoCadAtivo[]): Recurs
       ciaInd: un.ciaInd,
       subunidade: un.subunidade,
       nomeUnidade: un.nomeUnidade || rec.nomeUnidade,
+      idMotivoIndisponibilidadeRecurso: codIndisp,
+      motivoIndisponibilidadeDescricao: descIndisp,
     };
   });
 }
@@ -1301,17 +1323,27 @@ export function calcularResumoRecursosBase(recursos: RecursoCadAtivo[]): ResumoR
     }
 
     if (sit === 'I' && r.idMotivoIndisponibilidadeRecurso) {
-      const cod = r.idMotivoIndisponibilidadeRecurso;
-      const atual = motivosIndispMap.get(cod) || {
+      const cod = normalizarCodigoMotivoIndisponibilidade(r.idMotivoIndisponibilidadeRecurso) ||
+        r.idMotivoIndisponibilidadeRecurso;
+      const desc =
+        r.motivoIndisponibilidadeDescricao ||
+        obterDescricaoMotivoIndisponibilidade(cod) ||
+        `Motivo #${cod}`;
+      const chave = desc.toUpperCase();
+      const atual = motivosIndispMap.get(chave) || {
         codigo: cod,
+        descricao: desc,
         total: 0,
         viaturas: 0,
         efetivo: 0,
       };
+      if (!atual.codigo.split(', ').includes(cod)) {
+        atual.codigo = `${atual.codigo}, ${cod}`;
+      }
       atual.total++;
       if (cat === 'VTR') atual.viaturas++;
       else atual.efetivo++;
-      motivosIndispMap.set(cod, atual);
+      motivosIndispMap.set(chave, atual);
     }
   }
 

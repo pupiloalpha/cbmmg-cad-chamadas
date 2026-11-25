@@ -234,6 +234,7 @@ export interface RecursoCadAtivo {
   categoriaRecurso: CategoriaRecursoBase;
   codigoSituacaoRecurso: SituacaoRecursoBase;
   idMotivoIndisponibilidadeRecurso?: string;
+  motivoIndisponibilidadeDescricao?: string;
   idMotivoRestricaoEmpenho?: string;
   dataHoraAtivacao?: string;
   dataHoraExpiracao?: string;
@@ -245,6 +246,7 @@ export interface RecursoCadAtivo {
 
 export interface MotivoRecursoResumo {
   codigo: string;
+  descricao: string;
   total: number;
   viaturas: number;
   efetivo: number;
