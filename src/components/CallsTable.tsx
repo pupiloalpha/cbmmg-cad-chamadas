@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ChamadaAtiva } from '../types/cbm';
 import { CORES_SITUACAO_ATENDIMENTO, DICIONARIO_SIGLAS } from '../data/catalogoAuxiliares';
-import { exportarChamadasParaCSV } from '../services/csvExport';
+import { exportarChamadasParaCSV, FormatoCsvExportacao } from '../services/csvExport';
 import {
   FileSpreadsheet,
   MapPin,
@@ -9,6 +9,7 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Shield,
   AlertTriangle,
   CloudRain,
@@ -30,6 +31,19 @@ export const CallsTable: React.FC<CallsTableProps> = ({
   const [pageSize, setPageSize] = useState(10);
   const [sortField, setSortField] = useState<'dataHoraAbertura' | 'prioridade' | 'municipio'>('dataHoraAbertura');
   const [sortAsc, setSortAsc] = useState(false);
+  const [csvMenuAberto, setCsvMenuAberto] = useState(false);
+  const csvMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!csvMenuAberto) return;
+    const handleClickOutside = (ev: MouseEvent) => {
+      if (csvMenuRef.current && !csvMenuRef.current.contains(ev.target as Node)) {
+        setCsvMenuAberto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [csvMenuAberto]);
 
   // Ordenação
   const chamadasOrdenadas = useMemo(() => {
@@ -71,9 +85,15 @@ export const CallsTable: React.FC<CallsTableProps> = ({
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = (formato: FormatoCsvExportacao = 'cad') => {
     const dataHoraStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    exportarChamadasParaCSV(chamadasOrdenadas, `cbmmg_cad_chamadas_${dataHoraStr}.csv`);
+    const sufixo = formato === 'completo' ? '_completo' : '';
+    exportarChamadasParaCSV(
+      chamadasOrdenadas,
+      `cbmmg_cad_chamadas${sufixo}_${dataHoraStr}.csv`,
+      formato
+    );
+    setCsvMenuAberto(false);
   };
 
   const renderPrioridadeBadge = (prioridade: string) => {
@@ -140,15 +160,51 @@ export const CallsTable: React.FC<CallsTableProps> = ({
             </select>
           </div>
 
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 bg-emerald-700/90 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold transition cursor-pointer"
-            title="Exportar dados filtrados no formato CSV"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Exportar CSV</span>
-          </button>
+          <div className="relative flex items-center" ref={csvMenuRef}>
+            <button
+              type="button"
+              onClick={() => handleExportCSV('cad')}
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 bg-emerald-700/90 hover:bg-emerald-600 text-white rounded-l-lg text-xs font-semibold transition cursor-pointer"
+              title="Exportar CSV no padrão oficial do Sistema CAD"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Exportar CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCsvMenuAberto((prev) => !prev)}
+              className="px-1.5 py-1.5 sm:py-2 bg-emerald-800/90 hover:bg-emerald-600 text-white rounded-r-lg border-l border-emerald-600/50 text-xs transition cursor-pointer"
+              title="Escolher formato do CSV"
+              aria-label="Opções de exportação CSV"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+
+            {csvMenuAberto && (
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-slate-900 border border-slate-700 rounded-lg shadow-xl py-1 z-30 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleExportCSV('cad')}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <div className="font-semibold text-slate-100">Padrão CAD (16 colunas)</div>
+                  <div className="text-[10px] text-slate-400">
+                    Layout compatível com o CAD Java
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportCSV('completo')}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-800 transition cursor-pointer border-t border-slate-800"
+                >
+                  <div className="font-semibold text-slate-100">Completo (CAD + Painel)</div>
+                  <div className="text-[10px] text-slate-400">
+                    Inclui COB, BBM, Cia Ind e Chuva
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

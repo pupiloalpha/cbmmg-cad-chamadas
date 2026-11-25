@@ -324,27 +324,80 @@ export function salvarToken(token: string): void {
   }
 }
 
+export function formatarNumeroChamadaCad(numero?: string | number): string {
+  const s = String(numero || '').trim();
+  if (!s) return '';
+  if (/^\d{4}-\d+-\d$/.test(s)) return s;
+  const digits = s.replace(/\D/g, '');
+  const m = digits.match(/^(\d{4})(\d+)(\d)$/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : s;
+}
+
+export function formatarNumeroRedsCad(numero?: string | number, idOrgao?: string | number): string {
+  const digits = String(numero || '').replace(/\D/g, '');
+  if (!digits) return '';
+  const org = String(idOrgao ?? '2');
+  const prefixoOrgao = org === '2' ? '(BM)' : org === '0' ? '(PM)' : org === '1' ? '(PC)' : '(CAD)';
+  const m = digits.match(/^(\d{4})(\d{9})(\d{3})$/);
+  const corpo = m ? `${m[1]}-${m[2]}-${m[3]}` : digits;
+  return `${prefixoOrgao} ${corpo}`;
+}
+
+function parseDataCadParaIso(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  if (typeof raw === 'number') {
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (/^\d{10,13}$/.test(trimmed)) {
+      const d = new Date(parseInt(trimmed, 10));
+      return isNaN(d.getTime()) ? undefined : d.toISOString();
+    }
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  return undefined;
+}
+
 export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
   let codigo = c.codigoNatureza || '';
+  let codigoRaw = c.codigoNaturezaRaw || '';
   let descricao = c.descricaoNatureza || '';
   let grupo = c.grupoNatureza || '';
   let letra = c.letraGrupoNatureza || '';
+  let codigoPrioridadeCad = c.codigoPrioridadeCad;
+  let naturezaAtividade = c.naturezaAtividade;
 
   // Se a tabela oficial CAD já estiver carregada, sincroniza descrição e código
   if (c.idNatureza) {
     const cad = obterNaturezaCadPorId(c.idNatureza);
     if (cad) {
+      codigoRaw = cad.codigo.toUpperCase();
       codigo = formatarCodigoNatureza(cad.codigo);
       descricao = cad.descricao;
       letra = cad.codigo.charAt(0).toUpperCase();
+      codigoPrioridadeCad = codigoPrioridadeCad || cad.codigoPrioridade;
+      if (naturezaAtividade === undefined && cad.atividade !== undefined) {
+        naturezaAtividade = cad.atividade;
+      }
     }
   } else if (codigo) {
     const cad = obterNaturezaCadPorCodigo(codigo);
     if (cad) {
+      codigoRaw = cad.codigo.toUpperCase();
       codigo = formatarCodigoNatureza(cad.codigo);
       descricao = cad.descricao;
       letra = cad.codigo.charAt(0).toUpperCase();
+      codigoPrioridadeCad = codigoPrioridadeCad || cad.codigoPrioridade;
+      if (naturezaAtividade === undefined && cad.atividade !== undefined) {
+        naturezaAtividade = cad.atividade;
+      }
     }
+  }
+  if (!codigoRaw && codigo) {
+    codigoRaw = codigo.replace(/\./g, '').toUpperCase();
   }
 
   // Migra códigos ou grupos legados se presentes
@@ -408,11 +461,23 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
     nomeUnidadeAtual: c.nomeUnidade,
   });
 
+  const cadUnidadeResp = obterUnidadeCadPorId(c.idUnidadeServico);
+  const unidadeResponsavelCad =
+    c.unidadeResponsavelCad ||
+    cadUnidadeResp?.descricao ||
+    (c.nomeUnidade && !c.nomeUnidade.endsWith('- CBMMG') ? c.nomeUnidade : undefined) ||
+    unidadeResolvida.nomeUnidade;
+  const numeroChamadaFormatado = c.numeroChamadaFormatado || formatarNumeroChamadaCad(c.numeroOcorrencia);
+
   if (letra && GRUPOS_NATUREZAS_CBMMG[letra]) {
     const def = GRUPOS_NATUREZAS_CBMMG[letra];
     return {
       ...c,
+      numeroChamadaFormatado,
       codigoNatureza: codigo,
+      codigoNaturezaRaw: codigoRaw,
+      codigoPrioridadeCad,
+      naturezaAtividade,
       descricaoNatureza: descricao || c.descricaoNatureza,
       letraGrupoNatureza: letra,
       grupoNatureza: def.rotuloCompleto,
@@ -429,6 +494,7 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
       areaCiaInd: unidadeResolvida.areaCiaInd,
       unidadesApoio: unidadeResolvida.unidadesApoio,
       nomeUnidade: unidadeResolvida.nomeUnidade,
+      unidadeResponsavelCad,
       codigoSituacaoAtendimentoChamada: sitAtend,
       codigoSituacaoChamada: sitChamada,
       totalBombeiros: totalRecursosSemTr,
@@ -437,7 +503,11 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
 
   return {
     ...c,
+    numeroChamadaFormatado,
     codigoNatureza: codigo || 'S0101',
+    codigoNaturezaRaw: codigoRaw || 'S0101',
+    codigoPrioridadeCad,
+    naturezaAtividade,
     descricaoNatureza: descricao || c.descricaoNatureza,
     letraGrupoNatureza: letra || 'S',
     grupoNatureza: c.grupoNatureza || 'S - REFERENTE À BUSCA E SALVAMENTO',
@@ -454,6 +524,7 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
     areaCiaInd: unidadeResolvida.areaCiaInd,
     unidadesApoio: unidadeResolvida.unidadesApoio,
     nomeUnidade: unidadeResolvida.nomeUnidade,
+    unidadeResponsavelCad,
     codigoSituacaoAtendimentoChamada: sitAtend,
     codigoSituacaoChamada: sitChamada,
     totalBombeiros: totalRecursosSemTr,
@@ -2021,6 +2092,10 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     }
   }
 
+  const temCoordenada = r.temCoordenada === 'true' || r.temCoordenada === true;
+  const latitudeOriginal = latitude;
+  const longitudeOriginal = longitude;
+
   // 5. Histórico de Observações
   const historicoRaw =
     r.dadosVigentesHistoricosChamada?.dadosVigentesHistoricoChamadaV1 ||
@@ -2036,9 +2111,13 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
   // 6. Resolução Inteligente da Natureza e Grupo (Padrão Oficial CBMMG SIDS)
   let idNatureza = r.idNatureza;
   let codigoNatureza = r.codigoNatureza || '';
+  let codigoNaturezaRaw = '';
   let descricaoNatureza = r.descricaoNatureza || '';
   let grupoNatureza = r.grupoNatureza || '';
   let prioridade = r.prioridade || 'Média';
+  let codigoPrioridadeCad: string | undefined = undefined;
+  let tentado = false;
+  let naturezaAtividade: boolean | undefined = undefined;
   let letraGrupoNatureza = '';
   let categoriaNatureza = '';
 
@@ -2053,6 +2132,12 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     if (primeiraNat.codigo) codigoNatureza = codigoNatureza || primeiraNat.codigo;
     if (primeiraNat.descricaoNatureza) descricaoNatureza = primeiraNat.descricaoNatureza;
     if (primeiraNat.descricao) descricaoNatureza = descricaoNatureza || primeiraNat.descricao;
+    if (primeiraNat.tentado !== undefined) {
+      tentado = primeiraNat.tentado === 'true' || primeiraNat.tentado === true;
+    }
+    if (primeiraNat.codigoPrioridade) {
+      codigoPrioridadeCad = String(primeiraNat.codigoPrioridade);
+    }
     if (primeiraNat.codigoPrioridade === '1') prioridade = 'Alta';
     else if (primeiraNat.codigoPrioridade === '2') prioridade = 'Alta';
     else if (primeiraNat.codigoPrioridade === '3') prioridade = 'Média';
@@ -2064,8 +2149,15 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
                      (codigoNatureza ? obterNaturezaCadPorCodigo(codigoNatureza) : undefined);
 
   if (cadOficial) {
+    codigoNaturezaRaw = cadOficial.codigo.toUpperCase();
     codigoNatureza = formatarCodigoNatureza(cadOficial.codigo);
     descricaoNatureza = cadOficial.descricao;
+    if (!codigoPrioridadeCad && cadOficial.codigoPrioridade) {
+      codigoPrioridadeCad = String(cadOficial.codigoPrioridade);
+    }
+    if (cadOficial.atividade !== undefined) {
+      naturezaAtividade = Boolean(cadOficial.atividade);
+    }
     if (cadOficial.codigoPrioridade === '1' || cadOficial.codigoPrioridade === '2') {
       prioridade = 'Alta';
     } else if (cadOficial.codigoPrioridade === '3') {
@@ -2313,16 +2405,59 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     referencia
   );
 
+  const numeroChamadaFormatado = formatarNumeroChamadaCad(numeroOcorrencia);
+  const unidadeResponsavelCad =
+    obterUnidadeCadPorId(idUnidadeServico)?.descricao ||
+    (nomeUnidade && !nomeUnidade.endsWith('- CBMMG') ? nomeUnidade : undefined) ||
+    nomeUnidade;
+
+  // Campos oficiais CAD do atendimento principal (CBMMG) e REDS
+  const alerta = atendimentoPrincipal?.alerta === 'true' || atendimentoPrincipal?.alerta === true;
+  const destaque = atendimentoPrincipal?.destaque === 'true' || atendimentoPrincipal?.destaque === true;
+  const envolveAutoridade =
+    atendimentoPrincipal?.envolveAutoridade === 'true' || atendimentoPrincipal?.envolveAutoridade === true;
+  const dataHoraSituacaoAtual = parseDataCadParaIso(
+    atendimentoPrincipal?.dataHoraInicioSituacaoAtendimentoChamada
+  );
+  const eventoAssociado = atendimentoPrincipal?.nomeEvento
+    ? String(atendimentoPrincipal.nomeEvento).trim()
+    : undefined;
+
+  const redsFormatadosSet = new Set<string>();
+  for (const at of listaAtendimentosOrdenada) {
+    if (!at) continue;
+    const redsObj = at.dadosVigentesTentativasIntegracaoChamadaREDS?.dadosVigentesTentativaIntegracaoChamadaREDSV1;
+    const redsLista = Array.isArray(redsObj) ? redsObj : redsObj ? [redsObj] : [];
+    for (const redItem of redsLista) {
+      if (redItem?.numeroREDS) {
+        const fmt = formatarNumeroRedsCad(redItem.numeroREDS, at.idOrgao);
+        if (fmt) redsFormatadosSet.add(fmt);
+      }
+    }
+  }
+  const numeroRedsPrincipal =
+    redsFormatadosSet.size > 0 ? Array.from(redsFormatadosSet).join(', ') : undefined;
+
+  if (!codigoNaturezaRaw && codigoNatureza) {
+    codigoNaturezaRaw = codigoNatureza.replace(/\./g, '').toUpperCase();
+  }
+
   return {
     idChamada,
     numeroOcorrencia,
+    numeroChamadaFormatado,
+    numeroRedsPrincipal,
     dataHoraAbertura: dataAberturaIso,
     codigoSituacaoChamada: codSituacaoChamada,
     codigoSituacaoAtendimentoChamada: codSituacaoAtendimento,
     codigoOrigemChamada: (r.codigoOrigemChamada || 'L') as CodigoOrigemChamada,
     prioridade,
+    codigoPrioridadeCad,
+    tentado,
+    naturezaAtividade,
     idNatureza,
     codigoNatureza,
+    codigoNaturezaRaw,
     descricaoNatureza,
     grupoNatureza,
     letraGrupoNatureza,
@@ -2339,6 +2474,9 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     },
     latitude,
     longitude,
+    temCoordenada,
+    latitudeOriginal,
+    longitudeOriginal,
     cob,
     bbm,
     ciaInd,
@@ -2350,6 +2488,12 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
     unidadesApoio,
     idUnidadeServico,
     nomeUnidade,
+    unidadeResponsavelCad,
+    alerta,
+    destaque,
+    envolveAutoridade,
+    dataHoraSituacaoAtual,
+    eventoAssociado,
     recursos,
     totalBombeiros: totalRecursosSemTr,
     tempoDecorridoMinutos,

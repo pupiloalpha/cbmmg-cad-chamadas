@@ -99,20 +99,27 @@ export interface ChamadaAtiva {
   // Natureza
   idNatureza?: number | string;
   codigoNatureza?: string;
+  codigoNaturezaRaw?: string; // ex: V01023 (sem ponto, padrão CAD Java)
   descricaoNatureza: string;
   grupoNatureza: string;
   letraGrupoNatureza?: string;
   categoriaNatureza?: string;
-  
+  codigoPrioridadeCad?: string; // '1' | '2' | '3'
+  tentado?: boolean;
+  naturezaAtividade?: boolean;
+
   // Classificação Operacional (Período Chuvoso)
   relacaoChuva?: 'direta' | 'consequencia';
   motivoChuva?: string;
-  
+
   // Localização
   endereco: EnderecoOcorrencia;
   latitude: number | null;
   longitude: number | null;
-  
+  temCoordenada?: boolean;
+  latitudeOriginal?: number | null;
+  longitudeOriginal?: number | null;
+
   // Estrutura Militar CBMMG
   cob: string;
   bbm: string;
@@ -125,11 +132,21 @@ export interface ChamadaAtiva {
   unidadesApoio?: { cob: string; bbm: string; ciaInd?: string; subunidade?: string }[];
   idUnidadeServico?: number;
   nomeUnidade?: string;
-  
+  unidadeResponsavelCad?: string; // Descrição oficial CAD, ex: "2BBM (CONTAGEM)"
+
+  // Campos de Padronização CAD Java
+  numeroChamadaFormatado?: string; // ex: 2021-18948455-0
+  numeroRedsPrincipal?: string; // ex: (BM) 2023-010543179-001
+  alerta?: boolean;
+  destaque?: boolean;
+  envolveAutoridade?: boolean;
+  dataHoraSituacaoAtual?: string;
+  eventoAssociado?: string;
+
   // Recursos & Empenhos
   recursos: RecursoEmpenhado[];
   totalBombeiros: number;
-  
+
   // Tempos operacionais
   tempoDecorridoMinutos?: number;
   historicoObservacoes?: string[];
