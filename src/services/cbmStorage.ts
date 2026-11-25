@@ -29,6 +29,7 @@ export const PROXY_REVERSO_PADRAO = 'https://cobom-cad.duckdns.org';
 const STORAGE_KEY_CHAMADAS = 'cbmmg_cad_chamadas_v1';
 const STORAGE_KEY_RECURSOS = 'cbmmg_cad_recursos_v1';
 const STORAGE_KEY_ULTIMA_SYNC = 'cbmmg_cad_ultima_sync';
+const STORAGE_KEY_REFERENCIA_DADOS = 'cbmmg_cad_referencia_dados_ms';
 const STORAGE_KEY_CATALOGOS = 'cbmmg_cad_catalogos_v1';
 const STORAGE_KEY_CATALOGOS_TS = 'cbmmg_cad_catalogos_ts';
 const STORAGE_KEY_NATUREZAS = 'cbmmg_cad_naturezas_v1';
@@ -348,19 +349,101 @@ export function formatarNumeroRedsCad(numero?: string | number, idOrgao?: string
 function parseDataCadParaIso(raw: unknown): string | undefined {
   if (raw === undefined || raw === null || raw === '') return undefined;
   if (typeof raw === 'number') {
-    const d = new Date(raw);
+    const ms = raw > 0 && raw < 1e12 ? raw * 1000 : raw;
+    const d = new Date(ms);
     return isNaN(d.getTime()) ? undefined : d.toISOString();
   }
   if (typeof raw === 'string') {
     const trimmed = raw.trim();
     if (/^\d{10,13}$/.test(trimmed)) {
-      const d = new Date(parseInt(trimmed, 10));
+      const num = parseInt(trimmed, 10);
+      const ms = trimmed.length === 10 ? num * 1000 : num;
+      const d = new Date(ms);
+      return isNaN(d.getTime()) ? undefined : d.toISOString();
+    }
+    const brMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[,\s]+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (brMatch) {
+      const [, dd, mm, yyyy, hh = '00', min = '00', ss = '00'] = brMatch;
+      const d = new Date(
+        Number(yyyy),
+        Number(mm) - 1,
+        Number(dd),
+        Number(hh),
+        Number(min),
+        Number(ss)
+      );
       return isNaN(d.getTime()) ? undefined : d.toISOString();
     }
     const d = new Date(trimmed);
     return isNaN(d.getTime()) ? undefined : d.toISOString();
   }
   return undefined;
+}
+
+function extrairReferenciaDadosMs(jsonResposta: any): number | undefined {
+  const candidatos = [
+    jsonResposta?.chamadas_ativas?.atualizado_em,
+    jsonResposta?.atualizado_em,
+    jsonResposta?.dados?.atualizado_em,
+  ];
+  for (const cand of candidatos) {
+    const iso = parseDataCadParaIso(cand);
+    if (iso) {
+      const ms = new Date(iso).getTime();
+      if (!isNaN(ms) && ms > 0) return ms;
+    }
+  }
+  return undefined;
+}
+
+function salvarReferenciaDadosMs(refMs?: number): void {
+  try {
+    if (refMs && !isNaN(refMs) && refMs > 0) {
+      localStorage.setItem(STORAGE_KEY_REFERENCIA_DADOS, String(refMs));
+    } else {
+      localStorage.removeItem(STORAGE_KEY_REFERENCIA_DADOS);
+    }
+  } catch {
+    // ignora erro de quota
+  }
+}
+
+function obterReferenciaTemporalChamadas(chamadas: ChamadaAtiva[]): number {
+  const agora = Date.now();
+  let storedRefMs = NaN;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_REFERENCIA_DADOS);
+    if (raw) storedRefMs = parseInt(raw, 10);
+  } catch {
+    // ignora
+  }
+
+  let maxTimestampChamada = 0;
+  for (const c of chamadas) {
+    if (!c.dataHoraAbertura) continue;
+    const iso = parseDataCadParaIso(c.dataHoraAbertura);
+    const ts = iso ? new Date(iso).getTime() : NaN;
+    if (!isNaN(ts) && ts > maxTimestampChamada) {
+      maxTimestampChamada = ts;
+    }
+  }
+
+  if (!isNaN(storedRefMs) && storedRefMs > 0) {
+    // Se a captura do dado for recente (<= 30 min), usa o relógio atual;
+    // se for snapshot/cache antigo, usa a referência do próprio conjunto de dados.
+    if (agora >= storedRefMs && agora - storedRefMs <= 30 * 60 * 1000) {
+      return agora;
+    }
+    return Math.max(storedRefMs, maxTimestampChamada || 0);
+  }
+
+  // Contingência para caches antigos sem metadata salvo: se todas as chamadas têm mais de 2h
+  // em relação ao relógio do navegador, ancora na chamada ativa mais recente da base.
+  if (maxTimestampChamada > 0 && agora - maxTimestampChamada > 2 * 3600 * 1000) {
+    return maxTimestampChamada;
+  }
+
+  return agora;
 }
 
 export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
@@ -606,20 +689,34 @@ export async function sincronizarCatalogosAuxiliares(forcar = false): Promise<{ 
     }
 
     const proxy = obterProxyUrl();
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 6000);
+    const usandoProxyPadrao = proxy === PROXY_REVERSO_PADRAO;
+    const urls = usandoProxyPadrao
+      ? ['/api/cbm/codigos', `${proxy}/codigos`]
+      : [`${proxy}/codigos`, '/api/cbm/codigos'];
 
-    const res = await fetch(`${proxy}/codigos`, {
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    });
-    clearTimeout(t);
+    for (const url of urls) {
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(url, {
+          headers: { Accept: 'application/json' },
+          signal: controller.signal,
+        });
+        clearTimeout(t);
 
-    if (res.ok) {
-      const codigos = await res.json();
-      localStorage.setItem(STORAGE_KEY_CATALOGOS, JSON.stringify(codigos));
-      localStorage.setItem(STORAGE_KEY_CATALOGOS_TS, String(agora));
-      return { sucesso: true, renovado: true, dados: codigos };
+        if (res.status === 403) {
+          return { sucesso: false, renovado: false, dados: DICIONARIO_SIGLAS };
+        }
+
+        if (res.ok) {
+          const codigos = await res.json();
+          localStorage.setItem(STORAGE_KEY_CATALOGOS, JSON.stringify(codigos));
+          localStorage.setItem(STORAGE_KEY_CATALOGOS_TS, String(agora));
+          return { sucesso: true, renovado: true, dados: codigos };
+        }
+      } catch {
+        // tenta próxima rota
+      }
     }
   } catch (e) {
     console.warn('Não foi possível renovar catálogos remotos agora, mantendo catálogo local:', e);
@@ -659,50 +756,73 @@ export async function sincronizarTabelaNaturezas(
   }
 
   const proxy = obterProxyUrl();
+  const usandoProxyPadrao = proxy === PROXY_REVERSO_PADRAO;
   let listaExtraida: NaturezaCadOficial[] | null = null;
   let fonteObtida = '';
 
-  // 3. Tentar direto no proxy reverso Nginx: GET /dados-auxiliares/naturezas
-  try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(`${proxy}/dados-auxiliares/naturezas`, {
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    });
-    clearTimeout(t);
-    if (res.ok) {
-      const data = await res.json();
-      const itens = data?.dados?.value || data?.dados || data;
-      if (Array.isArray(itens) && itens.length > 0) {
-        listaExtraida = itens;
-        fonteObtida = `${proxy}/dados-auxiliares/naturezas`;
-      }
-    }
-  } catch (e: any) {
-    console.warn(`Tentativa de carregar naturezas de ${proxy} falhou (${e.message}). Tentando rotas de contingência...`);
-  }
-
-  // 4. Fallback: rota local Express /api/cbm/naturezas
-  if (!listaExtraida) {
+  const tentarRotaBackendNaturezas = async (): Promise<'ok' | 'blocked' | 'miss'> => {
     try {
       const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 6000);
+      const t = setTimeout(() => controller.abort(), 7000);
       const res = await fetch('/api/cbm/naturezas', {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(t);
+      if (res.status === 403) return 'blocked';
+      if (res.ok) {
+        const data = await res.json();
+        const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados || data;
+        if (Array.isArray(itens) && itens.length > 0) {
+          listaExtraida = itens;
+          fonteObtida = data?.fonte || '/api/cbm/naturezas (Cache Compartilhado)';
+          return 'ok';
+        }
+      }
+    } catch {
+      // continua para próxima tentativa
+    }
+    return 'miss';
+  };
+
+  const tentarProxyDiretoNaturezas = async (): Promise<void> => {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${proxy}/dados-auxiliares/naturezas`, {
         headers: { Accept: 'application/json' },
         signal: controller.signal,
       });
       clearTimeout(t);
       if (res.ok) {
         const data = await res.json();
-        const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados;
+        const itens = data?.dados?.value || data?.dados || data;
         if (Array.isArray(itens) && itens.length > 0) {
           listaExtraida = itens;
-          fonteObtida = '/api/cbm/naturezas (Backend Intermediário)';
+          fonteObtida = `${proxy}/dados-auxiliares/naturezas`;
         }
       }
-    } catch {
-      // continua para snapshot estático
+    } catch (e: any) {
+      console.warn(`Tentativa de carregar naturezas de ${proxy} falhou (${e.message}).`);
+    }
+  };
+
+  // 3. Prioridade: Cache Compartilhado (/api/cbm/naturezas) quando usando o proxy padrão
+  if (usandoProxyPadrao) {
+    const statusEdge = await tentarRotaBackendNaturezas();
+    if (statusEdge === 'blocked') {
+      return { sucesso: false, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Bloqueio Geográfico (BR)' };
+    }
+    if (!listaExtraida) {
+      await tentarProxyDiretoNaturezas();
+    }
+  } else {
+    await tentarProxyDiretoNaturezas();
+    if (!listaExtraida) {
+      const statusEdge = await tentarRotaBackendNaturezas();
+      if (statusEdge === 'blocked') {
+        return { sucesso: false, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Bloqueio Geográfico (BR)' };
+      }
     }
   }
 
@@ -766,50 +886,73 @@ export async function sincronizarTabelaUnidadesServico(
   }
 
   const proxy = obterProxyUrl();
+  const usandoProxyPadrao = proxy === PROXY_REVERSO_PADRAO;
   let listaExtraida: UnidadeServicoCadOficial[] | null = null;
   let fonteObtida = '';
 
-  // 1. Tentar direto no proxy reverso Nginx: GET /dados-auxiliares/unidades-servico
-  try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(`${proxy}/dados-auxiliares/unidades-servico`, {
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    });
-    clearTimeout(t);
-    if (res.ok) {
-      const data = await res.json();
-      const itens = data?.dados?.value || data?.dados || data;
-      if (Array.isArray(itens) && itens.length > 0) {
-        listaExtraida = itens;
-        fonteObtida = `${proxy}/dados-auxiliares/unidades-servico`;
-      }
-    }
-  } catch (e: any) {
-    console.warn(`Tentativa de carregar unidades-servico de ${proxy} falhou (${e.message}). Tentando rotas de contingência...`);
-  }
-
-  // 2. Fallback: rota local Express /api/cbm/unidades-servico
-  if (!listaExtraida) {
+  const tentarRotaBackendUnidades = async (): Promise<'ok' | 'blocked' | 'miss'> => {
     try {
       const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 6000);
+      const t = setTimeout(() => controller.abort(), 7000);
       const res = await fetch('/api/cbm/unidades-servico', {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(t);
+      if (res.status === 403) return 'blocked';
+      if (res.ok) {
+        const data = await res.json();
+        const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados || data;
+        if (Array.isArray(itens) && itens.length > 0) {
+          listaExtraida = itens;
+          fonteObtida = data?.fonte || '/api/cbm/unidades-servico (Cache Compartilhado)';
+          return 'ok';
+        }
+      }
+    } catch {
+      // continua para próxima tentativa
+    }
+    return 'miss';
+  };
+
+  const tentarProxyDiretoUnidades = async (): Promise<void> => {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${proxy}/dados-auxiliares/unidades-servico`, {
         headers: { Accept: 'application/json' },
         signal: controller.signal,
       });
       clearTimeout(t);
       if (res.ok) {
         const data = await res.json();
-        const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados;
+        const itens = data?.dados?.value || data?.dados || data;
         if (Array.isArray(itens) && itens.length > 0) {
           listaExtraida = itens;
-          fonteObtida = '/api/cbm/unidades-servico (Backend Intermediário)';
+          fonteObtida = `${proxy}/dados-auxiliares/unidades-servico`;
         }
       }
-    } catch {
-      // continua para snapshot estático
+    } catch (e: any) {
+      console.warn(`Tentativa de carregar unidades-servico de ${proxy} falhou (${e.message}).`);
+    }
+  };
+
+  // 1. Prioridade: Cache Compartilhado (/api/cbm/unidades-servico) quando usando o proxy padrão
+  if (usandoProxyPadrao) {
+    const statusEdge = await tentarRotaBackendUnidades();
+    if (statusEdge === 'blocked') {
+      return { sucesso: false, renovado: false, total: mapaUnidadesPorId.size, fonte: 'Bloqueio Geográfico (BR)' };
+    }
+    if (!listaExtraida) {
+      await tentarProxyDiretoUnidades();
+    }
+  } else {
+    await tentarProxyDiretoUnidades();
+    if (!listaExtraida) {
+      const statusEdge = await tentarRotaBackendUnidades();
+      if (statusEdge === 'blocked') {
+        return { sucesso: false, renovado: false, total: mapaUnidadesPorId.size, fonte: 'Bloqueio Geográfico (BR)' };
+      }
     }
   }
 
@@ -900,69 +1043,135 @@ export async function sincronizarProxyReverso(
   }
 
   const proxyUrl = obterProxyUrl();
+  const usandoProxyPadrao = proxyUrl === PROXY_REVERSO_PADRAO;
   let jsonResposta: any = null;
-  let fonteUtilizada = 'Proxy Nginx (https://cobom-cad.duckdns.org)';
+  let fonteUtilizada = 'Cache Compartilhado Cloudflare';
+  let bloqueadoGeoMensagem: string | null = null;
+  let rateLimitResposta: {
+    sucesso: boolean;
+    mensagem: string;
+    dados: ChamadaAtiva[];
+    recursos: RecursoCadAtivo[];
+    total: number;
+  } | null = null;
 
-  try {
-    // 1. Tentar direto no Proxy Reverso Nginx (CORS liberado, token injetado pelo Nginx)
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-
-    const res = await fetch(`${proxyUrl}/ativos`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-
-    if (res.ok) {
-      jsonResposta = await res.json();
-      ultimoAcessoAtivosMs = Date.now();
-    } else if (res.status === 429) {
-      const existentes = carregarChamadasArmazenadas();
-      return {
-        sucesso: true,
-        mensagem: 'HTTP 429 (Rate Limit): Servidor CAD solicitou espaçamento. Mantendo ocorrências em cache.',
-        dados: existentes,
-        total: existentes.length,
-      };
-    } else {
-      throw new Error(`Proxy respondeu status HTTP ${res.status}`);
-    }
-  } catch (errProxy: any) {
-    console.warn(`Tentativa direta no proxy reverso falhou (${errProxy.message}). Tentando fallback interno...`);
-
-    // 2. Fallback via backend intermediário Express local
+  const tentarRotaBackendSync = async (): Promise<void> => {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
       const resBackend = await fetch('/api/cbm/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
+
+      if (resBackend.status === 403) {
+        let msg = 'Acesso restrito ao território brasileiro (BR).';
+        try {
+          const errData = await resBackend.json();
+          if (errData?.mensagem) msg = errData.mensagem;
+        } catch {
+          // mantém mensagem padrão
+        }
+        bloqueadoGeoMensagem = msg;
+        return;
+      }
+
       if (resBackend.ok) {
         const data = await resBackend.json();
-        if (data.sucesso && data.dados) {
+        if (data?.sucesso && data?.dados) {
           jsonResposta = data.dados;
-          fonteUtilizada = 'Backend Intermediário Cache';
+          fonteUtilizada = data.fonte || 'Cache Compartilhado Cloudflare';
           ultimoAcessoAtivosMs = Date.now();
         }
       }
     } catch {
-      // Ignora e tenta snapshot
+      // ignora erro de rota intermediária e segue para fallback
+    }
+  };
+
+  const tentarProxyDiretoAtivos = async (): Promise<void> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+
+      const res = await fetch(`${proxyUrl}/ativos`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        jsonResposta = await res.json();
+        fonteUtilizada = `Proxy Nginx (${proxyUrl})`;
+        ultimoAcessoAtivosMs = Date.now();
+      } else if (res.status === 429) {
+        const existentes = carregarChamadasArmazenadas();
+        const recursosExistentes = carregarRecursosArmazenados();
+        rateLimitResposta = {
+          sucesso: true,
+          mensagem: 'HTTP 429 (Rate Limit): Servidor CAD solicitou espaçamento. Mantendo ocorrências em cache.',
+          dados: existentes,
+          recursos: recursosExistentes,
+          total: existentes.length,
+        };
+      } else {
+        throw new Error(`Proxy respondeu status HTTP ${res.status}`);
+      }
+    } catch (errProxy: any) {
+      console.warn(`Tentativa direta no proxy reverso falhou (${errProxy.message}).`);
+    }
+  };
+
+  if (usandoProxyPadrao) {
+    // 1. Prioriza Cache Compartilhado na Borda da Cloudflare (/api/cbm/sync)
+    await tentarRotaBackendSync();
+    if (bloqueadoGeoMensagem) {
+      return {
+        sucesso: false,
+        mensagem: bloqueadoGeoMensagem,
+      };
     }
 
-    // 3. Fallback snapshot estático
+    // 2. Fallback direto no Proxy Reverso Nginx apenas se /api/cbm/sync estiver indisponível
     if (!jsonResposta) {
-      try {
-        const snap = await fetch(`${import.meta.env.BASE_URL}cbmmg_cad_dados.json`);
-        if (snap.ok) {
-          jsonResposta = await snap.json();
-          fonteUtilizada = 'Snapshot Local Contingência';
-        }
-      } catch {
-        // Nada
+      await tentarProxyDiretoAtivos();
+      if (rateLimitResposta) {
+        return rateLimitResposta;
       }
+    }
+  } else {
+    // URL customizada configurada pelo usuário: prioriza a URL informada
+    await tentarProxyDiretoAtivos();
+    if (rateLimitResposta) {
+      return rateLimitResposta;
+    }
+
+    if (!jsonResposta) {
+      await tentarRotaBackendSync();
+      if (bloqueadoGeoMensagem) {
+        return {
+          sucesso: false,
+          mensagem: bloqueadoGeoMensagem,
+        };
+      }
+    }
+  }
+
+  // 3. Fallback snapshot estático
+  if (!jsonResposta) {
+    try {
+      const snap = await fetch(`${import.meta.env.BASE_URL}cbmmg_cad_dados.json`);
+      if (snap.ok) {
+        jsonResposta = await snap.json();
+        fonteUtilizada = 'Snapshot Local Contingência';
+      }
+    } catch {
+      // Nada
     }
   }
 
@@ -996,7 +1205,9 @@ export async function sincronizarProxyReverso(
   sincronizarCatalogosAuxiliares().catch(() => {});
 
   // Enriquecer chamadas com tabela oficial de naturezas CAD, COB, BBM, coordenadas e tempos
-  const enriquecidas = chamadasBrutas.map(enriquecerChamada);
+  const refDadosMs = extrairReferenciaDadosMs(jsonResposta);
+  salvarReferenciaDadosMs(refDadosMs);
+  const enriquecidas = chamadasBrutas.map((item) => enriquecerChamada(item, refDadosMs));
   salvarChamadasArmazenadas(enriquecidas);
 
   // Extrair e persistir base completa de recursos ativos (viaturas + BM + brigadistas)
@@ -2069,34 +2280,20 @@ function normalizarTexto(txt: string): string {
 // ENRIQUECIMENTO INTELIGENTE DE OCORRÊNCIAS
 // ==========================================
 
-export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
+export function enriquecerChamada(chamadaRaw: any, referenciaMs?: number): ChamadaAtiva {
   const r = chamadaRaw || {};
 
   // 1. Número e Identificador
   const idChamada = String(r.idChamada || r.id || r.numeroChamada || `CAD-${Math.floor(100000 + Math.random() * 900000)}`);
   const numeroOcorrencia = String(r.numeroChamada || r.numeroOcorrencia || r.numero || idChamada);
 
-  // 2. Data e Tempo Decorrido (suporte a epoch em milissegundos e strings ISO)
-  let dataAberturaIso = new Date().toISOString();
+  // 2. Data e Tempo Decorrido (suporte a epoch em ms/segundos, BR dd/mm/yyyy e ISO)
+  const refAgoraMs = referenciaMs && !isNaN(referenciaMs) && referenciaMs > 0 ? referenciaMs : Date.now();
   const rawData = r.dataHoraInclusao || r.dataHoraAbertura || r.dataAbertura || r.dataHora;
-
-  if (rawData) {
-    if (typeof rawData === 'number') {
-      dataAberturaIso = new Date(rawData).toISOString();
-    } else if (typeof rawData === 'string') {
-      if (/^\d{10,13}$/.test(rawData.trim())) {
-        dataAberturaIso = new Date(parseInt(rawData.trim(), 10)).toISOString();
-      } else {
-        const d = new Date(rawData);
-        if (!isNaN(d.getTime())) {
-          dataAberturaIso = d.toISOString();
-        }
-      }
-    }
-  }
+  const dataAberturaIso = parseDataCadParaIso(rawData) || new Date(refAgoraMs).toISOString();
 
   const timestampMs = new Date(dataAberturaIso).getTime();
-  const tempoDecorridoMinutos = Math.max(1, Math.round((Date.now() - timestampMs) / 60000));
+  const tempoDecorridoMinutos = Math.max(1, Math.round((refAgoraMs - timestampMs) / 60000));
 
   // 3. Município e Endereço
   let municipio = (r.municipio || r.cidade || r.endereco?.municipio || 'BELO HORIZONTE').trim().toUpperCase();
@@ -2539,7 +2736,16 @@ export function enriquecerChamada(chamadaRaw: any): ChamadaAtiva {
 // ==========================================
 
 export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperacionais): ChamadaAtiva[] {
-  const agora = Date.now();
+  const janelaTemporalMs =
+    filtros.periodoTempo === '2h'
+      ? 2 * 3600 * 1000
+      : filtros.periodoTempo === '8h'
+      ? 8 * 3600 * 1000
+      : filtros.periodoTempo === '24h'
+      ? 24 * 3600 * 1000
+      : null;
+  const referenciaTemporalMs =
+    janelaTemporalMs !== null ? obterReferenciaTemporalChamadas(chamadas) : Date.now();
 
   return chamadas.filter((c) => {
     // 1-3. Filtro de Unidades (COB / BBM / CIA IND ou CEOA):
@@ -2688,21 +2894,12 @@ export function filtrarChamadas(chamadas: ChamadaAtiva[], filtros: FiltrosOperac
       return false;
     }
 
-    // 10. Filtro Temporal Avançado
-    const timestampChamada = new Date(c.dataHoraAbertura).getTime();
-    if (filtros.periodoTempo === '2h') {
-      if (agora - timestampChamada > 2 * 3600 * 1000) return false;
-    } else if (filtros.periodoTempo === '8h') {
-      if (agora - timestampChamada > 8 * 3600 * 1000) return false;
-    } else if (filtros.periodoTempo === '24h') {
-      if (agora - timestampChamada > 24 * 3600 * 1000) return false;
-    } else if (filtros.periodoTempo === 'personalizado') {
-      if (filtros.dataInicio && timestampChamada < new Date(filtros.dataInicio).getTime()) {
-        return false;
-      }
-      if (filtros.dataFim && timestampChamada > new Date(filtros.dataFim).getTime()) {
-        return false;
-      }
+    // 10. Filtro Temporal de Chamadas Ativas (2h, 8h, 24h)
+    if (janelaTemporalMs !== null) {
+      const isoAbertura = parseDataCadParaIso(c.dataHoraAbertura);
+      const timestampChamada = isoAbertura ? new Date(isoAbertura).getTime() : NaN;
+      if (isNaN(timestampChamada)) return false;
+      if (referenciaTemporalMs - timestampChamada > janelaTemporalMs) return false;
     }
 
     // 11. Busca por termo (Normalizada sem acentos: Ocorrência, Natureza, Histórico/Observações, Referência, Endereço, Unidade e Viaturas)
@@ -2981,7 +3178,7 @@ export function calcularEvolucaoHoras(
 
   // Janela das últimas 12 horas
   const buckets: { hora: string; total: number; horaNumero?: number }[] = [];
-  const agora = new Date();
+  const agora = new Date(obterReferenciaTemporalChamadas(chamadas));
   for (let i = 11; i >= 0; i--) {
     const h = new Date(agora.getTime() - i * 3600 * 1000);
     const label = `${String(h.getHours()).padStart(2, '0')}h`;
@@ -3008,6 +3205,7 @@ export function calcularEvolucaoHoras(
 // ==========================================
 
 export function restaurarDadosPadrao(): ChamadaAtiva[] {
+  salvarReferenciaDadosMs(undefined);
   salvarChamadasArmazenadas(MOCK_CHAMADAS_INICIAIS);
   return MOCK_CHAMADAS_INICIAIS;
 }
@@ -3038,7 +3236,9 @@ export async function sincronizarAgenteLocal(
         mensagem: `Agente local conectado, porém 0 chamadas retornadas.`,
       };
     }
-    const enriquecidos = itens.map(enriquecerChamada);
+    const refDadosMs = extrairReferenciaDadosMs(json);
+    salvarReferenciaDadosMs(refDadosMs);
+    const enriquecidos = itens.map((item) => enriquecerChamada(item, refDadosMs));
     salvarChamadasArmazenadas(enriquecidos);
     return {
       sucesso: true,
@@ -3094,7 +3294,9 @@ export async function sincronizarSnapshotEstatico(
       if (recursos) salvarRecursosArmazenados(recursos);
 
       if (itens.length > 0) {
-        const enriquecidos = itens.map(enriquecerChamada);
+        const refDadosMs = extrairReferenciaDadosMs(json);
+        salvarReferenciaDadosMs(refDadosMs);
+        const enriquecidos = itens.map((item) => enriquecerChamada(item, refDadosMs));
         salvarChamadasArmazenadas(enriquecidos);
         return {
           sucesso: true,

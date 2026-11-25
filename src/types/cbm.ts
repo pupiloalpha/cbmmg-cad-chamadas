@@ -187,9 +187,7 @@ export interface FiltrosOperacionais {
   situacaoAtendimento: string; // 'TODOS' | código
   origem: string; // 'TODOS' | 'L' | 'I' | 'B' | 'A'
   prioridade: string; // 'TODOS' | 'Alta' | 'Média' | 'Baixa'
-  periodoTempo: 'todas' | '2h' | '8h' | '24h' | 'personalizado';
-  dataInicio?: string;
-  dataFim?: string;
+  periodoTempo: 'todas' | '2h' | '8h' | '24h';
   apenasComGeolocalizacao: boolean;
   termoBusca: string;
 }

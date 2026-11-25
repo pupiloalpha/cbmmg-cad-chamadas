@@ -12,7 +12,6 @@ import {
 import {
   Search,
   RotateCcw,
-  Calendar,
   Shield,
   Clock,
   ChevronDown,
@@ -576,8 +575,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     (filtros.ciasInd?.length ? 1 : 0) +
     (filtros.situacaoAtendimento !== 'TODOS' ? 1 : 0) +
     (filtros.prioridade !== 'TODOS' ? 1 : 0) +
-    (filtros.apenasComGeolocalizacao ? 1 : 0) +
-    (filtros.periodoTempo === 'personalizado' ? 1 : 0);
+    (filtros.apenasComGeolocalizacao ? 1 : 0);
 
   const temAlgumFiltroAtivo =
     Boolean(filtros.termoBusca?.trim()) ||
@@ -618,7 +616,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
           )}
         </div>
 
-        {/* Temporal Filters: Todas, 2h, 8h, 24h + Personalizado */}
+        {/* Temporal Filters: Todas, 2h, 8h, 24h */}
         <div className="flex items-center justify-between sm:justify-start gap-1 bg-slate-950/90 p-1 rounded-lg border border-slate-800 text-xs overflow-x-auto">
           <span className="text-[10px] font-semibold uppercase text-slate-500 px-1.5 hidden sm:flex items-center gap-1 shrink-0">
             <Clock className="w-3 h-3 text-slate-400" />
@@ -630,7 +628,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
               { id: '2h', label: '2h' },
               { id: '8h', label: '8h' },
               { id: '24h', label: '24h' },
-              { id: 'personalizado', label: 'Data' },
             ] as const
           ).map((item) => (
             <button
@@ -645,8 +642,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
               title={
                 item.id === 'todas'
                   ? 'Exibir todas as chamadas ativas'
-                  : item.id === 'personalizado'
-                  ? 'Definir intervalo de data e hora'
                   : `Filtrar últimas ${item.label}`
               }
             >
@@ -668,31 +663,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
           </button>
         )}
       </div>
-
-      {/* Custom Date Interval (when 'personalizado' selected) */}
-      {filtros.periodoTempo === 'personalizado' && (
-        <div className="flex flex-wrap items-center gap-3 p-2.5 bg-slate-950/70 rounded-lg border border-slate-800 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-400">
-            <Calendar className="w-3.5 h-3.5 text-amber-400" />
-            <span>Início:</span>
-            <input
-              type="datetime-local"
-              value={filtros.dataInicio || ''}
-              onChange={(e) => onChangeFiltros({ ...filtros, dataInicio: e.target.value })}
-              className="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs"
-            />
-          </div>
-          <div className="flex items-center gap-1.5 text-slate-400">
-            <span>Fim:</span>
-            <input
-              type="datetime-local"
-              value={filtros.dataFim || ''}
-              onChange={(e) => onChangeFiltros({ ...filtros, dataFim: e.target.value })}
-              className="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Nível 1B: Comando (COB/CEB) + Natureza + Botão "Mais filtros" */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end text-xs">
@@ -843,11 +813,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
               title="Remover filtro de tempo"
             >
               <Clock className="w-3 h-3 text-slate-400" />
-              <span>
-                {filtros.periodoTempo === 'personalizado'
-                  ? 'Período personalizado'
-                  : `Últimas ${filtros.periodoTempo}`}
-              </span>
+              <span>{`Últimas ${filtros.periodoTempo}`}</span>
               <X className="w-3 h-3 text-slate-400" />
             </button>
           )}
