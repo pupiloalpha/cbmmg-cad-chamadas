@@ -61,7 +61,15 @@ function inferirTipoClassificacaoCad(c: ChamadaAtiva): string {
 
 function escapeCSVSemicolon(val: unknown): string {
   if (val === null || val === undefined) return '';
-  const str = String(val);
+  let str = String(val);
+
+  // Prevenção contra CSV Formula Injection em planilhas (Excel/LibreOffice),
+  // preservando números negativos legítimos (ex: latitude/longitude).
+  const isNumericValue = typeof val === 'number' || /^-?\d+(\.\d+)?$/.test(str.trim());
+  if (!isNumericValue && /^[ \t\r\n]*[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+
   if (str.includes(';') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`;
   }

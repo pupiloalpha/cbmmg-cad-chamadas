@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
               </h1>
               <span
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-950/70 border border-emerald-800/60 text-emerald-400"
-                title={`Proxy Nginx Ativo: https://cobom-cad.duckdns.org • ${totalChamadas} chamadas ativas (6 COBs + CEB)`}
+                title={`Gateway Seguro Ativo • ${totalChamadas} chamadas ativas (6 COBs + CEB)`}
                 aria-label="Servidor CAD conectado"
               >
                 <Server className="w-3 h-3" />

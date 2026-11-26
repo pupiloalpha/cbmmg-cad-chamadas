@@ -13,7 +13,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg', 'pwa-192x192.png', 'pwa-512x512.png', '.nojekyll'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'hmr-shim.js', '.nojekyll'],
         manifest: {
           id: './',
           name: 'CBMMG CAD - Dashboard Operacional',
@@ -53,6 +53,13 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          navigateFallbackDenylist: [/^\/api\//],
+          runtimeCaching: [
+            {
+              urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+              handler: 'NetworkOnly',
+            },
+          ],
         },
         devOptions: {
           enabled: true,
@@ -60,6 +67,9 @@ export default defineConfig(() => {
         },
       }),
     ],
+    build: {
+      sourcemap: false,
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('.', import.meta.url)),

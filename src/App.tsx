@@ -3,7 +3,6 @@ import { ChamadaAtiva, FiltrosOperacionais, RecursoCadAtivo } from './types/cbm'
 import {
   carregarChamadasArmazenadas,
   carregarRecursosArmazenados,
-  carregarRecursosSnapshotEstatico,
   salvarChamadasArmazenadas,
   salvarRecursosArmazenados,
   reconciliarUnidadesRecursos,
@@ -94,7 +93,7 @@ export default function App() {
     setTimeout(() => setToastNotificacao(null), 5000);
   };
 
-  // Sincronização centralizada com o Proxy Reverso Nginx (cobom-cad.duckdns.org)
+  // Sincronização centralizada via Gateway Seguro (/api/cbm/sync)
   const executarSincronizacaoProxy = async (forcar = false) => {
     setIsSyncing(true);
     try {
@@ -128,14 +127,6 @@ export default function App() {
     const recursosIniciais = carregarRecursosArmazenados();
     if (recursosIniciais.length > 0) {
       setRecursosBase(recursosIniciais);
-    } else {
-      carregarRecursosSnapshotEstatico()
-        .then((snapRecs) => {
-          if (snapRecs.length > 0) {
-            setRecursosBase((prev) => (prev.length > 0 ? prev : reconciliarUnidadesRecursos(snapRecs)));
-          }
-        })
-        .catch(() => {});
     }
 
     // Carrega tabelas oficiais de naturezas e unidades de serviço do CAD

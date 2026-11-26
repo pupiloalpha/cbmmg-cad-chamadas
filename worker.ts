@@ -1,8 +1,11 @@
+import { sanitizarPayloadCadLgpd } from './src/services/lgpdSanitizer.ts';
+
 interface WorkerEnv {
   ASSETS: {
     fetch(request: Request): Promise<Response>;
   };
   CBMMG_PROXY_URL?: string;
+  CBMMG_ORIGIN_SECRET?: string;
 }
 
 interface WorkerExecutionContext {
@@ -12,7 +15,6 @@ interface WorkerExecutionContext {
 
 interface CfProperties {
   country?: string;
-  colo?: string;
 }
 
 type CfRequest = Request & { cf?: CfProperties };
@@ -25,6 +27,32 @@ const DEFAULT_PROXY_URL = 'https://cobom-cad.duckdns.org';
 const ATIVOS_EDGE_TTL_SEC = 300; // 5 minutos de cache compartilhado na borda da Cloudflare
 const AUXILIARES_EDGE_TTL_SEC = 21600; // 6 horas para catálogos auxiliares (Regra #2)
 const STALE_BACKUP_TTL_SEC = 86400; // 24 horas de contingência caso o CAD retorne 429/erro
+
+const CSP_HEADER = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob: https://server.arcgisonline.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
+  "connect-src 'self'",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+const SECURITY_HEADERS_BASE: Record<string, string> = {
+  'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'X-Frame-Options': 'DENY',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Content-Security-Policy': CSP_HEADER,
+};
 
 interface CachedJsonResult {
   bodyStr: string;
@@ -43,11 +71,11 @@ function getEdgeCache(): Cache | null {
   }
 }
 
-function aplicarHeadersPrivacidade(resp: Response): Response {
+function aplicarHeadersSeguranca(resp: Response): Response {
   const headers = new Headers(resp.headers);
-  headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
-  headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('Referrer-Policy', 'no-referrer');
+  for (const [k, v] of Object.entries(SECURITY_HEADERS_BASE)) {
+    headers.set(k, v);
+  }
   return new Response(resp.body, {
     status: resp.status,
     statusText: resp.statusText,
@@ -62,9 +90,7 @@ function jsonResponse(
 ): Response {
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
-    'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet',
-    'X-Content-Type-Options': 'nosniff',
-    'Referrer-Policy': 'no-referrer',
+    ...SECURITY_HEADERS_BASE,
     ...extraHeaders,
   });
   return new Response(JSON.stringify(payload), { status, headers });
@@ -80,7 +106,6 @@ function verificarPaisBrasil(request: CfRequest): Response | null {
         sucesso: false,
         codigo: 'GEO_BLOCKED',
         mensagem: 'Acesso restrito ao território brasileiro (BR).',
-        paisDetectado: country,
       },
       403,
       { 'Cache-Control': 'no-store' }
@@ -93,9 +118,11 @@ async function obterDadosComCacheCompartilhado(params: {
   cacheKeyUrl: string;
   staleKeyUrl: string;
   upstreamUrl: string;
+  originSecret?: string;
   edgeTtlSec: number;
   browserMaxAgeSec: number;
   timeoutMs: number;
+  sanitizarLgpd?: boolean;
   enveloparPayload: (upstreamJson: any, atualizadoEm: string) => unknown;
   ctx: WorkerExecutionContext;
 }): Promise<CachedJsonResult> {
@@ -105,9 +132,7 @@ async function obterDadosComCacheCompartilhado(params: {
 
   const baseHeaders: Record<string, string> = {
     'Content-Type': 'application/json; charset=utf-8',
-    'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet',
-    'X-Content-Type-Options': 'nosniff',
-    'Referrer-Policy': 'no-referrer',
+    ...SECURITY_HEADERS_BASE,
   };
 
   // 1. Tenta servir diretamente do Cache Compartilhado da Cloudflare
@@ -132,18 +157,26 @@ async function obterDadosComCacheCompartilhado(params: {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), params.timeoutMs);
 
+    const upstreamHeaders: Record<string, string> = {
+      Accept: 'application/json',
+      'User-Agent': 'CBMMG-Cloudflare-Edge-Cache/1.0',
+    };
+    if (params.originSecret) {
+      upstreamHeaders['X-Origin-Secret'] = params.originSecret;
+    }
+
     const upstreamResp = await fetch(params.upstreamUrl, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'CBMMG-Cloudflare-Edge-Cache/1.0',
-      },
+      headers: upstreamHeaders,
       signal: controller.signal,
     });
     clearTimeout(timer);
 
     if (upstreamResp.ok) {
-      const upstreamJson = await upstreamResp.json();
+      const upstreamRaw = await upstreamResp.json();
+      const upstreamJson = params.sanitizarLgpd
+        ? sanitizarPayloadCadLgpd(upstreamRaw)
+        : upstreamRaw;
       const atualizadoEm = new Date().toISOString();
       const envelope = params.enveloparPayload(upstreamJson, atualizadoEm);
       const bodyStr = JSON.stringify(envelope);
@@ -204,7 +237,7 @@ async function obterDadosComCacheCompartilhado(params: {
     return {
       bodyStr: JSON.stringify({
         sucesso: false,
-        aviso: `Proxy CAD retornou HTTP ${upstreamResp.status}.`,
+        aviso: `Serviço de origem indisponível (HTTP ${upstreamResp.status}).`,
       }),
       status: 502,
       headers: {
@@ -212,7 +245,7 @@ async function obterDadosComCacheCompartilhado(params: {
         'Cache-Control': 'no-store',
       },
     };
-  } catch (err: any) {
+  } catch {
     if (edgeCache) {
       const stale = await edgeCache.match(staleKey);
       if (stale) {
@@ -232,7 +265,7 @@ async function obterDadosComCacheCompartilhado(params: {
     return {
       bodyStr: JSON.stringify({
         sucesso: false,
-        aviso: `Falha ao alcançar proxy CAD (${err?.message || 'erro de rede'}).`,
+        aviso: 'Falha temporária de comunicação com a origem.',
       }),
       status: 502,
       headers: {
@@ -247,9 +280,11 @@ async function buscarComCacheCompartilhado(params: {
   cacheKeyUrl: string;
   staleKeyUrl: string;
   upstreamUrl: string;
+  originSecret?: string;
   edgeTtlSec: number;
   browserMaxAgeSec: number;
   timeoutMs: number;
+  sanitizarLgpd?: boolean;
   enveloparPayload: (upstreamJson: any, atualizadoEm: string) => unknown;
   ctx: WorkerExecutionContext;
 }): Promise<Response> {
@@ -263,24 +298,48 @@ export default {
     env: WorkerEnv,
     ctx: WorkerExecutionContext
   ): Promise<Response> {
-    // 1. Bloqueio geográfico estrito: permite apenas tráfego originado no Brasil (BR)
+    // 1. Apenas métodos seguros de leitura (GET/HEAD) são aceitos pela aplicação
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return jsonResponse(
+        { sucesso: false, mensagem: 'Método HTTP não permitido.' },
+        405,
+        { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' }
+      );
+    }
+
+    // 2. Bloqueio geográfico estrito: permite apenas tráfego originado no Brasil (BR)
     const bloqueioGeo = verificarPaisBrasil(request);
     if (bloqueioGeo) {
       return bloqueioGeo;
     }
 
     const url = new URL(request.url);
-    const proxyBase = (env.CBMMG_PROXY_URL || DEFAULT_PROXY_URL).replace(/\/+$/, '');
+    const pathnameLower = url.pathname.toLowerCase();
 
-    // 2. Rotas de API com Cache Compartilhado na Borda da Cloudflare
+    // 3. Bloqueio explícito contra acesso a arquivos sensíveis/legados ou ocultos
+    if (
+      pathnameLower.endsWith('/cbmmg_cad_dados.json') ||
+      pathnameLower.endsWith('.py') ||
+      pathnameLower.includes('/.git') ||
+      pathnameLower.includes('/.env')
+    ) {
+      return jsonResponse(
+        { sucesso: false, mensagem: 'Recurso indisponível.' },
+        404,
+        { 'Cache-Control': 'no-store' }
+      );
+    }
+
+    const proxyBase = (env.CBMMG_PROXY_URL || DEFAULT_PROXY_URL).replace(/\/+$/, '');
+    const originSecret = env.CBMMG_ORIGIN_SECRET;
+
+    // 4. Rotas de API com Sanitização LGPD e Cache Compartilhado na Borda da Cloudflare
     if (url.pathname === '/api/cbm/status') {
       return jsonResponse(
         {
           sucesso: true,
-          servico: 'CBMMG CAD Cloudflare Edge Cache',
+          servico: 'CBMMG CAD Gateway Seguro',
           paisPermitido: 'BR',
-          paisDetectado: request.cf?.country || 'LOCAL',
-          datacenter: request.cf?.colo || 'LOCAL',
           ttlAtivosSegundos: ATIVOS_EDGE_TTL_SEC,
           ttlAuxiliaresSegundos: AUXILIARES_EDGE_TTL_SEC,
           timestamp: new Date().toISOString(),
@@ -293,16 +352,18 @@ export default {
     if (url.pathname === '/api/cbm/sync') {
       if (!inFlightAtivos) {
         inFlightAtivos = obterDadosComCacheCompartilhado({
-          cacheKeyUrl: 'https://cache.cbmmg.internal/cad/ativos/v1',
-          staleKeyUrl: 'https://cache.cbmmg.internal/cad/ativos/v1-stale',
+          cacheKeyUrl: 'https://cache.cbmmg.internal/cad/ativos/v2-sanitized',
+          staleKeyUrl: 'https://cache.cbmmg.internal/cad/ativos/v2-sanitized-stale',
           upstreamUrl: `${proxyBase}/ativos`,
+          originSecret,
           edgeTtlSec: ATIVOS_EDGE_TTL_SEC,
           browserMaxAgeSec: 30,
           timeoutMs: 12000,
+          sanitizarLgpd: true,
           ctx,
           enveloparPayload: (dados, atualizado_em) => ({
             sucesso: true,
-            fonte: 'Cache Compartilhado Cloudflare (Proxy Oracle)',
+            fonte: 'Gateway Seguro Cloudflare (Cache Compartilhado)',
             dados,
             atualizado_em,
           }),
@@ -316,16 +377,17 @@ export default {
 
     if (url.pathname === '/api/cbm/naturezas') {
       return buscarComCacheCompartilhado({
-        cacheKeyUrl: 'https://cache.cbmmg.internal/cad/naturezas/v1',
-        staleKeyUrl: 'https://cache.cbmmg.internal/cad/naturezas/v1-stale',
+        cacheKeyUrl: 'https://cache.cbmmg.internal/cad/naturezas/v2',
+        staleKeyUrl: 'https://cache.cbmmg.internal/cad/naturezas/v2-stale',
         upstreamUrl: `${proxyBase}/dados-auxiliares/naturezas`,
+        originSecret,
         edgeTtlSec: AUXILIARES_EDGE_TTL_SEC,
         browserMaxAgeSec: 3600,
         timeoutMs: 10000,
         ctx,
         enveloparPayload: (data) => ({
           sucesso: true,
-          fonte: 'Cache Compartilhado Cloudflare (/dados-auxiliares/naturezas)',
+          fonte: 'Gateway Seguro Cloudflare (/api/cbm/naturezas)',
           total: data?.total || (Array.isArray(data?.dados?.value) ? data.dados.value.length : 0),
           dados: data,
         }),
@@ -334,16 +396,17 @@ export default {
 
     if (url.pathname === '/api/cbm/unidades-servico') {
       return buscarComCacheCompartilhado({
-        cacheKeyUrl: 'https://cache.cbmmg.internal/cad/unidades-servico/v1',
-        staleKeyUrl: 'https://cache.cbmmg.internal/cad/unidades-servico/v1-stale',
+        cacheKeyUrl: 'https://cache.cbmmg.internal/cad/unidades-servico/v2',
+        staleKeyUrl: 'https://cache.cbmmg.internal/cad/unidades-servico/v2-stale',
         upstreamUrl: `${proxyBase}/dados-auxiliares/unidades-servico`,
+        originSecret,
         edgeTtlSec: AUXILIARES_EDGE_TTL_SEC,
         browserMaxAgeSec: 3600,
         timeoutMs: 10000,
         ctx,
         enveloparPayload: (data) => ({
           sucesso: true,
-          fonte: 'Cache Compartilhado Cloudflare (/dados-auxiliares/unidades-servico)',
+          fonte: 'Gateway Seguro Cloudflare (/api/cbm/unidades-servico)',
           total: data?.total || (Array.isArray(data?.dados?.value) ? data.dados.value.length : 0),
           dados: data,
         }),
@@ -352,9 +415,10 @@ export default {
 
     if (url.pathname === '/api/cbm/codigos') {
       return buscarComCacheCompartilhado({
-        cacheKeyUrl: 'https://cache.cbmmg.internal/cad/codigos/v1',
-        staleKeyUrl: 'https://cache.cbmmg.internal/cad/codigos/v1-stale',
+        cacheKeyUrl: 'https://cache.cbmmg.internal/cad/codigos/v2',
+        staleKeyUrl: 'https://cache.cbmmg.internal/cad/codigos/v2-stale',
         upstreamUrl: `${proxyBase}/codigos`,
+        originSecret,
         edgeTtlSec: AUXILIARES_EDGE_TTL_SEC,
         browserMaxAgeSec: 3600,
         timeoutMs: 8000,
@@ -363,8 +427,8 @@ export default {
       });
     }
 
-    // 3. Demais requisições: serve o PWA estático (dist/) com headers de privacidade/noindex
+    // 5. Demais requisições: serve o PWA estático (dist/) com headers completos de segurança
     const assetResp = await env.ASSETS.fetch(request);
-    return aplicarHeadersPrivacidade(assetResp);
+    return aplicarHeadersSeguranca(assetResp);
   },
 };

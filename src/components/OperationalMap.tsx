@@ -126,99 +126,169 @@ export const OperationalMap: React.FC<OperationalMapProps> = ({
 
     const bounds = L.latLngBounds([]);
 
+    const sanitizeHexColor = (hex?: string): string =>
+      hex && /^#[0-9a-fA-F]{3,8}$/.test(hex) ? hex : '#ef4444';
+
     chamadasComCoords.forEach((c) => {
       const lat = c.latitude!;
       const lng = c.longitude!;
       bounds.extend([lat, lng]);
 
       const sitAtend = c.codigoSituacaoAtendimentoChamada;
-      const corObj = CORES_SITUACAO_ATENDIMENTO[sitAtend] || { hex: '#ef4444' };
+      const corHex = sanitizeHexColor(CORES_SITUACAO_ATENDIMENTO[sitAtend]?.hex);
       const isUrgent = c.prioridade === 'Alta';
       const isWaiting = c.codigoSituacaoChamada === 'A';
 
-      // Ícone customizado baseado em HTML
-      const htmlIcon = `
-        <div class="relative group cursor-pointer">
-          <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-transform transform hover:scale-110"
-               style="background-color: ${corObj.hex}; border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.45);">
-            ${
-              isWaiting
-                ? '<div class="w-2.5 h-2.5 rounded-full bg-white animate-ping"></div>'
-                : `<span class="text-white text-[10px] font-black tracking-tighter">${c.recursos.length || '•'}</span>`
-            }
-          </div>
-          ${
-            isUrgent
-              ? `<div class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-600 border border-white rounded-full flex items-center justify-center text-[8px] text-white font-bold animate-pulse">!</div>`
-              : ''
-          }
-          <div class="absolute top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/90 text-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded border border-slate-700 shadow pointer-events-none hidden group-hover:block z-50">
-            ${c.numeroOcorrencia}
-          </div>
-        </div>
-      `;
+      // Ícone customizado construído via DOM seguro (sem interpolação de HTML)
+      const iconRoot = document.createElement('div');
+      iconRoot.className = 'relative group cursor-pointer';
+
+      const circleEl = document.createElement('div');
+      circleEl.className =
+        'w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-transform transform hover:scale-110';
+      circleEl.style.backgroundColor = corHex;
+      circleEl.style.border = '2px solid #ffffff';
+      circleEl.style.boxShadow = '0 2px 6px rgba(0,0,0,0.45)';
+
+      if (isWaiting) {
+        const pulseEl = document.createElement('div');
+        pulseEl.className = 'w-2.5 h-2.5 rounded-full bg-white animate-ping';
+        circleEl.appendChild(pulseEl);
+      } else {
+        const countEl = document.createElement('span');
+        countEl.className = 'text-white text-[10px] font-black tracking-tighter';
+        countEl.textContent = String(c.recursos.length || '•');
+        circleEl.appendChild(countEl);
+      }
+      iconRoot.appendChild(circleEl);
+
+      if (isUrgent) {
+        const urgentBadge = document.createElement('div');
+        urgentBadge.className =
+          'absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-600 border border-white rounded-full flex items-center justify-center text-[8px] text-white font-bold animate-pulse';
+        urgentBadge.textContent = '!';
+        iconRoot.appendChild(urgentBadge);
+      }
+
+      const tooltipLabel = document.createElement('div');
+      tooltipLabel.className =
+        'absolute top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/90 text-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded border border-slate-700 shadow pointer-events-none hidden group-hover:block z-50';
+      tooltipLabel.textContent = String(c.numeroOcorrencia || '');
+      iconRoot.appendChild(tooltipLabel);
 
       const customIcon = L.divIcon({
         className: 'custom-cbm-marker',
-        html: htmlIcon,
+        html: iconRoot,
         iconSize: [32, 32],
         iconAnchor: [16, 16],
         popupAnchor: [0, -18],
       });
 
       const marker = L.marker([lat, lng], { icon: customIcon });
-
       const sitTexto = DICIONARIO_SIGLAS.chamada_atendimento_situacao[sitAtend] || sitAtend;
-      const recursosTexto =
-        c.recursos.length > 0
-          ? c.recursos.map((r) => {
-              const codEmp = r.codigoSituacaoEmpenhoRecurso || 'ED';
-              const empDesc = DICIONARIO_SIGLAS.empenho_situacao[codEmp] || codEmp;
-              return `<span class="bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 inline-block" title="Situação de Empenho (${codEmp}): ${empDesc}">${r.prefixo} <span class="text-[9px] text-slate-300 font-bold">[${codEmp} - ${empDesc}]</span></span>`;
-            }).join(' ')
-          : '<span class="text-slate-400 italic text-xs">Nenhum recurso empenhado ainda</span>';
 
-      const popupContent = `
-        <div class="p-1 min-w-[260px] text-slate-900 font-sans">
-          <div class="flex items-center justify-between border-b pb-1 mb-1.5">
-            <span class="font-mono font-bold text-xs text-red-700">${c.numeroOcorrencia}</span>
-            <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded" style="background-color: ${corObj.hex}20; color: ${corObj.hex}; border: 1px solid ${corObj.hex}40;">
-              ${sitAtend} • ${sitTexto}
-            </span>
-          </div>
-          <div class="font-bold text-sm text-slate-800 leading-tight mb-1">${c.descricaoNatureza}</div>
-          <div class="text-xs text-slate-600 mb-2">
-            📍 ${c.endereco.logradouro || ''} ${c.endereco.numero ? ', ' + c.endereco.numero : ''} - ${c.endereco.bairro || ''}, <strong>${c.endereco.municipio}</strong>
-          </div>
-          <div class="bg-slate-100 p-1.5 rounded text-xs mb-2">
-            <div class="text-[10px] text-slate-500 uppercase font-semibold">Unidade Responsável:</div>
-            <div class="font-medium text-slate-700">${c.cob} • ${c.bbm}${c.ciaInd ? ' • ' + c.ciaInd : ''}${c.subunidade ? ' • ' + c.subunidade : ''}</div>
-            ${
-              (c.semAreaDefinida || c.cob === 'CEB') && c.areaCob
-                ? `<div class="text-[10px] text-sky-700 mt-0.5">Atuação na área: ${c.areaCob} • ${c.areaBbm}${c.areaCiaInd ? ' • ' + c.areaCiaInd : ''}</div>`
-                : ''
-            }
-          </div>
-          <div class="mb-2">
-            <div class="text-[10px] text-slate-500 uppercase font-semibold mb-1">Viaturas e Recursos:</div>
-            <div class="flex flex-wrap gap-1">${recursosTexto}</div>
-          </div>
-          <button id="btn-detalhes-${c.idChamada}" class="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-1.5 px-2 rounded transition text-center block mt-1 cursor-pointer">
-            Ver Ficha Operacional Completa →
-          </button>
-        </div>
-      `;
+      // Conteúdo do popup construído via DOM seguro (textContent)
+      const popupEl = document.createElement('div');
+      popupEl.className = 'p-1 min-w-[260px] text-slate-900 font-sans';
 
-      marker.bindPopup(popupContent, {
+      const topRow = document.createElement('div');
+      topRow.className = 'flex items-center justify-between border-b pb-1 mb-1.5';
+
+      const numSpan = document.createElement('span');
+      numSpan.className = 'font-mono font-bold text-xs text-red-700';
+      numSpan.textContent = String(c.numeroOcorrencia || '');
+
+      const sitSpan = document.createElement('span');
+      sitSpan.className = 'text-[10px] uppercase font-bold px-1.5 py-0.5 rounded';
+      sitSpan.style.backgroundColor = `${corHex}20`;
+      sitSpan.style.color = corHex;
+      sitSpan.style.border = `1px solid ${corHex}40`;
+      sitSpan.textContent = `${sitAtend} • ${sitTexto}`;
+
+      topRow.append(numSpan, sitSpan);
+      popupEl.appendChild(topRow);
+
+      const natureEl = document.createElement('div');
+      natureEl.className = 'font-bold text-sm text-slate-800 leading-tight mb-1';
+      natureEl.textContent = String(c.descricaoNatureza || '');
+      popupEl.appendChild(natureEl);
+
+      const addrEl = document.createElement('div');
+      addrEl.className = 'text-xs text-slate-600 mb-2';
+      const numPart = c.endereco.numero ? `, ${c.endereco.numero}` : '';
+      addrEl.append(
+        document.createTextNode(
+          `📍 ${c.endereco.logradouro || ''} ${numPart} - ${c.endereco.bairro || ''}, `
+        )
+      );
+      const muniStrong = document.createElement('strong');
+      muniStrong.textContent = String(c.endereco.municipio || '');
+      addrEl.appendChild(muniStrong);
+      popupEl.appendChild(addrEl);
+
+      const unitBox = document.createElement('div');
+      unitBox.className = 'bg-slate-100 p-1.5 rounded text-xs mb-2';
+      const unitTitle = document.createElement('div');
+      unitTitle.className = 'text-[10px] text-slate-500 uppercase font-semibold';
+      unitTitle.textContent = 'Unidade Responsável:';
+      const unitBody = document.createElement('div');
+      unitBody.className = 'font-medium text-slate-700';
+      unitBody.textContent = `${c.cob} • ${c.bbm}${c.ciaInd ? ' • ' + c.ciaInd : ''}${c.subunidade ? ' • ' + c.subunidade : ''}`;
+      unitBox.append(unitTitle, unitBody);
+
+      if ((c.semAreaDefinida || c.cob === 'CEB') && c.areaCob) {
+        const areaDiv = document.createElement('div');
+        areaDiv.className = 'text-[10px] text-sky-700 mt-0.5';
+        areaDiv.textContent = `Atuação na área: ${c.areaCob} • ${c.areaBbm || ''}${c.areaCiaInd ? ' • ' + c.areaCiaInd : ''}`;
+        unitBox.appendChild(areaDiv);
+      }
+      popupEl.appendChild(unitBox);
+
+      const recBox = document.createElement('div');
+      recBox.className = 'mb-2';
+      const recTitle = document.createElement('div');
+      recTitle.className = 'text-[10px] text-slate-500 uppercase font-semibold mb-1';
+      recTitle.textContent = 'Viaturas e Recursos:';
+      const recWrap = document.createElement('div');
+      recWrap.className = 'flex flex-wrap gap-1';
+
+      if (c.recursos.length > 0) {
+        c.recursos.forEach((r) => {
+          const codEmp = r.codigoSituacaoEmpenhoRecurso || 'ED';
+          const empDesc = DICIONARIO_SIGLAS.empenho_situacao[codEmp] || codEmp;
+
+          const badge = document.createElement('span');
+          badge.className =
+            'bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 inline-block';
+          badge.title = `Situação de Empenho (${codEmp}): ${empDesc}`;
+          badge.append(document.createTextNode(`${r.prefixo} `));
+
+          const inner = document.createElement('span');
+          inner.className = 'text-[9px] text-slate-300 font-bold';
+          inner.textContent = `[${codEmp} - ${empDesc}]`;
+          badge.appendChild(inner);
+          recWrap.appendChild(badge);
+        });
+      } else {
+        const emptyRec = document.createElement('span');
+        emptyRec.className = 'text-slate-400 italic text-xs';
+        emptyRec.textContent = 'Nenhum recurso empenhado ainda';
+        recWrap.appendChild(emptyRec);
+      }
+      recBox.append(recTitle, recWrap);
+      popupEl.appendChild(recBox);
+
+      const detailsBtn = document.createElement('button');
+      detailsBtn.type = 'button';
+      detailsBtn.className =
+        'w-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-1.5 px-2 rounded transition text-center block mt-1 cursor-pointer';
+      detailsBtn.textContent = 'Ver Ficha Operacional Completa →';
+      detailsBtn.onclick = () => onSelectChamada(c);
+      popupEl.appendChild(detailsBtn);
+
+      marker.bindPopup(popupEl, {
         maxWidth: 320,
         className: 'cbmmg-popup',
-      });
-
-      marker.on('popupopen', () => {
-        const btn = document.getElementById(`btn-detalhes-${c.idChamada}`);
-        if (btn) {
-          btn.onclick = () => onSelectChamada(c);
-        }
       });
 
       markersGroup.addLayer(marker);

@@ -25,9 +25,6 @@ import {
   SituacaoRecursoBase,
 } from '../types/cbm';
 
-// Endereço oficial do Proxy Reverso Nginx configurado pelo usuário
-export const PROXY_REVERSO_PADRAO = 'https://cobom-cad.duckdns.org';
-
 const STORAGE_KEY_CHAMADAS = 'cbmmg_cad_chamadas_v1';
 const STORAGE_KEY_RECURSOS = 'cbmmg_cad_recursos_v1';
 const STORAGE_KEY_ULTIMA_SYNC = 'cbmmg_cad_ultima_sync';
@@ -38,12 +35,12 @@ const STORAGE_KEY_NATUREZAS = 'cbmmg_cad_naturezas_v1';
 const STORAGE_KEY_NATUREZAS_TS = 'cbmmg_cad_naturezas_ts';
 const STORAGE_KEY_UNIDADES = 'cbmmg_cad_unidades_v1';
 const STORAGE_KEY_UNIDADES_TS = 'cbmmg_cad_unidades_ts';
-const STORAGE_KEY_PROXY_URL = 'cbmmg_cad_proxy_url';
-const STORAGE_KEY_TOKEN = 'cbmmg_cad_api_token';
+
+// Expiração automática de dados operacionais em cache no navegador (12 horas)
+const CACHE_OPERACIONAL_TTL_MS = 12 * 3600 * 1000;
 
 // Regras de Ouro do Manual CAD CBMMG
 const INTERVALO_MINIMO_LEITURA_MS = 30 * 1000; // Regra 3: Mínimo 30 segundos (evita HTTP 429)
-const INTERVALO_RENOVACAO_CATALOGO_MS = 6 * 3600 * 1000; // Regra 2: Renovação a cada 6 horas
 
 let ultimoAcessoAtivosMs = 0;
 
@@ -286,46 +283,31 @@ export function classificarRelacaoChuva(
 }
 
 // ==========================================
-// CONFIGURAÇÃO DO PROXY REVERSO & STORAGE
+// HIGIENE DE CACHE LOCAL & STORAGE
 // ==========================================
 
-export function obterProxyUrl(): string {
+function cacheOperacionalExpirado(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY_PROXY_URL) || PROXY_REVERSO_PADRAO;
+    const rawSync = localStorage.getItem(STORAGE_KEY_ULTIMA_SYNC);
+    if (!rawSync) return false;
+    const syncMs = new Date(rawSync).getTime();
+    if (isNaN(syncMs)) return false;
+    return Date.now() - syncMs > CACHE_OPERACIONAL_TTL_MS;
   } catch {
-    return PROXY_REVERSO_PADRAO;
+    return false;
   }
 }
 
-export function salvarProxyUrl(url: string): void {
+export function limparCacheOperacionalLocal(): void {
   try {
-    if (url && url.trim()) {
-      localStorage.setItem(STORAGE_KEY_PROXY_URL, url.trim().replace(/\/+$/, ''));
-    } else {
-      localStorage.removeItem(STORAGE_KEY_PROXY_URL);
-    }
+    localStorage.removeItem(STORAGE_KEY_CHAMADAS);
+    localStorage.removeItem(STORAGE_KEY_RECURSOS);
+    localStorage.removeItem(STORAGE_KEY_ULTIMA_SYNC);
+    localStorage.removeItem(STORAGE_KEY_REFERENCIA_DADOS);
+    localStorage.removeItem('cbmmg_cad_proxy_url');
+    localStorage.removeItem('cbmmg_cad_api_token');
   } catch (e) {
-    console.error('Falha ao salvar proxy URL:', e);
-  }
-}
-
-export function obterTokenSalvo(): string {
-  try {
-    return localStorage.getItem(STORAGE_KEY_TOKEN) || '';
-  } catch {
-    return '';
-  }
-}
-
-export function salvarToken(token: string): void {
-  try {
-    if (token) {
-      localStorage.setItem(STORAGE_KEY_TOKEN, token.trim());
-    } else {
-      localStorage.removeItem(STORAGE_KEY_TOKEN);
-    }
-  } catch (e) {
-    console.error('Falha ao salvar token:', e);
+    console.error('Falha ao limpar cache operacional local:', e);
   }
 }
 
@@ -620,6 +602,10 @@ export function normalizarChamadaSids(c: ChamadaAtiva): ChamadaAtiva {
 
 export function carregarRecursosArmazenados(): RecursoCadAtivo[] {
   try {
+    if (cacheOperacionalExpirado()) {
+      limparCacheOperacionalLocal();
+      return [];
+    }
     const raw = localStorage.getItem(STORAGE_KEY_RECURSOS);
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -643,11 +629,15 @@ export function salvarRecursosArmazenados(recursos: RecursoCadAtivo[]): void {
 
 export function carregarChamadasArmazenadas(): ChamadaAtiva[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_CHAMADAS);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(normalizarChamadaSids);
+    if (cacheOperacionalExpirado()) {
+      limparCacheOperacionalLocal();
+    } else {
+      const raw = localStorage.getItem(STORAGE_KEY_CHAMADAS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(normalizarChamadaSids);
+        }
       }
     }
   } catch (e) {
@@ -690,35 +680,23 @@ export async function sincronizarCatalogosAuxiliares(forcar = false): Promise<{ 
       return { sucesso: true, renovado: false, dados };
     }
 
-    const proxy = obterProxyUrl();
-    const usandoProxyPadrao = proxy === PROXY_REVERSO_PADRAO;
-    const urls = usandoProxyPadrao
-      ? ['/api/cbm/codigos', `${proxy}/codigos`]
-      : [`${proxy}/codigos`, '/api/cbm/codigos'];
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch('/api/cbm/codigos', {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(t);
 
-    for (const url of urls) {
-      try {
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 6000);
-        const res = await fetch(url, {
-          headers: { Accept: 'application/json' },
-          signal: controller.signal,
-        });
-        clearTimeout(t);
+    if (res.status === 403) {
+      return { sucesso: false, renovado: false, dados: DICIONARIO_SIGLAS };
+    }
 
-        if (res.status === 403) {
-          return { sucesso: false, renovado: false, dados: DICIONARIO_SIGLAS };
-        }
-
-        if (res.ok) {
-          const codigos = await res.json();
-          localStorage.setItem(STORAGE_KEY_CATALOGOS, JSON.stringify(codigos));
-          localStorage.setItem(STORAGE_KEY_CATALOGOS_TS, String(agora));
-          return { sucesso: true, renovado: true, dados: codigos };
-        }
-      } catch {
-        // tenta próxima rota
-      }
+    if (res.ok) {
+      const codigos = await res.json();
+      localStorage.setItem(STORAGE_KEY_CATALOGOS, JSON.stringify(codigos));
+      localStorage.setItem(STORAGE_KEY_CATALOGOS_TS, String(agora));
+      return { sucesso: true, renovado: true, dados: codigos };
     }
   } catch (e) {
     console.warn('Não foi possível renovar catálogos remotos agora, mantendo catálogo local:', e);
@@ -757,78 +735,33 @@ export async function sincronizarTabelaNaturezas(
     }
   }
 
-  const proxy = obterProxyUrl();
-  const usandoProxyPadrao = proxy === PROXY_REVERSO_PADRAO;
   let listaExtraida: NaturezaCadOficial[] | null = null;
   let fonteObtida = '';
 
-  const tentarRotaBackendNaturezas = async (): Promise<'ok' | 'blocked' | 'miss'> => {
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 7000);
-      const res = await fetch('/api/cbm/naturezas', {
-        headers: { Accept: 'application/json' },
-        signal: controller.signal,
-      });
-      clearTimeout(t);
-      if (res.status === 403) return 'blocked';
-      if (res.ok) {
-        const data = await res.json();
-        const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados || data;
-        if (Array.isArray(itens) && itens.length > 0) {
-          listaExtraida = itens;
-          fonteObtida = data?.fonte || '/api/cbm/naturezas (Cache Compartilhado)';
-          return 'ok';
-        }
-      }
-    } catch {
-      // continua para próxima tentativa
-    }
-    return 'miss';
-  };
-
-  const tentarProxyDiretoNaturezas = async (): Promise<void> => {
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${proxy}/dados-auxiliares/naturezas`, {
-        headers: { Accept: 'application/json' },
-        signal: controller.signal,
-      });
-      clearTimeout(t);
-      if (res.ok) {
-        const data = await res.json();
-        const itens = data?.dados?.value || data?.dados || data;
-        if (Array.isArray(itens) && itens.length > 0) {
-          listaExtraida = itens;
-          fonteObtida = `${proxy}/dados-auxiliares/naturezas`;
-        }
-      }
-    } catch (e: any) {
-      console.warn(`Tentativa de carregar naturezas de ${proxy} falhou (${e.message}).`);
-    }
-  };
-
-  // 3. Prioridade: Cache Compartilhado (/api/cbm/naturezas) quando usando o proxy padrão
-  if (usandoProxyPadrao) {
-    const statusEdge = await tentarRotaBackendNaturezas();
-    if (statusEdge === 'blocked') {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 7000);
+    const res = await fetch('/api/cbm/naturezas', {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(t);
+    if (res.status === 403) {
       return { sucesso: false, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Bloqueio Geográfico (BR)' };
     }
-    if (!listaExtraida) {
-      await tentarProxyDiretoNaturezas();
-    }
-  } else {
-    await tentarProxyDiretoNaturezas();
-    if (!listaExtraida) {
-      const statusEdge = await tentarRotaBackendNaturezas();
-      if (statusEdge === 'blocked') {
-        return { sucesso: false, renovado: false, total: mapaNaturezasPorId.size, fonte: 'Bloqueio Geográfico (BR)' };
+    if (res.ok) {
+      const data = await res.json();
+      const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados || data;
+      if (Array.isArray(itens) && itens.length > 0) {
+        listaExtraida = itens;
+        fonteObtida = data?.fonte || '/api/cbm/naturezas (Gateway Seguro)';
       }
     }
+  } catch {
+    // segue para fallback estático de catálogo público (sem PII)
   }
 
-  // 5. Fallback: snapshot estático local public/cad_naturezas.json
+  // Fallback: catálogo público estático de naturezas (não contém dados pessoais)
   if (!listaExtraida) {
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}cad_naturezas.json`);
@@ -887,78 +820,33 @@ export async function sincronizarTabelaUnidadesServico(
     }
   }
 
-  const proxy = obterProxyUrl();
-  const usandoProxyPadrao = proxy === PROXY_REVERSO_PADRAO;
   let listaExtraida: UnidadeServicoCadOficial[] | null = null;
   let fonteObtida = '';
 
-  const tentarRotaBackendUnidades = async (): Promise<'ok' | 'blocked' | 'miss'> => {
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 7000);
-      const res = await fetch('/api/cbm/unidades-servico', {
-        headers: { Accept: 'application/json' },
-        signal: controller.signal,
-      });
-      clearTimeout(t);
-      if (res.status === 403) return 'blocked';
-      if (res.ok) {
-        const data = await res.json();
-        const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados || data;
-        if (Array.isArray(itens) && itens.length > 0) {
-          listaExtraida = itens;
-          fonteObtida = data?.fonte || '/api/cbm/unidades-servico (Cache Compartilhado)';
-          return 'ok';
-        }
-      }
-    } catch {
-      // continua para próxima tentativa
-    }
-    return 'miss';
-  };
-
-  const tentarProxyDiretoUnidades = async (): Promise<void> => {
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${proxy}/dados-auxiliares/unidades-servico`, {
-        headers: { Accept: 'application/json' },
-        signal: controller.signal,
-      });
-      clearTimeout(t);
-      if (res.ok) {
-        const data = await res.json();
-        const itens = data?.dados?.value || data?.dados || data;
-        if (Array.isArray(itens) && itens.length > 0) {
-          listaExtraida = itens;
-          fonteObtida = `${proxy}/dados-auxiliares/unidades-servico`;
-        }
-      }
-    } catch (e: any) {
-      console.warn(`Tentativa de carregar unidades-servico de ${proxy} falhou (${e.message}).`);
-    }
-  };
-
-  // 1. Prioridade: Cache Compartilhado (/api/cbm/unidades-servico) quando usando o proxy padrão
-  if (usandoProxyPadrao) {
-    const statusEdge = await tentarRotaBackendUnidades();
-    if (statusEdge === 'blocked') {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 7000);
+    const res = await fetch('/api/cbm/unidades-servico', {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(t);
+    if (res.status === 403) {
       return { sucesso: false, renovado: false, total: mapaUnidadesPorId.size, fonte: 'Bloqueio Geográfico (BR)' };
     }
-    if (!listaExtraida) {
-      await tentarProxyDiretoUnidades();
-    }
-  } else {
-    await tentarProxyDiretoUnidades();
-    if (!listaExtraida) {
-      const statusEdge = await tentarRotaBackendUnidades();
-      if (statusEdge === 'blocked') {
-        return { sucesso: false, renovado: false, total: mapaUnidadesPorId.size, fonte: 'Bloqueio Geográfico (BR)' };
+    if (res.ok) {
+      const data = await res.json();
+      const itens = data?.dados?.dados?.value || data?.dados?.value || data?.dados || data;
+      if (Array.isArray(itens) && itens.length > 0) {
+        listaExtraida = itens;
+        fonteObtida = data?.fonte || '/api/cbm/unidades-servico (Gateway Seguro)';
       }
     }
+  } catch {
+    // segue para fallback estático de catálogo público (sem PII)
   }
 
-  // 3. Fallback: snapshot estático local public/cad_unidades_servico.json
+  // Fallback: catálogo público estático de unidades (não contém dados pessoais)
   if (!listaExtraida) {
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}cad_unidades_servico.json`);
@@ -1044,10 +932,8 @@ export async function sincronizarProxyReverso(
     };
   }
 
-  const proxyUrl = obterProxyUrl();
-  const usandoProxyPadrao = proxyUrl === PROXY_REVERSO_PADRAO;
   let jsonResposta: any = null;
-  let fonteUtilizada = 'Cache Compartilhado Cloudflare';
+  let fonteUtilizada = 'Gateway Seguro (/api/cbm/sync)';
   let bloqueadoGeoMensagem: string | null = null;
   let rateLimitResposta: {
     sucesso: boolean;
@@ -1057,131 +943,63 @@ export async function sincronizarProxyReverso(
     total: number;
   } | null = null;
 
-  const tentarRotaBackendSync = async (): Promise<void> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
-      const resBackend = await fetch('/api/cbm/sync', {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    const resBackend = await fetch('/api/cbm/sync', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
 
-      if (resBackend.status === 403) {
-        let msg = 'Acesso restrito ao território brasileiro (BR).';
-        try {
-          const errData = await resBackend.json();
-          if (errData?.mensagem) msg = errData.mensagem;
-        } catch {
-          // mantém mensagem padrão
-        }
-        bloqueadoGeoMensagem = msg;
-        return;
+    if (resBackend.status === 403) {
+      let msg = 'Acesso restrito ao território brasileiro (BR).';
+      try {
+        const errData = await resBackend.json();
+        if (errData?.mensagem) msg = errData.mensagem;
+      } catch {
+        // mantém mensagem padrão
       }
-
-      if (resBackend.ok) {
-        const data = await resBackend.json();
-        if (data?.sucesso && data?.dados) {
-          jsonResposta = data.dados;
-          fonteUtilizada = data.fonte || 'Cache Compartilhado Cloudflare';
-          ultimoAcessoAtivosMs = Date.now();
-        }
-      }
-    } catch {
-      // ignora erro de rota intermediária e segue para fallback
-    }
-  };
-
-  const tentarProxyDiretoAtivos = async (): Promise<void> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
-
-      const res = await fetch(`${proxyUrl}/ativos`, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        jsonResposta = await res.json();
-        fonteUtilizada = `Proxy Nginx (${proxyUrl})`;
-        ultimoAcessoAtivosMs = Date.now();
-      } else if (res.status === 429) {
-        const existentes = carregarChamadasArmazenadas();
-        const recursosExistentes = carregarRecursosArmazenados();
-        rateLimitResposta = {
-          sucesso: true,
-          mensagem: 'HTTP 429 (Rate Limit): Servidor CAD solicitou espaçamento. Mantendo ocorrências em cache.',
-          dados: existentes,
-          recursos: recursosExistentes,
-          total: existentes.length,
-        };
-      } else {
-        throw new Error(`Proxy respondeu status HTTP ${res.status}`);
-      }
-    } catch (errProxy: any) {
-      console.warn(`Tentativa direta no proxy reverso falhou (${errProxy.message}).`);
-    }
-  };
-
-  if (usandoProxyPadrao) {
-    // 1. Prioriza Cache Compartilhado na Borda da Cloudflare (/api/cbm/sync)
-    await tentarRotaBackendSync();
-    if (bloqueadoGeoMensagem) {
-      return {
-        sucesso: false,
-        mensagem: bloqueadoGeoMensagem,
+      bloqueadoGeoMensagem = msg;
+    } else if (resBackend.status === 429) {
+      const existentes = carregarChamadasArmazenadas();
+      const recursosExistentes = carregarRecursosArmazenados();
+      rateLimitResposta = {
+        sucesso: true,
+        mensagem: 'HTTP 429 (Rate Limit): Aguardando próxima janela de atualização. Mantendo ocorrências em cache.',
+        dados: existentes,
+        recursos: recursosExistentes,
+        total: existentes.length,
       };
-    }
-
-    // 2. Fallback direto no Proxy Reverso Nginx apenas se /api/cbm/sync estiver indisponível
-    if (!jsonResposta) {
-      await tentarProxyDiretoAtivos();
-      if (rateLimitResposta) {
-        return rateLimitResposta;
+    } else if (resBackend.ok) {
+      const data = await resBackend.json();
+      if (data?.sucesso && data?.dados) {
+        jsonResposta = data.dados;
+        fonteUtilizada = data.fonte || 'Gateway Seguro (/api/cbm/sync)';
+        ultimoAcessoAtivosMs = Date.now();
       }
     }
-  } else {
-    // URL customizada configurada pelo usuário: prioriza a URL informada
-    await tentarProxyDiretoAtivos();
-    if (rateLimitResposta) {
-      return rateLimitResposta;
-    }
-
-    if (!jsonResposta) {
-      await tentarRotaBackendSync();
-      if (bloqueadoGeoMensagem) {
-        return {
-          sucesso: false,
-          mensagem: bloqueadoGeoMensagem,
-        };
-      }
-    }
+  } catch {
+    // falha de rede tratada abaixo mantendo cache local válido
   }
 
-  // 3. Fallback snapshot estático
-  if (!jsonResposta) {
-    try {
-      const snap = await fetch(`${import.meta.env.BASE_URL}cbmmg_cad_dados.json`);
-      if (snap.ok) {
-        jsonResposta = await snap.json();
-        fonteUtilizada = 'Snapshot Local Contingência';
-      }
-    } catch {
-      // Nada
-    }
+  if (bloqueadoGeoMensagem) {
+    return {
+      sucesso: false,
+      mensagem: bloqueadoGeoMensagem,
+    };
+  }
+
+  if (rateLimitResposta) {
+    return rateLimitResposta;
   }
 
   if (!jsonResposta) {
     const existentes = carregarChamadasArmazenadas();
     return {
       sucesso: false,
-      mensagem: `Não foi possível conectar ao Proxy em ${proxyUrl}. Mantendo ${existentes.length} chamadas do cache offline.`,
+      mensagem: `Não foi possível sincronizar pelo gateway seguro (/api/cbm/sync). Mantendo ${existentes.length} chamadas em cache local.`,
       dados: existentes,
       total: existentes.length,
     };
@@ -3345,110 +3163,4 @@ export function restaurarDadosPadrao(): ChamadaAtiva[] {
   salvarReferenciaDadosMs(undefined);
   salvarChamadasArmazenadas(MOCK_CHAMADAS_INICIAIS);
   return MOCK_CHAMADAS_INICIAIS;
-}
-
-export async function sincronizarAgenteLocal(
-  url = 'http://127.0.0.1:8080/dados'
-): Promise<{
-  sucesso: boolean;
-  mensagem: string;
-  dados?: ChamadaAtiva[];
-  recursos?: RecursoCadAtivo[];
-}> {
-  try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(t);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const itens = extrairChamadasDeJson(json);
-    const recsRaw = extrairRecursosDeJson(json);
-    const recursos = recsRaw.length > 0 ? recsRaw.map(normalizarRecursoBase) : undefined;
-    if (recursos) salvarRecursosArmazenados(recursos);
-
-    if (itens.length === 0) {
-      return {
-        sucesso: false,
-        mensagem: `Agente local conectado, porém 0 chamadas retornadas.`,
-      };
-    }
-    const refDadosMs = extrairReferenciaDadosMs(json);
-    salvarReferenciaDadosMs(refDadosMs);
-    const enriquecidos = itens.map((item) => enriquecerChamada(item, refDadosMs));
-    salvarChamadasArmazenadas(enriquecidos);
-    return {
-      sucesso: true,
-      mensagem: `Conectado ao Agente Local! ${enriquecidos.length} ocorrências sincronizadas.`,
-      dados: enriquecidos,
-      recursos,
-    };
-  } catch (err: any) {
-    return {
-      sucesso: false,
-      mensagem: `Agente local não detectado em ${url} (${err.message}).`,
-    };
-  }
-}
-
-export async function carregarRecursosSnapshotEstatico(): Promise<RecursoCadAtivo[]> {
-  const urls = [`${import.meta.env.BASE_URL}cbmmg_cad_dados.json`, '/cbmmg_cad_dados.json'];
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const json = await res.json();
-      const recsRaw = extrairRecursosDeJson(json);
-      if (recsRaw.length > 0) {
-        const normalizados = recsRaw.map(normalizarRecursoBase);
-        salvarRecursosArmazenados(normalizados);
-        return normalizados;
-      }
-    } catch {
-      // continua
-    }
-  }
-  return [];
-}
-
-export async function sincronizarSnapshotEstatico(
-  url = '/cbmmg_cad_dados.json'
-): Promise<{
-  sucesso: boolean;
-  mensagem: string;
-  dados?: ChamadaAtiva[];
-  recursos?: RecursoCadAtivo[];
-}> {
-  const urls = [url, '/dados_cad.json'];
-  for (const tentativa of urls) {
-    try {
-      const res = await fetch(tentativa);
-      if (!res.ok) continue;
-      const json = await res.json();
-      const itens = extrairChamadasDeJson(json);
-      const recsRaw = extrairRecursosDeJson(json);
-      const recursos = recsRaw.length > 0 ? recsRaw.map(normalizarRecursoBase) : undefined;
-      if (recursos) salvarRecursosArmazenados(recursos);
-
-      if (itens.length > 0) {
-        const refDadosMs = extrairReferenciaDadosMs(json);
-        salvarReferenciaDadosMs(refDadosMs);
-        const enriquecidos = itens.map((item) => enriquecerChamada(item, refDadosMs));
-        salvarChamadasArmazenadas(enriquecidos);
-        return {
-          sucesso: true,
-          mensagem: `${enriquecidos.length} ocorrências carregadas de '${tentativa}'.`,
-          dados: enriquecidos,
-          recursos,
-        };
-      }
-    } catch {
-      // continua
-    }
-  }
-
-  return {
-    sucesso: false,
-    mensagem: 'Falha ao carregar snapshot estático.',
-  };
 }
