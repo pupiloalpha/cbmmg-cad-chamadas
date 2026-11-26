@@ -18,6 +18,8 @@ import {
   KpiOperacional,
   MotivoRecursoResumo,
   RecursoCadAtivo,
+  RecursoComponenteBase,
+  RecursoEmpenhoBase,
   RecursoEmpenhado,
   ResumoRecursosBase,
   SituacaoRecursoBase,
@@ -346,7 +348,7 @@ export function formatarNumeroRedsCad(numero?: string | number, idOrgao?: string
   return `${prefixoOrgao} ${corpo}`;
 }
 
-function parseDataCadParaIso(raw: unknown): string | undefined {
+export function parseDataCadParaIso(raw: unknown): string | undefined {
   if (raw === undefined || raw === null || raw === '') return undefined;
   if (typeof raw === 'number') {
     const ms = raw > 0 && raw < 1e12 ? raw * 1000 : raw;
@@ -408,7 +410,7 @@ function salvarReferenciaDadosMs(refMs?: number): void {
   }
 }
 
-function obterReferenciaTemporalChamadas(chamadas: ChamadaAtiva[]): number {
+export function obterReferenciaTemporalChamadas(chamadas: ChamadaAtiva[]): number {
   const agora = Date.now();
   let storedRefMs = NaN;
   try {
@@ -1355,16 +1357,33 @@ export function normalizarRecursoBase(raw: any): RecursoCadAtivo {
 
   const empRaw = r.dadosVigentesEmpenhosNaoEncerrados?.dadosVigentesEmpenhoRecursoChamadaV1;
   const empLista = Array.isArray(empRaw) ? empRaw : empRaw ? [empRaw] : [];
-  const primeiroEmp = empLista.find(Boolean);
+  const empenhosNaoEncerrados: RecursoEmpenhoBase[] = empLista
+    .filter((e: any) => e && (e.idChamada || e.codigoSituacaoEmpenhoRecurso))
+    .map((e: any) => ({
+      idChamada: e.idChamada ? String(e.idChamada) : '',
+      codigoSituacaoEmpenhoRecurso: e.codigoSituacaoEmpenhoRecurso
+        ? String(e.codigoSituacaoEmpenhoRecurso).toUpperCase()
+        : undefined,
+      dataHoraInicio: parseDataCadParaIso(e.dataHoraInicio),
+      dataHoraInicioSituacaoEmpenhoRecurso: parseDataCadParaIso(
+        e.dataHoraInicioSituacaoEmpenhoRecurso
+      ),
+      descricaoLocalDestinoRecurso: e.descricaoLocalDestinoRecurso
+        ? String(e.descricaoLocalDestinoRecurso).trim()
+        : undefined,
+    }));
+  const primeiroEmp = empenhosNaoEncerrados[0];
 
-  const parseDataIso = (val: any): string | undefined => {
-    if (!val) return undefined;
-    if (typeof val === 'number') return new Date(val).toISOString();
-    const s = String(val).trim();
-    if (/^\d{10,13}$/.test(s)) return new Date(parseInt(s, 10)).toISOString();
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? undefined : d.toISOString();
-  };
+  const componentes: RecursoComponenteBase[] = comps
+    .filter(Boolean)
+    .map((c: any) => ({
+      idPessoa: c.idPessoa ? String(c.idPessoa) : undefined,
+      codigoPessoa: c.codigoPessoa ? String(c.codigoPessoa).trim() : undefined,
+      nomePessoa: c.nomePessoa ? String(c.nomePessoa).trim() : undefined,
+      idFuncaoComponenteRecurso: c.idFuncaoComponenteRecurso
+        ? String(c.idFuncaoComponenteRecurso)
+        : undefined,
+    }));
 
   const complementoPrefixo = r.complementoPrefixo ? String(r.complementoPrefixo).trim() : undefined;
   const un = resolverUnidadeRecursoBase(r.idUnidadeServico, complementoPrefixo);
@@ -1395,14 +1414,15 @@ export function normalizarRecursoBase(raw: any): RecursoCadAtivo {
     idMotivoRestricaoEmpenho: r.idMotivoRestricaoEmpenho
       ? String(r.idMotivoRestricaoEmpenho)
       : undefined,
-    dataHoraAtivacao: parseDataIso(r.dataHoraAtivacao),
-    dataHoraExpiracao: parseDataIso(r.dataHoraExpiracao),
-    empenhoSituacao: primeiroEmp?.codigoSituacaoEmpenhoRecurso
-      ? String(primeiroEmp.codigoSituacaoEmpenhoRecurso).toUpperCase()
-      : undefined,
-    idChamadaEmpenho: primeiroEmp?.idChamada ? String(primeiroEmp.idChamada) : undefined,
+    dataHoraAtivacao: parseDataCadParaIso(r.dataHoraAtivacao),
+    dataHoraExpiracao: parseDataCadParaIso(r.dataHoraExpiracao),
+    versaoLogica: parseDataCadParaIso(r.versaoLogica),
+    empenhoSituacao: primeiroEmp?.codigoSituacaoEmpenhoRecurso,
+    idChamadaEmpenho: primeiroEmp?.idChamada || undefined,
     componentesQtd: comps.length,
-    nomesComponentes: comps.map((c: any) => c?.nomePessoa).filter(Boolean),
+    nomesComponentes: componentes.map((c) => c.nomePessoa).filter(Boolean) as string[],
+    componentes: componentes.length > 0 ? componentes : undefined,
+    empenhosNaoEncerrados: empenhosNaoEncerrados.length > 0 ? empenhosNaoEncerrados : undefined,
   };
 }
 
@@ -1478,6 +1498,123 @@ export function filtrarRecursosBase(
       if (!bateCia && !bateSub) return false;
     }
     return true;
+  });
+}
+
+export function filtrarRecursosParaExportacao(
+  recursosBase: RecursoCadAtivo[],
+  chamadasTodas: ChamadaAtiva[],
+  chamadasFiltradas: ChamadaAtiva[],
+  filtros: FiltrosOperacionais,
+  apenasDasChamadasFiltradas = false
+): RecursoCadAtivo[] {
+  let lista = filtrarRecursosBase(recursosBase, filtros);
+
+  if (apenasDasChamadasFiltradas) {
+    const idsChamadasFiltradas = new Set(chamadasFiltradas.map((c) => String(c.idChamada)));
+    const idsRecursosEmpenhados = new Set<string>();
+    const prefixosRecursosEmpenhados = new Set<string>();
+
+    for (const c of chamadasFiltradas) {
+      for (const recEmp of c.recursos || []) {
+        const sit = (recEmp.codigoSituacaoEmpenhoRecurso || recEmp.codigoSituacaoRecurso || '').toUpperCase();
+        if (sit === 'TR') continue;
+        if (recEmp.idRecurso !== undefined && recEmp.idRecurso !== null) {
+          idsRecursosEmpenhados.add(String(recEmp.idRecurso));
+        }
+        if (recEmp.prefixo) {
+          prefixosRecursosEmpenhados.add(recEmp.prefixo.trim().toUpperCase());
+        }
+      }
+    }
+
+    lista = lista.filter((r) => {
+      const emps = r.empenhosNaoEncerrados || [];
+      if (emps.some((e) => e.idChamada && idsChamadasFiltradas.has(String(e.idChamada)))) {
+        return true;
+      }
+      if (r.idChamadaEmpenho && idsChamadasFiltradas.has(String(r.idChamadaEmpenho))) {
+        return true;
+      }
+      if (idsRecursosEmpenhados.has(String(r.id))) return true;
+      if (prefixosRecursosEmpenhados.has(r.prefixo.trim().toUpperCase())) return true;
+      return false;
+    });
+  }
+
+  const termo = filtros.termoBusca?.trim();
+  if (!termo) return lista;
+
+  const q = normalizarParaBusca(termo);
+  const mapaChamadas = new Map<string, ChamadaAtiva>();
+  for (const c of chamadasTodas) {
+    mapaChamadas.set(String(c.idChamada), c);
+  }
+
+  return lista.filter((r) => {
+    const sitLabel =
+      r.codigoSituacaoRecurso === 'E'
+        ? 'empenhado em campo'
+        : r.codigoSituacaoRecurso === 'I'
+        ? 'indisponivel baixado'
+        : 'disponivel';
+    const catLabel =
+      r.categoriaRecurso === 'VTR'
+        ? 'viatura vtr'
+        : r.categoriaRecurso === 'BM'
+        ? 'bombeiro bm'
+        : 'brigadista brig';
+
+    const campos = [
+      r.id,
+      r.prefixo,
+      r.complementoPrefixo,
+      r.placaMeioMaterial,
+      r.prefixoMeioMaterial,
+      r.idMeioMaterial,
+      r.idTipoRecurso,
+      r.nomeUnidade,
+      r.cob,
+      r.bbm,
+      r.ciaInd,
+      r.subunidade,
+      r.codigoSituacaoRecurso,
+      sitLabel,
+      catLabel,
+      r.idMotivoIndisponibilidadeRecurso,
+      r.motivoIndisponibilidadeDescricao,
+      r.idMotivoRestricaoEmpenho,
+      r.empenhoSituacao,
+      r.idChamadaEmpenho,
+      ...(r.nomesComponentes || []),
+      ...(r.componentes || []).flatMap((comp) => [comp.codigoPessoa, comp.nomePessoa]),
+      ...(r.empenhosNaoEncerrados || []).flatMap((e) => [
+        e.idChamada,
+        e.codigoSituacaoEmpenhoRecurso,
+        e.descricaoLocalDestinoRecurso,
+      ]),
+    ];
+
+    const idsChamadas = new Set<string>();
+    if (r.idChamadaEmpenho) idsChamadas.add(String(r.idChamadaEmpenho));
+    for (const emp of r.empenhosNaoEncerrados || []) {
+      if (emp.idChamada) idsChamadas.add(String(emp.idChamada));
+    }
+    for (const idCh of idsChamadas) {
+      const ch = mapaChamadas.get(idCh);
+      if (ch) {
+        campos.push(
+          ch.numeroChamadaFormatado,
+          ch.numeroOcorrencia,
+          ch.codigoNatureza,
+          ch.descricaoNatureza,
+          ch.endereco?.municipio,
+          ch.endereco?.logradouro
+        );
+      }
+    }
+
+    return campos.some((val) => val && normalizarParaBusca(String(val)).includes(q));
   });
 }
 

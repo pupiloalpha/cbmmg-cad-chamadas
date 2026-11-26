@@ -9,6 +9,7 @@ import {
   reconciliarUnidadesRecursos,
   filtrarChamadas,
   filtrarRecursosBase,
+  filtrarRecursosParaExportacao,
   calcularKPIs,
   calcularResumoRecursosBase,
   obterUltimaSync,
@@ -191,6 +192,15 @@ export default function App() {
     return filtrarRecursosBase(recursosBase, filtros);
   }, [recursosBase, filtros]);
 
+  // Recortes de recursos para exportação CSV conforme filtros ativos
+  const recursosParaExportacao = useMemo(() => {
+    return filtrarRecursosParaExportacao(recursosBase, chamadas, chamadasFiltradas, filtros, false);
+  }, [recursosBase, chamadas, chamadasFiltradas, filtros]);
+
+  const recursosEmpenhadosFiltrados = useMemo(() => {
+    return filtrarRecursosParaExportacao(recursosBase, chamadas, chamadasFiltradas, filtros, true);
+  }, [recursosBase, chamadas, chamadasFiltradas, filtros]);
+
   // Cálculo de KPIs e Resumo da Base de Recursos
   const kpis = useMemo(() => {
     return calcularKPIs(chamadasFiltradas);
@@ -322,11 +332,19 @@ export default function App() {
               />
             )}
             {modoVisualizacao === 'graficos' && (
-              <ChartsSection chamadas={chamadasFiltradas} resumoRecursos={resumoRecursos} />
+              <ChartsSection
+                chamadas={chamadasFiltradas}
+                chamadasTodas={chamadas}
+                resumoRecursos={resumoRecursos}
+                recursos={recursosParaExportacao}
+              />
             )}
             {modoVisualizacao === 'lista' && (
               <CallsTable
                 chamadas={chamadasFiltradas}
+                chamadasTodas={chamadas}
+                recursos={recursosParaExportacao}
+                recursosEmpenhados={recursosEmpenhadosFiltrados}
                 onSelectChamada={setChamadaSelecionada}
                 onLocateOnMap={handleLocateOnMap}
               />
@@ -341,7 +359,12 @@ export default function App() {
                   onSelectChamada={setChamadaSelecionada}
                   unidadeSelecionada={filtros.cob}
                 />
-                <ChartsSection chamadas={chamadasFiltradas} resumoRecursos={resumoRecursos} />
+                <ChartsSection
+                  chamadas={chamadasFiltradas}
+                  chamadasTodas={chamadas}
+                  resumoRecursos={resumoRecursos}
+                  recursos={recursosParaExportacao}
+                />
               </div>
             ) : modoVisualizacao === 'mapa' ? (
               <OperationalMap
@@ -350,12 +373,20 @@ export default function App() {
                 unidadeSelecionada={filtros.cob}
               />
             ) : (
-              <ChartsSection chamadas={chamadasFiltradas} resumoRecursos={resumoRecursos} />
+              <ChartsSection
+                chamadas={chamadasFiltradas}
+                chamadasTodas={chamadas}
+                resumoRecursos={resumoRecursos}
+                recursos={recursosParaExportacao}
+              />
             )}
 
             {/* 5. Detailed Calls Table with CSV Export (Desktop) */}
             <CallsTable
               chamadas={chamadasFiltradas}
+              chamadasTodas={chamadas}
+              recursos={recursosParaExportacao}
+              recursosEmpenhados={recursosEmpenhadosFiltrados}
               onSelectChamada={setChamadaSelecionada}
               onLocateOnMap={handleLocateOnMap}
             />

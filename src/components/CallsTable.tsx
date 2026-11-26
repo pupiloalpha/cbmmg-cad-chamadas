@@ -1,7 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ChamadaAtiva } from '../types/cbm';
+import { ChamadaAtiva, RecursoCadAtivo } from '../types/cbm';
 import { CORES_SITUACAO_ATENDIMENTO, DICIONARIO_SIGLAS } from '../data/catalogoAuxiliares';
-import { exportarChamadasParaCSV, FormatoCsvExportacao } from '../services/csvExport';
+import {
+  exportarChamadasParaCSV,
+  exportarRecursosParaCSV,
+  FormatoCsvExportacao,
+} from '../services/csvExport';
 import {
   FileSpreadsheet,
   MapPin,
@@ -18,12 +22,18 @@ import {
 
 interface CallsTableProps {
   chamadas: ChamadaAtiva[];
+  chamadasTodas?: ChamadaAtiva[];
+  recursos?: RecursoCadAtivo[];
+  recursosEmpenhados?: RecursoCadAtivo[];
   onSelectChamada: (chamada: ChamadaAtiva) => void;
   onLocateOnMap?: (chamada: ChamadaAtiva) => void;
 }
 
 export const CallsTable: React.FC<CallsTableProps> = ({
   chamadas,
+  chamadasTodas,
+  recursos = [],
+  recursosEmpenhados = [],
   onSelectChamada,
   onLocateOnMap,
 }) => {
@@ -92,6 +102,18 @@ export const CallsTable: React.FC<CallsTableProps> = ({
       chamadasOrdenadas,
       `cbmmg_cad_chamadas${sufixo}_${dataHoraStr}.csv`,
       formato
+    );
+    setCsvMenuAberto(false);
+  };
+
+  const handleExportRecursosCSV = (somenteEmpenhadosChamadas = false) => {
+    const dataHoraStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const lista = somenteEmpenhadosChamadas ? recursosEmpenhados : recursos;
+    const sufixo = somenteEmpenhadosChamadas ? '_empenhados_chamadas' : '_base';
+    exportarRecursosParaCSV(
+      lista,
+      chamadasTodas || chamadas,
+      `cbmmg_cad_recursos${sufixo}_${dataHoraStr}.csv`
     );
     setCsvMenuAberto(false);
   };
@@ -181,7 +203,10 @@ export const CallsTable: React.FC<CallsTableProps> = ({
             </button>
 
             {csvMenuAberto && (
-              <div className="absolute right-0 top-full mt-1.5 w-60 bg-slate-900 border border-slate-700 rounded-lg shadow-xl py-1 z-30 text-xs">
+              <div className="absolute right-0 top-full mt-1.5 w-72 bg-slate-900 border border-slate-700 rounded-lg shadow-xl py-1 z-30 text-xs">
+                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Ocorrências Ativas ({chamadasOrdenadas.length})
+                </div>
                 <button
                   type="button"
                   onClick={() => handleExportCSV('cad')}
@@ -195,13 +220,55 @@ export const CallsTable: React.FC<CallsTableProps> = ({
                 <button
                   type="button"
                   onClick={() => handleExportCSV('completo')}
-                  className="w-full text-left px-3 py-2 hover:bg-slate-800 transition cursor-pointer border-t border-slate-800"
+                  className="w-full text-left px-3 py-2 hover:bg-slate-800 transition cursor-pointer border-t border-slate-800/70"
                 >
                   <div className="font-semibold text-slate-100">Completo (CAD + Painel)</div>
                   <div className="text-[10px] text-slate-400">
                     Inclui COB, BBM, Cia Ind e Chuva
                   </div>
                 </button>
+
+                {(recursos.length > 0 || recursosEmpenhados.length > 0) && (
+                  <>
+                    <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-amber-400/90 border-t border-slate-700/80 mt-1">
+                      Viaturas e Recursos
+                    </div>
+                    {recursos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleExportRecursosCSV(false)}
+                        className="w-full text-left px-3 py-2 hover:bg-slate-800 transition cursor-pointer"
+                      >
+                        <div className="font-semibold text-slate-100 flex items-center justify-between gap-2">
+                          <span>Base Filtrada (D / E / I)</span>
+                          <span className="text-[10px] font-mono text-emerald-300 tabular-nums">
+                            {recursos.length}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Status, motivos, tempos, guarnição e chamadas
+                        </div>
+                      </button>
+                    )}
+                    {recursosEmpenhados.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleExportRecursosCSV(true)}
+                        className="w-full text-left px-3 py-2 hover:bg-slate-800 transition cursor-pointer border-t border-slate-800/70"
+                      >
+                        <div className="font-semibold text-slate-100 flex items-center justify-between gap-2">
+                          <span>Empenhados nas Chamadas</span>
+                          <span className="text-[10px] font-mono text-amber-300 tabular-nums">
+                            {recursosEmpenhados.length}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Apenas recursos das {chamadasOrdenadas.length} chamadas filtradas
+                        </div>
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>

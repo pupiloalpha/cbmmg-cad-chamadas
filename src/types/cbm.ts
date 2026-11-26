@@ -215,6 +215,21 @@ export interface KpiOperacional {
 export type CategoriaRecursoBase = 'VTR' | 'BM' | 'BRIG';
 export type SituacaoRecursoBase = 'D' | 'E' | 'I';
 
+export interface RecursoComponenteBase {
+  idPessoa?: string;
+  codigoPessoa?: string;
+  nomePessoa?: string;
+  idFuncaoComponenteRecurso?: string;
+}
+
+export interface RecursoEmpenhoBase {
+  idChamada: string;
+  codigoSituacaoEmpenhoRecurso?: string;
+  dataHoraInicio?: string;
+  dataHoraInicioSituacaoEmpenhoRecurso?: string;
+  descricaoLocalDestinoRecurso?: string;
+}
+
 export interface RecursoCadAtivo {
   id: string;
   prefixo: string;
@@ -236,10 +251,13 @@ export interface RecursoCadAtivo {
   idMotivoRestricaoEmpenho?: string;
   dataHoraAtivacao?: string;
   dataHoraExpiracao?: string;
+  versaoLogica?: string;
   empenhoSituacao?: string;
   idChamadaEmpenho?: string;
   componentesQtd: number;
   nomesComponentes?: string[];
+  componentes?: RecursoComponenteBase[];
+  empenhosNaoEncerrados?: RecursoEmpenhoBase[];
 }
 
 export interface MotivoRecursoResumo {

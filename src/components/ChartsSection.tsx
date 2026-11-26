@@ -1,5 +1,6 @@
 import React from 'react';
-import { ChamadaAtiva, ResumoRecursosBase } from '../types/cbm';
+import { ChamadaAtiva, RecursoCadAtivo, ResumoRecursosBase } from '../types/cbm';
+import { exportarRecursosParaCSV } from '../services/csvExport';
 import {
   calcularDistribuicaoPorNatureza,
   calcularDistribuicaoPorOrigem,
@@ -24,14 +25,22 @@ import {
   Check,
   ExternalLink,
   AlertCircle,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface ChartsSectionProps {
   chamadas: ChamadaAtiva[];
+  chamadasTodas?: ChamadaAtiva[];
   resumoRecursos?: ResumoRecursosBase;
+  recursos?: RecursoCadAtivo[];
 }
 
-export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas, resumoRecursos }) => {
+export const ChartsSection: React.FC<ChartsSectionProps> = ({
+  chamadas,
+  chamadasTodas,
+  resumoRecursos,
+  recursos = [],
+}) => {
   const [modoHoras, setModoHoras] = React.useState<'24h' | '12h'>('24h');
   const [abaSituacao, setAbaSituacao] = React.useState<'chamadas' | 'empenhos'>('chamadas');
   const [copiadoWhatsApp, setCopiadoWhatsApp] = React.useState(false);
@@ -598,7 +607,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas, resumoRe
           </div>
         )}
 
-        <div className="pt-2 border-t border-slate-800/60 mt-2 flex items-center justify-between text-[11px] text-slate-400">
+        <div className="pt-2 border-t border-slate-800/60 mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
           <span>
             {abaSituacao === 'chamadas'
               ? 'Chamadas analisadas'
@@ -606,22 +615,42 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ chamadas, resumoRe
               ? 'Base CAD / Empenhos em campo'
               : 'Recursos empenhados'}
           </span>
-          <span className="text-slate-300 tabular-nums">
-            {abaSituacao === 'chamadas' ? (
-              <>
-                Total: <strong>{totalChamadas}</strong>
-              </>
-            ) : resumoRecursos && resumoRecursos.totalBase > 0 ? (
-              <>
-                Base: <strong>{resumoRecursos.totalBase.toLocaleString('pt-BR')}</strong> · Empenho:{' '}
-                <strong>{chamadas.reduce((acc, c) => acc + c.recursos.length, 0)}</strong>
-              </>
-            ) : (
-              <>
-                Total: <strong>{chamadas.reduce((acc, c) => acc + c.recursos.length, 0)}</strong>
-              </>
+          <div className="flex items-center gap-2.5">
+            <span className="text-slate-300 tabular-nums">
+              {abaSituacao === 'chamadas' ? (
+                <>
+                  Total: <strong>{totalChamadas}</strong>
+                </>
+              ) : resumoRecursos && resumoRecursos.totalBase > 0 ? (
+                <>
+                  Base: <strong>{resumoRecursos.totalBase.toLocaleString('pt-BR')}</strong> · Empenho:{' '}
+                  <strong>{chamadas.reduce((acc, c) => acc + c.recursos.length, 0)}</strong>
+                </>
+              ) : (
+                <>
+                  Total: <strong>{chamadas.reduce((acc, c) => acc + c.recursos.length, 0)}</strong>
+                </>
+              )}
+            </span>
+            {abaSituacao === 'empenhos' && recursos.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const dataHoraStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                  exportarRecursosParaCSV(
+                    recursos,
+                    chamadasTodas || chamadas,
+                    `cbmmg_cad_recursos_${dataHoraStr}.csv`
+                  );
+                }}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-700/60 rounded-md text-[11px] font-semibold transition cursor-pointer"
+                title={`Exportar CSV completo de ${recursos.length.toLocaleString('pt-BR')} viaturas e recursos conforme filtros`}
+              >
+                <FileSpreadsheet className="w-3 h-3" />
+                <span>Exportar CSV ({recursos.length.toLocaleString('pt-BR')})</span>
+              </button>
             )}
-          </span>
+          </div>
         </div>
       </div>
 
