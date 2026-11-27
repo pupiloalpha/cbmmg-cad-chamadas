@@ -215,7 +215,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
     return linhas.join('\n');
   };
 
-  // Formatação do texto de viaturas (D / E / I) organizadas por unidade para WhatsApp
+  // Formatação do texto de viaturas (D / E / I) com quantitativo genérico por BBM ou CIA IND BM para WhatsApp
   const gerarTextoWhatsAppViaturas = (limitarParaUrl = false) => {
     const agora = new Date();
     const dataHora = agora.toLocaleString('pt-BR', {
@@ -233,118 +233,93 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
     let totalIndisp = 0;
 
     interface GrupoUnidadeVtr {
-      cob: string;
-      bbm: string;
-      unidadeNome: string;
-      disponiveis: RecursoCadAtivo[];
-      empenhadas: RecursoCadAtivo[];
-      indisponiveis: RecursoCadAtivo[];
+      nomeUnidadePrincipal: string;
+      tipo: 'BBM' | 'CIA_IND' | 'OUTRO';
+      disponiveis: number;
+      empenhadas: number;
+      indisponiveis: number;
     }
+
+    const obterUnidadePrincipal = (
+      v: RecursoCadAtivo
+    ): { nome: string; tipo: 'BBM' | 'CIA_IND' | 'OUTRO' } => {
+      const cia = v.ciaInd?.trim();
+      if (cia) {
+        const nomeCia = /\bBM$/i.test(cia) ? cia : `${cia} BM`;
+        return { nome: nomeCia, tipo: 'CIA_IND' };
+      }
+
+      const bbm = v.bbm?.trim();
+      if (bbm) {
+        const isBbm = /\bBBM$/i.test(bbm);
+        return { nome: bbm, tipo: isBbm ? 'BBM' : 'OUTRO' };
+      }
+
+      const fallback = v.cob?.trim() || v.nomeUnidade?.trim() || 'Unidade não identificada';
+      return { nome: fallback, tipo: 'OUTRO' };
+    };
 
     const gruposMap = new Map<string, GrupoUnidadeVtr>();
 
     for (const v of viaturas) {
-      const cob = v.cob || 'Sem COB';
-      const bbm = v.bbm || '';
-      const unidadeNome =
-        v.nomeUnidade ||
-        [v.cob, v.bbm, v.ciaInd, v.subunidade].filter(Boolean).join(' • ') ||
-        'Unidade não identificada';
-      const chave = `${cob.toUpperCase()}||${bbm.toUpperCase()}||${unidadeNome.toUpperCase()}`;
+      const { nome, tipo } = obterUnidadePrincipal(v);
+      const chave = `${tipo}||${nome.toUpperCase()}`;
 
       let grupo = gruposMap.get(chave);
       if (!grupo) {
         grupo = {
-          cob,
-          bbm,
-          unidadeNome,
-          disponiveis: [],
-          empenhadas: [],
-          indisponiveis: [],
+          nomeUnidadePrincipal: nome,
+          tipo,
+          disponiveis: 0,
+          empenhadas: 0,
+          indisponiveis: 0,
         };
         gruposMap.set(chave, grupo);
       }
 
       if (v.codigoSituacaoRecurso === 'E') {
         totalEmp++;
-        grupo.empenhadas.push(v);
+        grupo.empenhadas++;
       } else if (v.codigoSituacaoRecurso === 'I') {
         totalIndisp++;
-        grupo.indisponiveis.push(v);
+        grupo.indisponiveis++;
       } else {
         totalDisp++;
-        grupo.disponiveis.push(v);
+        grupo.disponiveis++;
       }
     }
 
+    const ordemTipo: Record<GrupoUnidadeVtr['tipo'], number> = {
+      BBM: 0,
+      CIA_IND: 1,
+      OUTRO: 2,
+    };
+
     const unidadesOrdenadas = Array.from(gruposMap.values()).sort((a, b) => {
-      const cCob = a.cob.localeCompare(b.cob, 'pt-BR', { numeric: true });
-      if (cCob !== 0) return cCob;
-      const cBbm = a.bbm.localeCompare(b.bbm, 'pt-BR', { numeric: true });
-      if (cBbm !== 0) return cBbm;
-      return a.unidadeNome.localeCompare(b.unidadeNome, 'pt-BR', { numeric: true });
+      if (ordemTipo[a.tipo] !== ordemTipo[b.tipo]) {
+        return ordemTipo[a.tipo] - ordemTipo[b.tipo];
+      }
+      return a.nomeUnidadePrincipal.localeCompare(b.nomeUnidadePrincipal, 'pt-BR', {
+        numeric: true,
+      });
     });
 
     const linhas: string[] = [
-      `*🚒 CBMMG - VIATURAS POR UNIDADE*`,
+      `*🚒 CBMMG - QUANTITATIVO DE VIATURAS (BBM / CIA IND BM)*`,
       `📅 _Posição em: ${dataHora}_`,
       `🔎 _Filtros: ${filtrosResumo.join(' | ')}_`,
-      `📊 _Total: ${viaturas.length} VTR | 🟢 Disp: ${totalDisp} | 🟡 Emp: ${totalEmp} | 🔴 Indisp: ${totalIndisp}_`,
+      `📊 _Total Geral: ${viaturas.length} VTR | 🟢 Disp: ${totalDisp} | 🟡 Emp: ${totalEmp} | 🔴 Indisp: ${totalIndisp}_`,
       ``,
     ];
-
-    const formatarDisp = (v: RecursoCadAtivo) =>
-      v.idMotivoRestricaoEmpenho ? `${v.prefixo} (rest. #${v.idMotivoRestricaoEmpenho})` : v.prefixo;
-
-    const formatarEmp = (v: RecursoCadAtivo) => {
-      const sit = (
-        v.empenhoSituacao ||
-        v.empenhosNaoEncerrados?.[0]?.codigoSituacaoEmpenhoRecurso ||
-        ''
-      ).toUpperCase();
-      return sit ? `${v.prefixo} (${sit})` : v.prefixo;
-    };
-
-    const formatarIndisp = (v: RecursoCadAtivo) => {
-      if (v.idMotivoIndisponibilidadeRecurso || v.motivoIndisponibilidadeDescricao) {
-        const motivo = formatarDescricaoMotivoIndisponibilidade(
-          v.idMotivoIndisponibilidadeRecurso,
-          v.motivoIndisponibilidadeDescricao
-        );
-        return `${v.prefixo} (${motivo})`;
-      }
-      return v.prefixo;
-    };
 
     if (unidadesOrdenadas.length === 0) {
       linhas.push(`_Nenhuma viatura encontrada para os filtros aplicados._`);
     } else {
       for (const u of unidadesOrdenadas) {
-        u.disponiveis.sort((a, b) => a.prefixo.localeCompare(b.prefixo, 'pt-BR', { numeric: true }));
-        u.empenhadas.sort((a, b) => a.prefixo.localeCompare(b.prefixo, 'pt-BR', { numeric: true }));
-        u.indisponiveis.sort((a, b) => a.prefixo.localeCompare(b.prefixo, 'pt-BR', { numeric: true }));
-
-        const prefixoHierarquia = [u.cob, u.bbm].filter(Boolean).join(' • ');
-        const jaContemBbm =
-          u.bbm && u.unidadeNome.toUpperCase().includes(u.bbm.replace(/[ºª]/g, '').toUpperCase());
-        const tituloUnidade =
-          prefixoHierarquia && !jaContemBbm
-            ? `${prefixoHierarquia} - ${u.unidadeNome}`
-            : u.unidadeNome;
-        const totalUnidade =
-          u.disponiveis.length + u.empenhadas.length + u.indisponiveis.length;
-
+        const totalUnidade = u.disponiveis + u.empenhadas + u.indisponiveis;
         const bloco = [
-          `*📍 ${tituloUnidade}* (${totalUnidade} VTR)`,
-          `🟢 *Disp (${u.disponiveis.length}):* ${
-            u.disponiveis.length > 0 ? u.disponiveis.map(formatarDisp).join(', ') : '—'
-          }`,
-          `🟡 *Emp (${u.empenhadas.length}):* ${
-            u.empenhadas.length > 0 ? u.empenhadas.map(formatarEmp).join(', ') : '—'
-          }`,
-          `🔴 *Indisp (${u.indisponiveis.length}):* ${
-            u.indisponiveis.length > 0 ? u.indisponiveis.map(formatarIndisp).join(', ') : '—'
-          }`,
+          `*${u.nomeUnidadePrincipal}* — Total: *${totalUnidade}*`,
+          `🟢 Disp: *${u.disponiveis}* | 🟡 Emp: *${u.empenhadas}* | 🔴 Indisp: *${u.indisponiveis}*`,
           ``,
         ];
 
@@ -611,7 +586,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                     ? 'bg-emerald-900/90 text-emerald-200 border-emerald-500 ring-1 ring-emerald-500/40'
                     : 'bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-400 border-emerald-700/60'
                 }`}
-                title="Copiar resumo de viaturas por unidade (disponíveis, empenhadas e indisponíveis) para envio no WhatsApp"
+                title="Copiar quantitativo de viaturas por BBM ou CIA IND BM para envio no WhatsApp"
               >
                 {copiadoWhatsAppVtr ? (
                   <>
