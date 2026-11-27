@@ -1,5 +1,10 @@
 import React from 'react';
-import { ChamadaAtiva, RecursoCadAtivo, ResumoRecursosBase } from '../types/cbm';
+import {
+  ChamadaAtiva,
+  FiltrosOperacionais,
+  RecursoCadAtivo,
+  ResumoRecursosBase,
+} from '../types/cbm';
 import { exportarRecursosParaCSV } from '../services/csvExport';
 import {
   calcularDistribuicaoPorNatureza,
@@ -33,6 +38,121 @@ interface ChartsSectionProps {
   chamadasTodas?: ChamadaAtiva[];
   resumoRecursos?: ResumoRecursosBase;
   recursos?: RecursoCadAtivo[];
+  filtros?: FiltrosOperacionais;
+}
+
+function formatarResumoFiltrosWhatsApp(
+  filtros: FiltrosOperacionais | undefined,
+  escopo: 'chamadas' | 'viaturas'
+): string[] {
+  if (!filtros) return ['Geral MG (sem filtros)'];
+
+  const partes: string[] = [];
+  const cobs =
+    filtros.cobs && filtros.cobs.length > 0
+      ? filtros.cobs.filter((c) => c !== 'TODOS')
+      : filtros.cob && filtros.cob !== 'TODOS'
+      ? [filtros.cob]
+      : [];
+  const bbms =
+    filtros.bbms && filtros.bbms.length > 0
+      ? filtros.bbms.filter((b) => b !== 'TODOS')
+      : filtros.bbm && filtros.bbm !== 'TODOS'
+      ? [filtros.bbm]
+      : [];
+  const cias =
+    filtros.ciasInd && filtros.ciasInd.length > 0
+      ? filtros.ciasInd.filter((c) => c !== 'TODOS')
+      : filtros.ciaInd && filtros.ciaInd !== 'TODOS'
+      ? [filtros.ciaInd]
+      : [];
+
+  if (cobs.length > 0) partes.push(`COB: ${cobs.join(', ')}`);
+  if (bbms.length > 0) partes.push(`BBM: ${bbms.join(', ')}`);
+  if (cias.length > 0) partes.push(`Cia/Unid: ${cias.join(', ')}`);
+
+  if (escopo === 'chamadas') {
+    if (filtros.periodoTempo && filtros.periodoTempo !== 'todas') {
+      partes.push(`Período: Últimas ${filtros.periodoTempo}`);
+    }
+    const nats =
+      filtros.naturezas && filtros.naturezas.length > 0
+        ? filtros.naturezas
+        : filtros.naturezaGrupo && filtros.naturezaGrupo !== 'TODOS'
+        ? [filtros.naturezaGrupo]
+        : [];
+    if (nats.length > 0) {
+      const resumoNat =
+        nats.length <= 3 ? nats.join(', ') : `${nats.slice(0, 3).join(', ')} (+${nats.length - 3})`;
+      partes.push(`Natureza: ${resumoNat}`);
+    }
+    if (filtros.situacaoChamada && filtros.situacaoChamada !== 'TODOS') {
+      partes.push(
+        `Situação: ${filtros.situacaoChamada === 'E' ? 'Em Atendimento (E)' : 'Aguardando (A)'}`
+      );
+    }
+    if (filtros.situacaoAtendimento && filtros.situacaoAtendimento !== 'TODOS') {
+      const descAtend =
+        DICIONARIO_SIGLAS.chamada_atendimento_situacao[
+          filtros.situacaoAtendimento as keyof typeof DICIONARIO_SIGLAS.chamada_atendimento_situacao
+        ];
+      partes.push(
+        `Atendimento: ${filtros.situacaoAtendimento}${descAtend ? ` (${descAtend})` : ''}`
+      );
+    }
+    if (filtros.origem && filtros.origem !== 'TODOS') {
+      const descOrigem =
+        DICIONARIO_SIGLAS.origem_acionamento[
+          filtros.origem as keyof typeof DICIONARIO_SIGLAS.origem_acionamento
+        ];
+      partes.push(`Origem: ${descOrigem || filtros.origem}`);
+    }
+    if (filtros.prioridade && filtros.prioridade !== 'TODOS') {
+      partes.push(`Prioridade: ${filtros.prioridade}`);
+    }
+    if (filtros.filtroChuva && filtros.filtroChuva !== 'TODOS') {
+      partes.push(
+        `Chuva: ${filtros.filtroChuva === 'ESTRITO' ? 'Relação Direta' : 'Direta + Correlata'}`
+      );
+    }
+    if (filtros.apenasComGeolocalizacao) {
+      partes.push('GPS: Somente c/ coordenadas');
+    }
+  }
+
+  if (filtros.termoBusca && filtros.termoBusca.trim()) {
+    partes.push(`Busca: "${filtros.termoBusca.trim()}"`);
+  }
+
+  return partes.length > 0 ? partes : ['Geral MG (sem filtros)'];
+}
+
+async function copiarTextoAreaTransferencia(texto: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(texto);
+      return true;
+    }
+  } catch {
+    // Fallback abaixo
+  }
+
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = texto;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return ok;
+  } catch (e) {
+    console.error('Falha ao copiar texto para WhatsApp:', e);
+    return false;
+  }
 }
 
 export const ChartsSection: React.FC<ChartsSectionProps> = ({
@@ -40,10 +160,12 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
   chamadasTodas,
   resumoRecursos,
   recursos = [],
+  filtros,
 }) => {
   const [modoHoras, setModoHoras] = React.useState<'24h' | '12h'>('24h');
   const [abaSituacao, setAbaSituacao] = React.useState<'chamadas' | 'empenhos'>('chamadas');
   const [copiadoWhatsApp, setCopiadoWhatsApp] = React.useState(false);
+  const [copiadoWhatsAppVtr, setCopiadoWhatsAppVtr] = React.useState(false);
 
   const distribuicaoNatureza = calcularDistribuicaoPorNatureza(chamadas);
   const distribuicaoSituacao = calcularDistribuicaoPorSituacao(chamadas);
@@ -57,7 +179,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
   const totalChamadas = chamadas.length || 1;
   const totalRecursos = chamadas.reduce((acc, c) => acc + c.recursos.length, 0) || 1;
 
-  // Formatação do texto do card para envio via WhatsApp
+  // Formatação do texto do card de naturezas para envio via WhatsApp
   const gerarTextoWhatsApp = () => {
     const agora = new Date();
     const dataHora = agora.toLocaleString('pt-BR', {
@@ -67,11 +189,13 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
       hour: '2-digit',
       minute: '2-digit',
     });
+    const filtrosResumo = formatarResumoFiltrosWhatsApp(filtros, 'chamadas');
 
     const linhas: string[] = [
       `*🚨 CBMMG - OCORRÊNCIAS POR NATUREZA (MAIS FREQUENTES)*`,
       `📅 _Posição em: ${dataHora}_`,
-      `📊 _Total de chamadas ativas analisadas: ${totalChamadas}_`,
+      `🔎 _Filtros: ${filtrosResumo.join(' | ')}_`,
+      `📊 _Total de chamadas ativas analisadas: ${chamadas.length}_`,
       ``,
       `*Ranking das Naturezas:*`,
     ];
@@ -91,39 +215,165 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
     return linhas.join('\n');
   };
 
+  // Formatação do texto de viaturas (D / E / I) organizadas por unidade para WhatsApp
+  const gerarTextoWhatsAppViaturas = (limitarParaUrl = false) => {
+    const agora = new Date();
+    const dataHora = agora.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const filtrosResumo = formatarResumoFiltrosWhatsApp(filtros, 'viaturas');
+    const viaturas = recursos.filter((r) => r.categoriaRecurso === 'VTR');
+
+    let totalDisp = 0;
+    let totalEmp = 0;
+    let totalIndisp = 0;
+
+    interface GrupoUnidadeVtr {
+      cob: string;
+      bbm: string;
+      unidadeNome: string;
+      disponiveis: RecursoCadAtivo[];
+      empenhadas: RecursoCadAtivo[];
+      indisponiveis: RecursoCadAtivo[];
+    }
+
+    const gruposMap = new Map<string, GrupoUnidadeVtr>();
+
+    for (const v of viaturas) {
+      const cob = v.cob || 'Sem COB';
+      const bbm = v.bbm || '';
+      const unidadeNome =
+        v.nomeUnidade ||
+        [v.cob, v.bbm, v.ciaInd, v.subunidade].filter(Boolean).join(' • ') ||
+        'Unidade não identificada';
+      const chave = `${cob.toUpperCase()}||${bbm.toUpperCase()}||${unidadeNome.toUpperCase()}`;
+
+      let grupo = gruposMap.get(chave);
+      if (!grupo) {
+        grupo = {
+          cob,
+          bbm,
+          unidadeNome,
+          disponiveis: [],
+          empenhadas: [],
+          indisponiveis: [],
+        };
+        gruposMap.set(chave, grupo);
+      }
+
+      if (v.codigoSituacaoRecurso === 'E') {
+        totalEmp++;
+        grupo.empenhadas.push(v);
+      } else if (v.codigoSituacaoRecurso === 'I') {
+        totalIndisp++;
+        grupo.indisponiveis.push(v);
+      } else {
+        totalDisp++;
+        grupo.disponiveis.push(v);
+      }
+    }
+
+    const unidadesOrdenadas = Array.from(gruposMap.values()).sort((a, b) => {
+      const cCob = a.cob.localeCompare(b.cob, 'pt-BR', { numeric: true });
+      if (cCob !== 0) return cCob;
+      const cBbm = a.bbm.localeCompare(b.bbm, 'pt-BR', { numeric: true });
+      if (cBbm !== 0) return cBbm;
+      return a.unidadeNome.localeCompare(b.unidadeNome, 'pt-BR', { numeric: true });
+    });
+
+    const linhas: string[] = [
+      `*🚒 CBMMG - VIATURAS POR UNIDADE*`,
+      `📅 _Posição em: ${dataHora}_`,
+      `🔎 _Filtros: ${filtrosResumo.join(' | ')}_`,
+      `📊 _Total: ${viaturas.length} VTR | 🟢 Disp: ${totalDisp} | 🟡 Emp: ${totalEmp} | 🔴 Indisp: ${totalIndisp}_`,
+      ``,
+    ];
+
+    const formatarDisp = (v: RecursoCadAtivo) =>
+      v.idMotivoRestricaoEmpenho ? `${v.prefixo} (rest. #${v.idMotivoRestricaoEmpenho})` : v.prefixo;
+
+    const formatarEmp = (v: RecursoCadAtivo) => {
+      const sit = (
+        v.empenhoSituacao ||
+        v.empenhosNaoEncerrados?.[0]?.codigoSituacaoEmpenhoRecurso ||
+        ''
+      ).toUpperCase();
+      return sit ? `${v.prefixo} (${sit})` : v.prefixo;
+    };
+
+    const formatarIndisp = (v: RecursoCadAtivo) => {
+      if (v.idMotivoIndisponibilidadeRecurso || v.motivoIndisponibilidadeDescricao) {
+        const motivo = formatarDescricaoMotivoIndisponibilidade(
+          v.idMotivoIndisponibilidadeRecurso,
+          v.motivoIndisponibilidadeDescricao
+        );
+        return `${v.prefixo} (${motivo})`;
+      }
+      return v.prefixo;
+    };
+
+    if (unidadesOrdenadas.length === 0) {
+      linhas.push(`_Nenhuma viatura encontrada para os filtros aplicados._`);
+    } else {
+      for (const u of unidadesOrdenadas) {
+        u.disponiveis.sort((a, b) => a.prefixo.localeCompare(b.prefixo, 'pt-BR', { numeric: true }));
+        u.empenhadas.sort((a, b) => a.prefixo.localeCompare(b.prefixo, 'pt-BR', { numeric: true }));
+        u.indisponiveis.sort((a, b) => a.prefixo.localeCompare(b.prefixo, 'pt-BR', { numeric: true }));
+
+        const prefixoHierarquia = [u.cob, u.bbm].filter(Boolean).join(' • ');
+        const jaContemBbm =
+          u.bbm && u.unidadeNome.toUpperCase().includes(u.bbm.replace(/[ºª]/g, '').toUpperCase());
+        const tituloUnidade =
+          prefixoHierarquia && !jaContemBbm
+            ? `${prefixoHierarquia} - ${u.unidadeNome}`
+            : u.unidadeNome;
+        const totalUnidade =
+          u.disponiveis.length + u.empenhadas.length + u.indisponiveis.length;
+
+        const bloco = [
+          `*📍 ${tituloUnidade}* (${totalUnidade} VTR)`,
+          `🟢 *Disp (${u.disponiveis.length}):* ${
+            u.disponiveis.length > 0 ? u.disponiveis.map(formatarDisp).join(', ') : '—'
+          }`,
+          `🟡 *Emp (${u.empenhadas.length}):* ${
+            u.empenhadas.length > 0 ? u.empenhadas.map(formatarEmp).join(', ') : '—'
+          }`,
+          `🔴 *Indisp (${u.indisponiveis.length}):* ${
+            u.indisponiveis.length > 0 ? u.indisponiveis.map(formatarIndisp).join(', ') : '—'
+          }`,
+          ``,
+        ];
+
+        if (limitarParaUrl && encodeURIComponent([...linhas, ...bloco].join('\n')).length > 5500) {
+          linhas.push(`_...lista completa copiada! Cole no WhatsApp (Ctrl+V)._`);
+          linhas.push(``);
+          break;
+        }
+        linhas.push(...bloco);
+      }
+    }
+
+    linhas.push(`🚒 _Fonte: Sistema CAD • COBOM_`);
+    return linhas.join('\n');
+  };
+
   const handleCopiarWhatsApp = async () => {
-    const texto = gerarTextoWhatsApp();
-    let copiado = false;
-
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(texto);
-        copiado = true;
-      }
-    } catch {
-      // Fallback abaixo
-    }
-
-    if (!copiado) {
-      try {
-        const textArea = document.createElement('textarea');
-        textArea.value = texto;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        copiado = document.execCommand('copy');
-        document.body.removeChild(textArea);
-      } catch (e) {
-        console.error('Falha ao copiar texto para WhatsApp:', e);
-      }
-    }
-
+    await copiarTextoAreaTransferencia(gerarTextoWhatsApp());
     setCopiadoWhatsApp(true);
     setTimeout(() => {
       setCopiadoWhatsApp(false);
+    }, 4000);
+  };
+
+  const handleCopiarWhatsAppViaturas = async () => {
+    await copiarTextoAreaTransferencia(gerarTextoWhatsAppViaturas(false));
+    setCopiadoWhatsAppVtr(true);
+    setTimeout(() => {
+      setCopiadoWhatsAppVtr(false);
     }, 4000);
   };
 
@@ -337,7 +587,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
 
       {/* 3. Situação Operacional de Atendimento & Empenho */}
       <div className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/70 pb-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 border-b border-slate-800/70 pb-2.5">
           <div className="flex items-center gap-2">
             {abaSituacao === 'chamadas' ? (
               <PieChart className="w-4 h-4 text-blue-400" />
@@ -351,31 +601,80 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
             </h3>
           </div>
 
-          <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px] font-medium">
-            <button
-              onClick={() => setAbaSituacao('chamadas')}
-              className={`px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer ${
-                abaSituacao === 'chamadas'
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <PieChart className="w-3 h-3" />
-              Chamadas
-            </button>
-            <button
-              onClick={() => setAbaSituacao('empenhos')}
-              className={`px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer ${
-                abaSituacao === 'empenhos'
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Truck className="w-3 h-3" />
-              Recursos
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {abaSituacao === 'empenhos' && recursos.some((r) => r.categoriaRecurso === 'VTR') && (
+              <button
+                type="button"
+                onClick={handleCopiarWhatsAppViaturas}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer shadow-sm active:scale-95 ${
+                  copiadoWhatsAppVtr
+                    ? 'bg-emerald-900/90 text-emerald-200 border-emerald-500 ring-1 ring-emerald-500/40'
+                    : 'bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-400 border-emerald-700/60'
+                }`}
+                title="Copiar resumo de viaturas por unidade (disponíveis, empenhadas e indisponíveis) para envio no WhatsApp"
+              >
+                {copiadoWhatsAppVtr ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-300" />
+                    <span className="text-[11px] font-bold">Copiado p/ WhatsApp!</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[11px]">Enviar WhatsApp</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px] font-medium">
+              <button
+                onClick={() => setAbaSituacao('chamadas')}
+                className={`px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer ${
+                  abaSituacao === 'chamadas'
+                    ? 'bg-slate-800 text-white font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <PieChart className="w-3 h-3" />
+                Chamadas
+              </button>
+              <button
+                onClick={() => setAbaSituacao('empenhos')}
+                className={`px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer ${
+                  abaSituacao === 'empenhos'
+                    ? 'bg-slate-800 text-white font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Truck className="w-3 h-3" />
+                Recursos
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Feedback com confirmação e atalho direto para o WhatsApp (Viaturas) */}
+        {abaSituacao === 'empenhos' && copiadoWhatsAppVtr && (
+          <div className="mb-2 bg-emerald-950/60 border border-emerald-800/80 text-emerald-200 px-3 py-1.5 rounded-lg text-[11px] flex items-center justify-between animate-in fade-in">
+            <span className="flex items-center gap-1.5 truncate">
+              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Relatório de viaturas copiado! Cole no WhatsApp (Ctrl+V).</span>
+            </span>
+            <a
+              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                gerarTextoWhatsAppViaturas(true)
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-300 hover:text-white underline font-semibold flex items-center gap-1 ml-2 shrink-0"
+              title="Abrir no aplicativo ou web do WhatsApp"
+            >
+              <span>Abrir WhatsApp</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
 
         {abaSituacao === 'chamadas' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">

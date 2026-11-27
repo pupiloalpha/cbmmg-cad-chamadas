@@ -328,6 +328,7 @@ export default function App() {
                 chamadasTodas={chamadas}
                 resumoRecursos={resumoRecursos}
                 recursos={recursosParaExportacao}
+                filtros={filtros}
               />
             )}
             {modoVisualizacao === 'lista' && (
@@ -355,6 +356,7 @@ export default function App() {
                   chamadasTodas={chamadas}
                   resumoRecursos={resumoRecursos}
                   recursos={recursosParaExportacao}
+                  filtros={filtros}
                 />
               </div>
             ) : modoVisualizacao === 'mapa' ? (
@@ -369,6 +371,7 @@ export default function App() {
                 chamadasTodas={chamadas}
                 resumoRecursos={resumoRecursos}
                 recursos={recursosParaExportacao}
+                filtros={filtros}
               />
             )}
 
