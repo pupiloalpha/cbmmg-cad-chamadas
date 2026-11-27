@@ -305,26 +305,31 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
     });
 
     const linhas: string[] = [
-      `*🚒 CBMMG - QUANTITATIVO DE VIATURAS (BBM / CIA IND BM)*`,
-      `📅 _Posição em: ${dataHora}_`,
-      `🔎 _Filtros: ${filtrosResumo.join(' | ')}_`,
-      `📊 _Total Geral: ${viaturas.length} VTR | 🟢 Disp: ${totalDisp} | 🟡 Emp: ${totalEmp} | 🔴 Indisp: ${totalIndisp}_`,
+      `*CBMMG - SITUAÇÃO DE VIATURAS*`,
+      `Posição: ${dataHora}`,
+      `Filtros: ${filtrosResumo.join(' | ')}`,
+      `Total Geral: *${viaturas.length}* Disponível: *${totalDisp}*`,
+      `Empenho: *${totalEmp}*`,
+      `Baixadas: *${totalIndisp}*`,
       ``,
     ];
 
     if (unidadesOrdenadas.length === 0) {
       linhas.push(`_Nenhuma viatura encontrada para os filtros aplicados._`);
+      linhas.push(``);
     } else {
       for (const u of unidadesOrdenadas) {
         const totalUnidade = u.disponiveis + u.empenhadas + u.indisponiveis;
         const bloco = [
           `*${u.nomeUnidadePrincipal}* — Total: *${totalUnidade}*`,
-          `🟢 Disp: *${u.disponiveis}* | 🟡 Emp: *${u.empenhadas}* | 🔴 Indisp: *${u.indisponiveis}*`,
+          `Disponível: *${u.disponiveis}*`,
+          `Empenho: *${u.empenhadas}*`,
+          `Baixadas: *${u.indisponiveis}*`,
           ``,
         ];
 
         if (limitarParaUrl && encodeURIComponent([...linhas, ...bloco].join('\n')).length > 5500) {
-          linhas.push(`_...lista completa copiada! Cole no WhatsApp (Ctrl+V)._`);
+          linhas.push(`_Lista completa copiada para a área de transferência (Ctrl+V)._`);
           linhas.push(``);
           break;
         }
@@ -332,7 +337,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
       }
     }
 
-    linhas.push(`🚒 _Fonte: Sistema CAD • COBOM_`);
+    linhas.push(`_Fonte: Sistema CAD / COBOM_`);
     return linhas.join('\n');
   };
 
